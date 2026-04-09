@@ -39,3 +39,37 @@ def event_loop():
 # ---------------------------------------------------------------------------
 # pytest markers 注册（在 pyproject.toml 中声明）
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# 真实 API 测试 fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def real_settings():
+    """加载真实配置（从 configs/ 目录）."""
+    from spide.config import load_settings
+
+    return load_settings()
+
+
+@pytest.fixture
+def skip_if_no_uapi(real_settings):
+    """无 UAPI API Key 时跳过测试."""
+    if not real_settings.uapi.api_key:
+        pytest.skip("UAPI API Key 未配置")
+
+
+@pytest.fixture
+def skip_if_no_llm(real_settings):
+    """无智谱 LLM API Key 时跳过测试."""
+    if not real_settings.llm.common.api_key:
+        pytest.skip("智谱 LLM API Key 未配置")
+
+
+@pytest.fixture
+def skip_if_no_mqtt(real_settings):
+    """无 MQTT 配置时跳过测试."""
+    if not real_settings.mqtt.host:
+        pytest.skip("EMQX Cloud MQTT 未配置")
