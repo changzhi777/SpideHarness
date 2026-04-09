@@ -1,0 +1,7 @@
+# Spide Agent 默认配置
+# 此文件定义所有配置项的默认值，不含敏感信息
+
+storage:
+  sqlite_path: "spide_data.db"
+  redis_url: "redis://localhost:6379/0"
+  redis_prefix: "spide:"

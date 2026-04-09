@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 测试与覆盖率
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Ruff
+.ruff_cache/
+
+# 敏感配置与凭证
+configs/mqtt.yaml
+configs/llm.yaml
+configs/uapi.yaml
+CA/
+
+# uv
+.python-version
+uv.lock
+
+# OS
+.D.S_Store
+Thumbs.db
+
+# 日志
+*.log
+
+# Claude Code 本地缓存
+.claude/
+
+# ZCF 工具缓存
+.zcf/
+
+# 规范工作流模板（开发辅助）
+.spec-workflow/
+
+# MediaCrawler 子项目（独立仓库）
+MediaCrawler/
+
+# OpenHarness 子项目（独立仓库）
+OpenHarness/
+
+# 安装脚本生成的产物
+output/
+data/
