@@ -41,7 +41,7 @@ class TestEngineLifecycle:
 
             bundle = await engine.start(workspace=str(tmp_workspace))
             assert bundle.session_id
-            assert "Spide Agent" in bundle.system_prompt
+            assert "SpideHarness Agent" in bundle.system_prompt
 
             await engine.stop()
             assert engine._bundle is None

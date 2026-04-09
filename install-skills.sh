@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install-skills.sh — OpenClaw / Claude Code 一键安装 Spide Agent Skills
+# install-skills.sh — OpenClaw / Claude Code 一键安装 SpideHarness Agent Skills
 #
 # 用法:
 #   ./install-skills.sh              # 安装到 OpenClaw + Claude Code
@@ -107,7 +107,7 @@ install_claude() {
 
 # ── 卸载 ──────────────────────────────────────────────────────
 uninstall() {
-    info "卸载所有 Spide Agent Skills..."
+    info "卸载所有 SpideHarness Agent Skills..."
 
     # OpenClaw
     local openclaw_dir="$HOME/.openclaw/skills"
@@ -193,7 +193,7 @@ verify() {
 # ── 帮助 ──────────────────────────────────────────────────────
 usage() {
     cat << 'EOF'
-Spide Agent Skills 安装器
+SpideHarness Agent Skills 安装器
 
 用法:
   ./install-skills.sh [选项]
@@ -220,7 +220,7 @@ EOF
 # ── 主入口 ────────────────────────────────────────────────────
 main() {
     echo ""
-    echo "🦞 Spide Agent Skills — 一键安装"
+    echo "🦞 SpideHarness Agent Skills — 一键安装"
     echo "================================="
     echo ""
 

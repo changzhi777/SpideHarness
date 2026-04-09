@@ -1,6 +1,6 @@
 # Copyright (C) 2026 IoTchange - All Rights Reserved
 # Author: 外星动物（常智） / IoTchange / 14455975@qq.com
-"""Spide Agent CLI — Typer 命令行接口.
+"""SpideHarness Agent CLI — Typer 命令行接口.
 
 用法:
     spide                    # 默认启动（交互模式）
@@ -36,7 +36,7 @@ from spide.workspace import (
 console = Console()
 app = typer.Typer(
     name="spide",
-    help="Spide Agent — 热点新闻抓取 Agent CLI",
+    help="SpideHarness Agent — 热点新闻抓取 Agent CLI",
     no_args_is_help=False,
     invoke_without_command=True,
     add_completion=False,
@@ -57,7 +57,7 @@ def main(
     ctx: typer.Context,
     version: bool = typer.Option(False, "--version", "-v", help="显示版本号"),
 ) -> None:
-    """Spide Agent — 热点新闻抓取 Agent CLI."""
+    """SpideHarness Agent — 热点新闻抓取 Agent CLI."""
     if version:
         console.print(f"spide-agent {__version__}")
         raise typer.Exit()
@@ -75,7 +75,7 @@ def main(
 def init(
     workspace: str | None = typer.Option(None, "--workspace", "-w", help="工作空间路径"),
 ) -> None:
-    """初始化 Spide Agent 工作空间."""
+    """初始化 SpideHarness Agent 工作空间."""
     root = initialize_workspace(workspace)
     console.print(f"[green]工作空间已初始化:[/green] {root}")
 
@@ -111,8 +111,8 @@ def init(
 def config(
     workspace: str | None = typer.Option(None, "--workspace", "-w", help="工作空间路径"),
 ) -> None:
-    """配置 Spide Agent."""
-    console.print("[cyan]Spide Agent 配置[/cyan]\n")
+    """配置 SpideHarness Agent."""
+    console.print("[cyan]SpideHarness Agent 配置[/cyan]\n")
 
     settings_ok = _check_configs()
     if settings_ok:
@@ -136,7 +136,7 @@ def doctor(
     workspace: str | None = typer.Option(None, "--workspace", "-w", help="工作空间路径"),
 ) -> None:
     """环境健康检查."""
-    console.print("[cyan]Spide Agent 环境检查[/cyan]\n")
+    console.print("[cyan]SpideHarness Agent 环境检查[/cyan]\n")
 
     all_ok = True
 
@@ -587,7 +587,7 @@ async def _mqtt_sub_async(topic: str, count: int) -> None:
 
 def _show_welcome() -> None:
     """显示欢迎信息."""
-    console.print(f"\n[bold cyan]Spide Agent v{__version__}[/bold cyan]\n热点新闻抓取 Agent CLI\n")
+    console.print(f"\n[bold cyan]SpideHarness Agent v{__version__}[/bold cyan]\n热点新闻抓取 Agent CLI\n")
     console.print("常用命令:")
     console.print("  [cyan]spide init[/cyan]          初始化工作空间")
     console.print("  [cyan]spide doctor[/cyan]        环境检查")

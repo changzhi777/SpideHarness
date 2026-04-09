@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pack.sh — 将 Spide Agent 打包为发布压缩包
+# pack.sh — 将 SpideHarness Agent 打包为发布压缩包
 #
 # 用法:
 #   scripts/pack.sh                           # 默认：不含 MediaCrawler
@@ -131,7 +131,7 @@ fi
 
 # ── 打包 ──────────────────────────────────────────────────────
 echo ""
-echo "Spide Agent — 发布打包"
+echo "SpideHarness Agent — 发布打包"
 echo "========================"
 echo ""
 info "版本: $VERSION"

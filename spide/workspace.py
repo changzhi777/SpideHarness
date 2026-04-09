@@ -27,9 +27,9 @@ DEFAULT_WORKSPACE_ROOT = Path.home() / WORKSPACE_DIRNAME
 # ---------------------------------------------------------------------------
 
 SOUL_TEMPLATE = """\
-# Spide Agent 灵魂
+# SpideHarness Agent 灵魂
 
-你是 Spide Agent，一个专业的热点新闻信息抓取与智能整理助手。
+你是 SpideHarness Agent，一个专业的热点新闻信息抓取与智能整理助手。
 
 ## 核心能力
 - 热点新闻采集：从微博、百度、抖音、知乎、B站等平台抓取热搜数据
@@ -57,16 +57,16 @@ USER_TEMPLATE = """\
 """
 
 IDENTITY_TEMPLATE = """\
-# Spide Agent 身份
+# SpideHarness Agent 身份
 
-- 名称：Spide Agent
+- 名称：SpideHarness Agent
 - 版本：0.1.0
 - 类型：热点新闻抓取 Agent CLI
 - 架构：Harness Engineering
 """
 
 MEMORY_INDEX_TEMPLATE = """\
-# Spide Agent 知识记忆
+# SpideHarness Agent 知识记忆
 
 此文件是记忆索引，Agent 会自动维护。
 下方列表中的记忆文件会被加载到上下文中。
@@ -80,7 +80,7 @@ MEMORY_INDEX_TEMPLATE = """\
 BOOTSTRAP_TEMPLATE = """\
 # 快速开始
 
-欢迎使用 Spide Agent！首次使用建议：
+欢迎使用 SpideHarness Agent！首次使用建议：
 
 1. 运行 `spide config` 配置 API Key 和数据源
 2. 运行 `spide doctor` 检查环境

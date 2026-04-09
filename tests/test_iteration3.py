@@ -28,7 +28,7 @@ class TestPrompts:
         prompt = build_system_prompt(workspace=str(tmp_path))
 
         # 必须包含基础指令
-        assert "Spide Agent" in prompt
+        assert "SpideHarness Agent" in prompt
         assert "热点新闻" in prompt
         # 包含工作空间信息
         assert str(tmp_path) in prompt
@@ -280,11 +280,11 @@ class TestLLMClient:
         # Mock ZaiClient.chat.completions.create 返回值
         mock_response = MagicMock()
         mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "你好，我是 Spide Agent"
+        mock_response.choices[0].message.content = "你好，我是 SpideHarness Agent"
         client._client.chat.completions.create.return_value = mock_response
 
         response = client.chat(messages=[{"role": "user", "content": "你好"}])
-        assert response.choices[0].message.content == "你好，我是 Spide Agent"
+        assert response.choices[0].message.content == "你好，我是 SpideHarness Agent"
 
     def test_not_started(self):
         from spide.config import LLMConfig
@@ -343,6 +343,6 @@ class TestEngine:
             bundle = await engine.start(workspace=str(tmp_path))
             assert bundle.session_id
             assert bundle.system_prompt
-            assert "Spide Agent" in bundle.system_prompt
+            assert "SpideHarness Agent" in bundle.system_prompt
 
             await engine.stop()

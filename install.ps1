@@ -1,4 +1,4 @@
-# install.ps1 — Spide Agent 一键安装脚本 (Windows)
+# install.ps1 — SpideHarness Agent 一键安装脚本 (Windows)
 #
 # 用法:
 #   .\install.ps1                       # 默认安装到当前目录
@@ -37,7 +37,7 @@ if (Test-Path $initFile) {
 # ── Banner ────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "============================================" -ForegroundColor White
-Write-Host "  Spide Agent $Version 安装程序" -ForegroundColor White
+Write-Host "  SpideHarness Agent $Version 安装程序" -ForegroundColor White
 Write-Host "============================================" -ForegroundColor White
 
 # ── 验证模式 ──────────────────────────────────────────────────
@@ -168,7 +168,7 @@ if (Test-Path $llmPath) {
     Write-Warn "configs\llm.yaml 已存在，跳过"
 } else {
     @"
-# Spide Agent LLM 配置
+# SpideHarness Agent LLM 配置
 # 请填写智谱 AI API Key（https://open.bigmodel.cn）
 common:
   provider: "zhipuai"
@@ -203,7 +203,7 @@ if (Test-Path $mqttPath) {
     Write-Warn "configs\mqtt.yaml 已存在，跳过"
 } else {
     @"
-# Spide Agent MQTT 配置
+# SpideHarness Agent MQTT 配置
 # 如果不使用 MQTT 功能，可以保持默认值
 host: "YOUR_MQTT_HOST"       # <-- 替换为 MQTT 服务器地址（可选）
 port: 8883
@@ -224,7 +224,7 @@ if (Test-Path $uapiPath) {
     Write-Warn "configs\uapi.yaml 已存在，跳过"
 } else {
     @"
-# Spide Agent UAPI 数据源配置
+# SpideHarness Agent UAPI 数据源配置
 # 请填写 UAPI API Key（https://uapis.cn）
 api_key: "YOUR_UAPI_API_KEY"  # <-- 替换为你的 API Key
 

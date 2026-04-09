@@ -12,7 +12,7 @@ class TestBuildPrompt:
         from spide.prompts import build_system_prompt
 
         prompt = build_system_prompt(workspace=str(tmp_workspace))
-        assert "Spide Agent" in prompt
+        assert "SpideHarness Agent" in prompt
         assert "热点新闻" in prompt
 
     def test_extra_prompt(self, tmp_workspace: Path):

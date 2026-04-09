@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — Spide Agent 一键安装脚本 (Linux/macOS)
+# install.sh — SpideHarness Agent 一键安装脚本 (Linux/macOS)
 #
 # 用法:
 #   ./install.sh                              # 默认安装到当前目录
@@ -47,7 +47,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h|--help)
-            echo "Spide Agent 安装脚本"
+            echo "SpideHarness Agent 安装脚本"
             echo ""
             echo "用法: ./install.sh [选项]"
             echo ""
@@ -71,7 +71,7 @@ VERSION=$(grep -oP '__version__\s*=\s*"\K[^"]+' spide/__init__.py 2>/dev/null ||
 # ── Banner ────────────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}============================================${NC}"
-echo -e "${BOLD}  Spide Agent ${VERSION} 安装程序${NC}"
+echo -e "${BOLD}  SpideHarness Agent ${VERSION} 安装程序${NC}"
 echo -e "${BOLD}============================================${NC}"
 
 # ── 验证模式 ──────────────────────────────────────────────────
@@ -204,7 +204,7 @@ if [[ -f "configs/llm.yaml" ]]; then
     warn "configs/llm.yaml 已存在，跳过"
 else
     cat > configs/llm.yaml << 'YAML'
-# Spide Agent LLM 配置
+# SpideHarness Agent LLM 配置
 # 请填写智谱 AI API Key（https://open.bigmodel.cn）
 common:
   provider: "zhipuai"
@@ -238,7 +238,7 @@ if [[ -f "configs/mqtt.yaml" ]]; then
     warn "configs/mqtt.yaml 已存在，跳过"
 else
     cat > configs/mqtt.yaml << 'YAML'
-# Spide Agent MQTT 配置
+# SpideHarness Agent MQTT 配置
 # 如果不使用 MQTT 功能，可以保持默认值
 host: "YOUR_MQTT_HOST"       # <-- 替换为 MQTT 服务器地址（可选）
 port: 8883
@@ -258,7 +258,7 @@ if [[ -f "configs/uapi.yaml" ]]; then
     warn "configs/uapi.yaml 已存在，跳过"
 else
     cat > configs/uapi.yaml << 'YAML'
-# Spide Agent UAPI 数据源配置
+# SpideHarness Agent UAPI 数据源配置
 # 请填写 UAPI API Key（https://uapis.cn）
 api_key: "YOUR_UAPI_API_KEY"  # <-- 替换为你的 API Key
 

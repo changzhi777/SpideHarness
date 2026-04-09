@@ -62,13 +62,13 @@ class TestCLIE2E:
         # 然后检查
         result = runner.invoke(app, ["doctor", "-w", str(cli_workspace)])
         assert result.exit_code == 0
-        assert "Spide Agent 环境检查" in result.stdout
+        assert "SpideHarness Agent 环境检查" in result.stdout
 
     def test_config_command(self, cli_workspace: Path):
         """config 命令运行."""
         result = runner.invoke(app, ["config", "-w", str(cli_workspace)])
         assert result.exit_code == 0
-        assert "Spide Agent 配置" in result.stdout
+        assert "SpideHarness Agent 配置" in result.stdout
 
     def test_memory_list_after_init(self, cli_workspace: Path):
         """memory list 初始化后应显示 MEMORY.md."""
@@ -112,7 +112,7 @@ class TestCLIE2E:
         """无参数运行显示欢迎信息."""
         result = runner.invoke(app, [])
         assert result.exit_code == 0
-        assert "Spide Agent" in result.stdout
+        assert "SpideHarness Agent" in result.stdout
         assert "常用命令" in result.stdout
 
     def test_help_flag(self):

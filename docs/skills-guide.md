@@ -1,4 +1,4 @@
-# Spide Agent Skills 安装与使用指南
+# SpideHarness Agent Skills 安装与使用指南
 
 > AI Agent Skill 支持：OpenClaw / Claude Code 一键安装，7 个技能开箱即用
 
@@ -24,7 +24,7 @@
 
 ## 概述
 
-Spide Agent Skills 基于 **AgentSkills 开放规范**，将 Spide 的 7 项核心能力打包为标准化技能目录。每个技能包含一个 `SKILL.md` 文件（YAML 元数据 + Markdown 指令），可被 AI Agent 框架自动发现和调用。
+SpideHarness Agent Skills 基于 **AgentSkills 开放规范**，将 Spide 的 7 项核心能力打包为标准化技能目录。每个技能包含一个 `SKILL.md` 文件（YAML 元数据 + Markdown 指令），可被 AI Agent 框架自动发现和调用。
 
 **设计原则：**
 

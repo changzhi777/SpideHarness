@@ -1,10 +1,10 @@
 # Copyright (C) 2026 IoTchange - All Rights Reserved
 # Author: 外星动物（常智） / IoTchange / 14455975@qq.com
-"""Spide Agent 统一异常体系."""
+"""SpideHarness Agent 统一异常体系."""
 
 
 class SpideError(Exception):
-    """Spide Agent 基础异常."""
+    """SpideHarness Agent 基础异常."""
 
     def __init__(self, message: str = "", *, detail: str = "") -> None:
         self.detail = detail

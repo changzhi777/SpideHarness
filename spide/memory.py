@@ -151,7 +151,7 @@ def _update_memory_index(root: Path, title: str, filename: str) -> None:
             content += "\n"
         content += f"{entry}\n"
     else:
-        content = f"# Spide Agent 知识记忆\n\n{entry}\n"
+        content = f"# SpideHarness Agent 知识记忆\n\n{entry}\n"
 
     index_path.write_text(content, encoding="utf-8")
 

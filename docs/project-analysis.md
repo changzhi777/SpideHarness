@@ -1,4 +1,4 @@
-# Spide Agent — 项目现状分析报告
+# SpideHarness Agent — 项目现状分析报告
 
 > 生成时间：2026-04-09 | 版本：0.1.0 | 阶段：Alpha
 
@@ -6,7 +6,7 @@
 
 ## 一、项目概览
 
-**Spide Agent** 是一个基于 Harness Engineering 架构的**热点新闻信息抓取与智能整理 Agent CLI 工具**。
+**SpideHarness Agent** 是一个基于 Harness Engineering 架构的**热点新闻信息抓取与智能整理 Agent CLI 工具**。
 
 | 维度 | 数据 |
 |------|------|
