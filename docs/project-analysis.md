@@ -1,6 +1,6 @@
 # SpideHarness Agent — 项目现状分析报告
 
-> 生成时间：2026-04-09 | 版本：0.1.0 | 阶段：Alpha
+> 生成时间：2026-04-09 | 版本：V3.1.1 (DEV) | 阶段：开发测试版
 
 ---
 
@@ -10,7 +10,7 @@
 
 | 维度 | 数据 |
 |------|------|
-| 版本 | `0.1.0` (Alpha) |
+| 版本 | `V3.1.1` (DEV 开发测试版) |
 | 语言 | Python 3.12+ |
 | 源码行数 | 6,463 行 |
 | 测试行数 | 3,712 行 |
@@ -204,7 +204,9 @@ tests/
 
 ## 七、AI Agent Skills
 
-项目提供 7 个标准化 AI Skills，支持 Claude Code / OpenClaw 一键安装：
+项目提供 14 个标准化 AI Skills（7 个核心采集 + 7 个浏览器/搜索/适配器生态），支持 Claude Code / OpenClaw 一键安装：
+
+### 核心采集 Skills（7 个）
 
 | Skill | 文件 | 功能 |
 |-------|------|------|
@@ -215,6 +217,18 @@ tests/
 | `spide-wordcloud` | `skills/spide-wordcloud/SKILL.md` | 词云生成 |
 | `spide-batch` | `skills/spide-batch/SKILL.md` | 批量并行采集 |
 | `spide-schedule` | `skills/spide-schedule/SKILL.md` | 定时调度 |
+
+### 浏览器自动化 + 搜索 Skills（7 个）
+
+| Skill | 文件 | 功能 |
+|-------|------|------|
+| `spide-browser` | `.claude/skills/spide-browser/SKILL.md` | 浏览器自动化 — 导航/点击/抓包/提取 |
+| `spide-explorer` | `.claude/skills/spide-explorer/SKILL.md` | 适配器探索开发 — API 发现 → TS 编写 |
+| `spide-oneshot` | `.claude/skills/spide-oneshot/SKILL.md` | 快速单命令生成 — URL → CLI |
+| `spide-autofix` | `.claude/skills/spide-autofix/SKILL.md` | 自动修复适配器 — 选择器/API 变更自愈 |
+| `spide-usage` | `.claude/skills/spide-usage/SKILL.md` | OpenCLI 使用参考 — 79+ 网站命令速查 |
+| `spide-search` | `.claude/skills/spide-search/SKILL.md` | 智能搜索路由 — AI + 多源搜索 |
+| `spide-search-fallback` | `.claude/skills/spide-search-fallback/SKILL.md` | 错误恢复搜索 — GitHub 学习 + 技能生成 |
 
 ---
 
@@ -236,6 +250,7 @@ tests/
 | **中文分词** | jieba | >=0.42.1 |
 | **词云** | wordcloud | >=1.9.6 |
 | **Excel** | openpyxl | >=3.1.5 |
+| **浏览器自动化** | @jackwener/opencli | 79+ 网站适配器 + Chrome Extension Bridge |
 | **日志** | structlog | >=24.0 |
 | **终端** | rich | >=13.0 |
 | **测试** | pytest + pytest-asyncio | >=8.0 / >=0.23 |
@@ -273,7 +288,7 @@ tests/
 ```
 a_Spide_agent/
 ├── spide/                              # 主包 (36 文件, 6,463 行)
-│   ├── __init__.py                     # 版本号
+│   ├── __init__.py                     # 版本号 (V{主}.{奇=DEV/偶=正式}.{小修改})
 │   ├── __main__.py                     # python -m spide 入口
 │   ├── cli.py                          # CLI (14 命令)
 │   ├── config.py                       # Pydantic + YAML 配置
@@ -317,7 +332,7 @@ a_Spide_agent/
 │   ├── integration/                    # 3 个集成测试
 │   └── e2e/                            # 1 个端到端测试
 ├── configs/                            # 配置文件 (敏感，不入 Git)
-├── skills/                             # 7 个 AI Agent Skills
+├── skills/                             # 14 个 AI Agent Skills (7 核心 + 7 浏览器/搜索)
 ├── docs/                               # 文档
 ├── scripts/                            # 构建/安装脚本
 ├── MediaCrawler/                       # 深度采集子项目
@@ -341,6 +356,27 @@ a_Spide_agent/
 | 消息总线 | **100%** | 发布/订阅 + 通配符 |
 | CLI 命令 | **100%** | 14 个命令全部实现 |
 | 测试覆盖 | **100%** | 三层测试覆盖所有模块 |
-| Skills | **100%** | 7 个标准化 Skills |
+| Skills | **100%** | 14 个标准化 Skills（7 核心 + 7 浏览器/搜索） |
 
 **总体完成度：98%** — 项目核心功能全部实现，处于可用状态。
+
+---
+
+## 十二、版权与版本管理
+
+- **作者：** 外星动物（常智） / IoTchange / 14455975@qq.com
+- **版权：** Copyright (C) 2026 IoTchange - All Rights Reserved
+- **本软件为专有软件，未经授权不得复制、修改或分发。**
+
+### 版本号规则
+
+采用 Git 版本管理，版本号格式为 `V{主版本}.{次版本}.{小修改}`：
+
+| 位 | 规则 | 说明 |
+|----|------|------|
+| 主版本 | 起始为 `3` | 重大架构变更时递增 |
+| 次版本 | **奇数 = DEV（开发测试版）** | 正在开发、功能不稳定 |
+| 次版本 | **偶数 = 正式/生产版** | 功能稳定，可用于生产 |
+| 小修改 | 递增 | Bug 修复、小功能改进 |
+
+**示例：** `V3.1.1` = 主版本 3 + 开发测试版 (1=奇数) + 第 1 次小修改

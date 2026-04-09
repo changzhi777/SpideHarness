@@ -1,6 +1,6 @@
 # SpideHarness Agent Skills 安装与使用指南
 
-> AI Agent Skill 支持：OpenClaw / Claude Code 一键安装，7 个技能开箱即用
+> AI Agent Skill 支持：OpenClaw / Claude Code 一键安装，14 个技能开箱即用
 
 ## 目录
 
@@ -24,27 +24,45 @@
 
 ## 概述
 
-SpideHarness Agent Skills 基于 **AgentSkills 开放规范**，将 Spide 的 7 项核心能力打包为标准化技能目录。每个技能包含一个 `SKILL.md` 文件（YAML 元数据 + Markdown 指令），可被 AI Agent 框架自动发现和调用。
+SpideHarness Agent Skills 基于 **AgentSkills 开放规范**，将 Spide 的 14 项核心能力打包为标准化技能目录。每个技能包含一个 `SKILL.md` 文件（YAML 元数据 + Markdown 指令），可被 AI Agent 框架自动发现和调用。
 
 **设计原则：**
 
 - **即插即用** — 一条命令完成安装，无需额外配置
 - **跨平台兼容** — 同一份 Skill 文件适配 OpenClaw、Claude Code、Cursor、Windsurf 等
 - **渐进式加载** — 元数据常驻（~100 tokens），完整指令按需加载（~500 tokens），不浪费上下文窗口
+- **浏览器自动化集成** — 通过 OpenCLI（79+ 网站适配器）扩展采集能力边界
+
+**技能分类：**
+
+| 分类 | Skills | 说明 |
+|------|--------|------|
+| **核心采集** | crawl, deep-crawl, batch, schedule | 热搜 + 深度采集 + 并行 + 定时 |
+| **分析与导出** | analyze, export, wordcloud | AI 分析 + 多格式导出 + 词云 |
+| **浏览器自动化** | browser, explorer, oneshot, autofix | OpenCLI 适配器生态 |
+| **搜索与恢复** | search, search-fallback | 智能搜索路由 + GitHub 错误恢复 |
+| **参考** | usage | OpenCLI 命令速查 |
 
 ---
 
 ## Skills 列表
 
-| Skill | 斜杠命令 | 功能 |
-|-------|----------|------|
-| `spide-crawl` | `/spide-crawl` | 热搜采集 — 微博/百度/抖音/知乎/B站 |
-| `spide-deep-crawl` | `/spide-deep-crawl` | 深度采集 — 小红书/抖音/快手/B站/微博/贴吧/知乎 |
-| `spide-analyze` | `/spide-analyze` | AI 分析 — 趋势/摘要/情感/智能策略 |
-| `spide-export` | `/spide-export` | 数据导出 — JSON/CSV/Excel |
-| `spide-wordcloud` | `/spide-wordcloud` | 词云生成 — jieba 分词 + wordcloud 可视化 |
-| `spide-batch` | `/spide-batch` | 批量并行采集 — 多平台并发 |
-| `spide-schedule` | `/spide-schedule` | 定时调度 — Cron-like 采集任务 |
+| Skill | 斜杠命令 | 分类 | 功能 |
+|-------|----------|------|------|
+| `spide-crawl` | `/spide-crawl` | 采集 | 热搜采集 — 微博/百度/抖音/知乎/B站 |
+| `spide-deep-crawl` | `/spide-deep-crawl` | 采集 | 深度采集 — 小红书/抖音/快手/B站/微博/贴吧/知乎 |
+| `spide-analyze` | `/spide-analyze` | 分析 | AI 分析 — 趋势/摘要/情感/智能策略 |
+| `spide-export` | `/spide-export` | 导出 | 数据导出 — JSON/CSV/Excel |
+| `spide-wordcloud` | `/spide-wordcloud` | 可视化 | 词云生成 — jieba 分词 + wordcloud 可视化 |
+| `spide-batch` | `/spide-batch` | 采集 | 批量并行采集 — 多平台并发 |
+| `spide-schedule` | `/spide-schedule` | 调度 | 定时调度 — Cron-like 采集任务 |
+| `spide-browser` | `/spide-browser` | 浏览器 | 浏览器自动化 — 导航/点击/抓包/提取 |
+| `spide-explorer` | `/spide-explorer` | 适配器 | 适配器探索开发 — API 发现 → 认证策略 → TS 编写 |
+| `spide-oneshot` | `/spide-oneshot` | 适配器 | 快速单命令生成 — URL + 描述 → CLI 命令 |
+| `spide-autofix` | `/spide-autofix` | 适配器 | 自动修复适配器 — 选择器/API 变更自愈 |
+| `spide-usage` | `/spide-usage` | 参考 | OpenCLI 使用参考 — 79+ 网站命令速查 |
+| `spide-search` | `/spide-search` | 搜索 | 智能搜索路由 — AI + 多源搜索 |
+| `spide-search-fallback` | `/spide-search-fallback` | 搜索 | 错误恢复搜索 — GitHub 开源学习 + 新技能生成 |
 
 ---
 
@@ -109,7 +127,7 @@ chmod +x install-skills.sh
 # 在项目根目录执行
 mkdir -p .claude/skills
 
-# 为每个 Skill 创建符号链接
+# 核心采集 Skills（7 个）
 ln -s ../../skills/spide-crawl .claude/skills/spide-crawl
 ln -s ../../skills/spide-deep-crawl .claude/skills/spide-deep-crawl
 ln -s ../../skills/spide-analyze .claude/skills/spide-analyze
@@ -117,6 +135,15 @@ ln -s ../../skills/spide-export .claude/skills/spide-export
 ln -s ../../skills/spide-wordcloud .claude/skills/spide-wordcloud
 ln -s ../../skills/spide-batch .claude/skills/spide-batch
 ln -s ../../skills/spide-schedule .claude/skills/spide-schedule
+
+# 浏览器/搜索/适配器 Skills（7 个）
+ln -s ../../skills/spide-browser .claude/skills/spide-browser
+ln -s ../../skills/spide-explorer .claude/skills/spide-explorer
+ln -s ../../skills/spide-oneshot .claude/skills/spide-oneshot
+ln -s ../../skills/spide-autofix .claude/skills/spide-autofix
+ln -s ../../skills/spide-usage .claude/skills/spide-usage
+ln -s ../../skills/spide-search .claude/skills/spide-search
+ln -s ../../skills/spide-search-fallback .claude/skills/spide-search-fallback
 ```
 
 **OpenClaw：**
@@ -135,6 +162,8 @@ ln -s /path/to/a_Spide_agent/skills/spide-deep-crawl ~/.openclaw/skills/spide-de
 ```powershell
 # 使用目录复制代替符号链接
 New-Item -ItemType Directory -Force -Path .claude\skills
+
+# 核心采集 Skills（7 个）
 Copy-Item -Recurse skills\spide-crawl .claude\skills\
 Copy-Item -Recurse skills\spide-deep-crawl .claude\skills\
 Copy-Item -Recurse skills\spide-analyze .claude\skills\
@@ -142,6 +171,15 @@ Copy-Item -Recurse skills\spide-export .claude\skills\
 Copy-Item -Recurse skills\spide-wordcloud .claude\skills\
 Copy-Item -Recurse skills\spide-batch .claude\skills\
 Copy-Item -Recurse skills\spide-schedule .claude\skills\
+
+# 浏览器/搜索/适配器 Skills（7 个）
+Copy-Item -Recurse skills\spide-browser .claude\skills\
+Copy-Item -Recurse skills\spide-explorer .claude\skills\
+Copy-Item -Recurse skills\spide-oneshot .claude\skills\
+Copy-Item -Recurse skills\spide-autofix .claude\skills\
+Copy-Item -Recurse skills\spide-usage .claude\skills\
+Copy-Item -Recurse skills\spide-search .claude\skills\
+Copy-Item -Recurse skills\spide-search-fallback .claude\skills\
 ```
 
 > 注意：使用复制方式时，更新 Skill 源文件后需重新复制。
@@ -176,12 +214,16 @@ a_Spide_agent/
 │   ├── skills/                    # Claude Code Skills
 │   │   ├── spide-crawl/          # → ../../skills/spide-crawl
 │   │   ├── spide-deep-crawl/     # → ../../skills/spide-deep-crawl
-│   │   └── ...
+│   │   ├── spide-browser/        # → ../../skills/spide-browser
+│   │   ├── spide-explorer/       # → ../../skills/spide-explorer
+│   │   ├── spide-search/         # → ../../skills/spide-search
+│   │   └── ...                   # 共 14 个 Skills
 │   └── settings.json              # Claude Code 项目设置
 ├── skills/                        # Skill 源文件
 │   ├── spide-crawl/SKILL.md
-│   ├── spide-deep-crawl/SKILL.md
-│   └── ...
+│   ├── spide-browser/SKILL.md
+│   ├── spide-search/SKILL.md
+│   └── ...                       # 共 14 个 Skills
 └── install-skills.sh
 ```
 
@@ -299,6 +341,84 @@ spide schedule start -c schedule.yaml -d 3600 # 自定义配置，运行1小时
 spide schedule status                         # 查看状态
 spide schedule stop                           # 停止
 ```
+
+### spide-browser — 浏览器自动化
+
+通过 OpenCLI 控制浏览器，进行导航、点击、抓包、数据提取等操作。
+
+```bash
+opencli browser open <url>           # 打开页面
+opencli browser network              # 查看捕获的 API 请求
+opencli browser click <N>            # 点击元素
+opencli browser eval "<js>"          # 执行 JavaScript
+opencli browser snapshot             # 获取页面快照
+opencli browser close                # 关闭页面
+```
+
+**前提条件：** Chrome 浏览器运行中 + OpenCLI Browser Bridge 扩展已安装
+
+### spide-explorer — 适配器探索式开发
+
+从零创建 OpenCLI 适配器，支持 API 发现、认证策略选择、TS 适配器编写和测试。
+
+```bash
+opencli browser open <url>           # Step 1: 打开页面 + 抓包
+opencli cascade <url>                # Step 2: 自动探测认证策略
+opencli browser verify <site>/<cmd>  # Step 4: 测试验证
+```
+
+**核心流程：** 发现 API → 选择策略 → 编写适配器 → 测试验证
+
+### spide-oneshot — 快速单命令生成
+
+给一个 URL + 一句话描述，4 步生成一个 CLI 命令。
+
+```bash
+# Step 1: 打开页面 + 抓包
+opencli browser open <url>
+opencli browser network
+
+# Step 3: 验证接口
+opencli browser eval "fetch('/api/endpoint', {credentials:'include'}).then(r=>r.json())"
+
+# Step 4: 生成适配器文件，放入 ~/.opencli/clis/<site>/<name>.ts
+```
+
+### spide-autofix — 自动修复适配器
+
+当 OpenCLI 命令因站点变更而失败时，自动诊断并修复适配器。
+
+**修复范围：** CSS 选择器变更、API 响应结构变更、Cookie/Token 过期、DOM 结构重构
+
+**预算：** 最多 3 轮修复尝试，每轮含诊断 + 修复 + 验证
+
+### spide-usage — OpenCLI 使用参考
+
+查询 OpenCLI 命令用法、支持的网站/桌面应用列表。
+
+```bash
+opencli list [-f json|yaml]          # 列出所有命令
+opencli <site> -h                    # 查看站点子命令
+opencli doctor                       # 诊断浏览器桥接
+```
+
+**覆盖范围：** 79+ 网站适配器 + 桌面应用 + 外部 CLI 透传
+
+### spide-search — 智能搜索路由
+
+基于话题和场景，将查询路由到最佳的搜索源（AI + 专用源）。
+
+**AI 源选择：** grok（英文舆论）、doubao（中文语境）、gemini（全球网页）
+
+**专用源：** 按需补充 Twitter、Reddit、Bilibili 等垂直平台
+
+### spide-search-fallback — 错误恢复搜索
+
+采集目标反复失败时，搜索 GitHub 开源项目学习，然后生成新技能。
+
+**触发条件：** 连续失败 3 次以上，spide-autofix 无法修复
+
+**核心流程：** 收集失败上下文 → 构造 GitHub 搜索 → Web Search API 分析 → 生成新适配器/采集脚本
 
 ---
 
@@ -455,7 +575,7 @@ Windows Git Bash 的 `ln -s` 会创建目录副本而非真正的符号链接。
 不会。采用渐进式加载：
 - 元数据（`name` + `description`）常驻上下文，每个 Skill 约 50-100 tokens
 - 完整指令仅在触发时加载，约 300-500 tokens
-- 7 个 Skills 常驻开销仅约 350-700 tokens，对上下文窗口影响极小
+- 14 个 Skills 常驻开销仅约 700-1400 tokens，对上下文窗口影响极小
 
 ### Q: 深度采集 Skill 需要额外环境？
 
@@ -463,3 +583,16 @@ Windows Git Bash 的 `ln -s` 会创建目录副本而非真正的符号链接。
 - Playwright 浏览器环境
 - 对应平台的登录 Cookie
 - 详见 `skills/spide-deep-crawl/SKILL.md` 中的注意事项
+
+### Q: 浏览器/适配器 Skills 需要什么？
+
+`spide-browser`、`spide-explorer`、`spide-oneshot`、`spide-autofix` 依赖 OpenCLI：
+- 安装：`npm install -g @jackwener/opencli`
+- Chrome 浏览器运行中（已登录目标站点）
+- OpenCLI Browser Bridge Chrome 扩展已安装
+- 运行 `opencli doctor` 检查环境
+
+### Q: 搜索 Skills 的费用？
+
+- `spide-search`：使用 OpenCLI 的网站命令，按对应平台规则
+- `spide-search-fallback`：使用智谱 Web Search API（`search_pro` 引擎，0.03元/次），每轮恢复任务最多 3 轮搜索

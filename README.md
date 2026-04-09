@@ -79,6 +79,12 @@ CLI (Typer)
        │    ├─ BatchScheduler (并行调度)
        │    ├─ TaskScheduler (定时任务)
        │    └─ Pipeline (解析 + 去重)
+       ├─ 浏览器自动化 (OpenCLI)
+       │    ├─ Browser (导航/点击/抓包/提取)
+       │    ├─ Explorer (API 发现 → 适配器生成)
+       │    ├─ Oneshot (URL → 单命令快速生成)
+       │    ├─ Autofix (适配器自动修复)
+       │    └─ Search Fallback (GitHub 开源学习 + 技能生成)
        ├─ AI 分析
        │    ├─ ContentSummarizer (摘要)
        │    ├─ SentimentAnalyzer (情感)
@@ -286,6 +292,7 @@ SpideHarness/
 | 数据源 | UApiPro | 100+ 免费 API |
 | 深度采集 | MediaCrawler | 7 平台 Playwright 爬虫 |
 | 联网搜索 | 智谱 Web Search | 多引擎协作搜索 |
+| 浏览器自动化 | OpenCLI (@jackwener/opencli) | 79+ 网站适配器 + Chrome Extension Bridge |
 | 分词 | jieba | 中文分词 |
 | 词云 | wordcloud | 可视化 |
 | 导出 | openpyxl | Excel 生成 |
@@ -296,7 +303,7 @@ SpideHarness/
 
 ## AI Agent Skills
 
-SpideHarness Agent 提供 7 个标准化 AI Skills，支持 OpenClaw / Claude Code 一键安装：
+SpideHarness Agent 提供 14 个标准化 AI Skills（7 个核心采集 + 7 个浏览器/搜索/适配器生态），支持 OpenClaw / Claude Code 一键安装：
 
 ```bash
 # 一键安装到 Claude Code + OpenClaw
@@ -309,15 +316,22 @@ SpideHarness Agent 提供 7 个标准化 AI Skills，支持 OpenClaw / Claude Co
 ./install-skills.sh --verify
 ```
 
-| Skill | 命令 | 功能 |
-|-------|------|------|
-| `spide-crawl` | `/spide-crawl` | 热搜采集 |
-| `spide-deep-crawl` | `/spide-deep-crawl` | 深度采集 |
-| `spide-analyze` | `/spide-analyze` | AI 分析 |
-| `spide-export` | `/spide-export` | 数据导出 |
-| `spide-wordcloud` | `/spide-wordcloud` | 词云生成 |
-| `spide-batch` | `/spide-batch` | 批量并行采集 |
-| `spide-schedule` | `/spide-schedule` | 定时调度 |
+| Skill | 命令 | 分类 | 功能 |
+|-------|------|------|------|
+| `spide-crawl` | `/spide-crawl` | 采集 | 热搜采集 — 微博/百度/抖音/知乎/B站 |
+| `spide-deep-crawl` | `/spide-deep-crawl` | 采集 | 深度采集 — 7 平台内容+评论+创作者 |
+| `spide-analyze` | `/spide-analyze` | 分析 | AI 分析 — 趋势/摘要/情感/策略 |
+| `spide-export` | `/spide-export` | 导出 | 数据导出 — JSON/CSV/Excel |
+| `spide-wordcloud` | `/spide-wordcloud` | 可视化 | 词云生成 — jieba 分词 + wordcloud |
+| `spide-batch` | `/spide-batch` | 采集 | 批量并行采集 — 多平台并发 |
+| `spide-schedule` | `/spide-schedule` | 调度 | 定时调度 — Cron-like 采集任务 |
+| `spide-browser` | `/spide-browser` | 浏览器 | 浏览器自动化 — 导航/点击/抓包/提取 |
+| `spide-explorer` | `/spide-explorer` | 适配器 | 适配器探索开发 — API 发现 → TS 编写 |
+| `spide-oneshot` | `/spide-oneshot` | 适配器 | 快速单命令生成 — URL + 描述 → CLI |
+| `spide-autofix` | `/spide-autofix` | 适配器 | 自动修复适配器 — 选择器/API 变更自愈 |
+| `spide-usage` | `/spide-usage` | 参考 | OpenCLI 使用参考 — 79+ 网站命令速查 |
+| `spide-search` | `/spide-search` | 搜索 | 智能搜索路由 — AI + 多源搜索 |
+| `spide-search-fallback` | `/spide-search-fallback` | 搜索 | 错误恢复搜索 — GitHub 开源学习 + 技能生成 |
 
 详细安装与使用说明参见 [docs/skills-guide.md](docs/skills-guide.md)。
 
@@ -404,3 +418,11 @@ Copyright (C) 2026 IoTchange - All Rights Reserved
 Author: 外星动物（常智） / IoTchange / 14455975@qq.com
 
 本软件为专有软件，未经授权不得复制、修改或分发。
+
+### 版本号规则
+
+采用 Git 版本管理，版本号格式：`V{主版本}.{次版本}.{小修改}`
+
+- **次版本奇数** = DEV 开发测试版（功能不稳定，持续迭代中）
+- **次版本偶数** = 正式/生产版（功能稳定，可用于生产环境）
+- **当前版本：V3.1.1（DEV 开发测试版）**

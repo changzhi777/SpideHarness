@@ -9,6 +9,8 @@
 | 2026-04-08 | 补充 | 确认存储方案 SQLite+Redis，MQTT 云服务配置，创建 .gitignore |
 | 2026-04-08 | 补充 | 增加 GLM-5.1 文本模型 + GLM-5V-Turbo 多模态视觉模型配置 |
 | 2026-04-08 | 补充 | 增加联网搜索工具（智谱 Web Search API），增加 UAPI 数据源 |
+| 2026-04-10 | 集成 | 集成 OpenCLI Skills（6 个），新增浏览器自动化/适配器开发/智能搜索能力 |
+| 2026-04-10 | 新增 | 新增 spide-search-fallback skill（智谱 Web Search API 错误恢复搜索） |
 
 ---
 
@@ -24,6 +26,9 @@
 - **消息队列管理**：同步消息的队列化调度模式
 - **MQTT 通讯**：轻量级消息传输协议支持
 - **多数据源聚合**：UApiPro 热搜榜 + 智谱联网搜索双通道
+- **浏览器自动化**：基于 OpenCLI 的 Chrome 浏览器控制，复用已有登录会话
+- **智能搜索路由**：AI + 多源（60+ 网站）的智能搜索调度
+- **适配器生态**：OpenCLI 适配器开发与自动修复能力
 
 ---
 
@@ -45,6 +50,7 @@
 | 联网搜索 | **Web Search API (智谱 AI)** | 结构化搜索结果，多引擎支持 |
 | 数据源 API | **UApiPro (uapis.cn)** | 100+ 免费 API，热搜榜/社交媒体/新闻数据 |
 | 数据源 SDK | **uapi-sdk-python** | UApiPro Python SDK |
+| 浏览器自动化 | **OpenCLI (@jackwener/opencli)** | Chrome 浏览器 CLI 控制，79+ 网站适配器 |
 | 多线程 | **concurrent.futures** | CPU 密集型任务的多线程执行 |
 | 数据存储 | **SQLite + Redis** | SQLite 持久化 + Redis 缓存/队列 |
 | 测试框架 | **pytest + pytest-asyncio** | 异步测试支持 |
@@ -293,6 +299,35 @@ uv run ruff check .
 uv run mypy src/
 ```
 
+### OpenCLI 浏览器自动化集成
+
+项目通过 [OpenCLI](https://github.com/jackwener/opencli) 集成了浏览器自动化和智能搜索能力，以 Claude Code Skills 形式提供。
+
+**安装前提：**
+
+```bash
+npm install -g @jackwener/opencli
+opencli doctor    # 验证 Chrome + Browser Bridge 扩展
+```
+
+**集成的 6 个 Skills：**
+
+| Skill | 说明 | 触发场景 |
+|-------|------|---------|
+| `spide-browser` | 浏览器自动化控制（导航/点击/输入/提取） | 需要浏览网页、提取网页数据 |
+| `spide-explorer` | 适配器探索式开发（API 发现/认证/编写/测试） | 为网站生成 CLI、探索 API |
+| `spide-oneshot` | 快速单命令生成（URL → CLI，4 步完成） | 快速为某网页生成采集命令 |
+| `spide-autofix` | 适配器自动修复（诊断/修复/验证） | opencli 命令失败时 |
+| `spide-search` | 智能搜索路由（AI + 60+ 网站多源） | 搜索、查询、查找信息 |
+| `spide-usage` | OpenCLI 使用参考（79+ 适配器命令手册） | 查询命令用法、查看支持网站 |
+| `spide-search-fallback` | 错误恢复搜索（智谱 Web Search API → GitHub 搜错） | 采集失败且常规修复无效时 |
+
+**能力范围：**
+- 79+ 网站适配器（Bilibili, Twitter, Reddit, 小红书, 知乎等）
+- 8 桌面应用（Cursor, ChatGPT, Notion, Discord 等）
+- 公开 API 命令无需浏览器（HackerNews, arXiv, V2EX 等）
+- 浏览器命令复用 Chrome 已有登录会话
+
 ### 开发流程
 
 1. **Spec Workflow 驱动**：使用 `.spec-workflow/` 模板先文档后代码
@@ -361,6 +396,28 @@ uv run mypy src/
 | 缓存/去重 | Redis + aioredis | 高性能 KV 缓存，用于 URL 去重、热数据缓存、任务状态管理 |
 | 消息队列 | asyncio.Queue | 轻量级，无需额外依赖，适合单进程场景 |
 | Linter | Ruff | 速度快，功能全（lint + format），替代 flake8 + black |
+| 浏览器自动化 | OpenCLI (@jackwener/opencli) | Chrome CLI 控制，79+ 适配器，复用登录会话 |
+
+---
+
+## 版权与版本管理
+
+- **作者：** 外星动物（常智） / IoTchange / 14455975@qq.com
+- **版权：** Copyright (C) 2026 IoTchange - All Rights Reserved
+- **本软件为专有软件，未经授权不得复制、修改或分发。**
+
+### Git 版本号规则 (V3.1.1)
+
+版本号格式：`V{主版本}.{次版本}.{小修改}`
+
+| 位 | 规则 | 说明 |
+|----|------|------|
+| 主版本 | 起始为 `3` | 重大架构变更时递增 |
+| 次版本 | **奇数 = DEV（开发测试版）** | 功能不稳定，持续迭代中 |
+| 次版本 | **偶数 = 正式/生产版** | 功能稳定，可用于生产环境 |
+| 小修改 | 递增 | Bug 修复、小功能改进 |
+
+**当前版本：V3.1.1（DEV 开发测试版）**
 
 ---
 

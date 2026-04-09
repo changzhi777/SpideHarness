@@ -18,15 +18,22 @@
 
 ### 1.2 AI Agent Skills
 
-| 技能                 | 命令                  | 一句话描述                    |
-| ------------------ | ------------------- | ------------------------ |
-| `spide-crawl`      | `/spide-crawl`      | 一键采集指定平台热搜榜单             |
-| `spide-deep-crawl` | `/spide-deep-crawl` | 深度抓取内容 + 评论 + 创作者        |
-| `spide-batch`      | `/spide-batch`      | 多平台并发采集，Semaphore 并发控制   |
-| `spide-schedule`   | `/spide-schedule`   | Cron 定时采集，可配间隔和次数        |
-| `spide-analyze`    | `/spide-analyze`    | 趋势分析 + 摘要 + 情感 + 采集策略    |
-| `spide-export`     | `/spide-export`     | JSON / CSV / Excel 多格式导出 |
-| `spide-wordcloud`  | `/spide-wordcloud`  | jieba 分词 + 词云可视化         |
+| 技能                 | 命令                  | 分类 | 一句话描述                    |
+| ------------------ | ------------------- | ---- | ------------------------ |
+| `spide-crawl`      | `/spide-crawl`      | 采集 | 一键采集指定平台热搜榜单             |
+| `spide-deep-crawl` | `/spide-deep-crawl` | 采集 | 深度抓取内容 + 评论 + 创作者        |
+| `spide-batch`      | `/spide-batch`      | 采集 | 多平台并发采集，Semaphore 并发控制   |
+| `spide-schedule`   | `/spide-schedule`   | 调度 | Cron 定时采集，可配间隔和次数        |
+| `spide-analyze`    | `/spide-analyze`    | 分析 | 趋势分析 + 摘要 + 情感 + 采集策略    |
+| `spide-export`     | `/spide-export`     | 导出 | JSON / CSV / Excel 多格式导出 |
+| `spide-wordcloud`  | `/spide-wordcloud`  | 可视化 | jieba 分词 + 词云可视化         |
+| `spide-browser`    | `/spide-browser`    | 浏览器 | 浏览器自动化 — 导航/点击/抓包/提取     |
+| `spide-explorer`   | `/spide-explorer`   | 适配器 | API 发现 → 认证策略 → TS 适配器编写  |
+| `spide-oneshot`    | `/spide-oneshot`    | 适配器 | URL + 描述 → 4 步生成 CLI 命令  |
+| `spide-autofix`    | `/spide-autofix`    | 适配器 | 适配器自动修复 — 选择器/API 变更自愈   |
+| `spide-usage`      | `/spide-usage`      | 参考 | OpenCLI 使用参考 — 79+ 网站命令速查 |
+| `spide-search`     | `/spide-search`     | 搜索 | 智能搜索路由 — AI + 多源搜索       |
+| `spide-search-fallback` | `/spide-search-fallback` | 搜索 | 错误恢复 — GitHub 开源学习 + 技能生成 |
 
 ---
 
@@ -44,7 +51,7 @@
 ### 2.2 SpideHarness 核心竞争力
 
 ```
-开源免费 + 12 数据源 + AI 原生 + MCP 协议 + CLI Agent
+开源免费 + 12 数据源 + AI 原生 + MCP 协议 + CLI Agent + 浏览器自动化
 ```
 
 1. **开源免费** — 对标万元级舆情 SaaS，开发者零成本上手
@@ -52,6 +59,7 @@
 3. **AI 原生** — LLM 驱动的摘要/情感/趋势/策略分析，非简单关键词匹配
 4. **MCP 协议** — 可接入 Claude/GPT 等任意 MCP 兼容模型
 5. **Agent CLI** — 命令行即服务，可嵌入 CI/CD、定时任务、数据管道
+6. **浏览器自动化** — OpenCLI 79+ 适配器生态，覆盖任意网站的采集需求
 
 ---
 
@@ -321,3 +329,11 @@ Sources:
 - [2026年竞品监测舆情分析系统推荐](https://m.civiw.com/research/20260320161009760)
 - [小红书API+AI：舆情监控新利器](https://juejin.cn/post/7623378952812216372)
 - [2026年国内市场舆情服务厂商排行榜](https://m.eefung.com/company-news/20260303151957535)
+
+---
+
+## 版权
+
+Copyright (C) 2026 IoTchange - All Rights Reserved
+
+Author: 外星动物（常智） / IoTchange / 14455975@qq.com

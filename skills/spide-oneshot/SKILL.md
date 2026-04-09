@@ -1,0 +1,233 @@
+---
+name: spide-oneshot
+description: >
+  快速单命令生成 — 给一个 URL + 一句话描述，4 步生成一个 CLI 命令。
+  当用户需要快速为某个网页生成采集命令时使用。完整探索式开发请用 spide-explorer。
+---
+
+# Spide Oneshot — 单点快速 CLI 生成
+
+> 给一个 URL + 一句话描述，4 步生成一个 CLI 命令。
+> 完整探索式开发请看 [spide-explorer skill](../spide-explorer/SKILL.md)。
+
+**遇到以下情况立即切换到 explorer，不要在 oneshot 里继续硬撑：**
+- Step 3 验证 fetch 始终拿不到数据（签名/风控，非 cookie/header 能解决的）
+- 需要 Pinia Store Action 触发 API
+- 同一站点要生成 2 个以上命令
+- `opencli browser network` 完全空，JS bundle 里也找不到 baseURL
+
+## 前提条件
+
+```bash
+npm install -g @jackwener/opencli
+opencli doctor
+```
+
+## 输入
+
+| 项目 | 示例 |
+|------|------|
+| **URL** | `https://x.com/jakevin7/lists` |
+| **Goal** | 获取我的 Twitter Lists |
+
+## 流程
+
+### Step 1: 打开页面 + 抓包
+
+```bash
+opencli browser open <目标 URL>          # 打开目标页面（自动开始抓包）
+opencli browser wait time 3              # 等页面加载完、API 请求触发
+opencli browser network                  # 查看捕获的 JSON API 请求
+```
+
+**关键**：`network` 默认已过滤静态资源，只显示 JSON/XML/text 的 API 请求。
+如果没有自动触发 API，用 `opencli browser state` 找到按钮索引，`opencli browser click <N>` 点击后再 `network` 抓一次。
+
+**`network` 为空？** ① 重新 `open` 刷新捕获窗口；② 如果是 SPA，API domain 可能是 `api.xxx.com` 而非 `app.xxx.com`，用 Step 2 里的 bundle 搜索找真实 baseURL。
+
+### Step 2: 锁定一个接口
+
+从 `opencli browser network` 结果中找到**那个**目标 API，用 `--detail` 查看完整响应：
+
+```bash
+opencli browser network --detail <N>     # 查看第 N 条请求的完整响应体
+```
+
+关注这几个字段：
+
+| 字段 | 关注什么 |
+|------|----------|
+| URL | API 路径 pattern（如 `/i/api/graphql/xxx/ListsManagePinTimeline`） |
+| Method | GET / POST |
+| Headers | 有 Cookie? Bearer? CSRF? 自定义签名? |
+| Response | 数据在哪个路径（如 `data.list.lists`） |
+
+### Step 3: 验证接口能复现
+
+用 `opencli browser eval` 在页面内 `fetch` 复现请求：
+
+```bash
+# Tier 2 (Cookie): 传统网站
+opencli browser eval "fetch('/api/endpoint', { credentials: 'include' }).then(r => r.json())"
+
+# Tier 2.5 (localStorage Bearer): 现代 SaaS
+opencli browser eval "(async () => {
+  const token = localStorage.getItem('access_token');
+  const res = await fetch('https://api.example.com/endpoint', {
+    headers: { 'Authorization': 'Bearer ' + token },
+    credentials: 'include'
+  });
+  return res.json();
+})()"
+
+# Tier 3 (Header): 如 Twitter 需要额外 header
+opencli browser eval "(async () => {
+  const ct0 = document.cookie.match(/ct0=([^;]+)/)?.[1];
+  const res = await fetch('/api/endpoint', {
+    headers: { 'Authorization': 'Bearer ...', 'X-Csrf-Token': ct0 },
+    credentials: 'include'
+  });
+  return res.json();
+})()"
+```
+
+如果 fetch 能拿到数据 → 用 TS adapter（`cli()` pipeline 或 `func()`）。
+如果 fetch 拿不到（签名/风控）→ 用 intercept 策略（TS `func()` + `installInterceptor`）。
+
+### Step 4: 套模板，生成 adapter
+
+根据 Step 3 判定的策略，选一个模板生成文件。
+
+## 认证速查
+
+```
+fetch(url) 直接能拿到？                        → Tier 1: public   (browser: false)
+fetch(url, {credentials:'include'})？          → Tier 2: cookie
+localStorage 有 token + Bearer header 能拿到？  → Tier 2.5: localStorage Bearer
+  带了 Bearer 但返回 400 "Missing X-Xxx header"？ → 先拿业务上下文 ID，加进 header
+加 CSRF/Bearer header 后拿到？                 → Tier 3: header
+都不行，但页面自己能请求成功？                    → Tier 4: intercept (installInterceptor)
+```
+
+## 模板
+
+### TS — Cookie/Public（最简，`func()` 模式）
+
+```typescript
+// clis/<site>/<name>.ts
+import { cli, Strategy } from '@jackwener/opencli/registry';
+
+cli({
+  site: 'mysite',
+  name: 'mycommand',
+  description: '一句话描述',
+  domain: 'www.example.com',
+  strategy: Strategy.COOKIE,   // 或 Strategy.PUBLIC (加 browser: false)
+  browser: true,
+  args: [
+    { name: 'limit', type: 'int', default: 20 },
+  ],
+  columns: ['rank', 'title', 'value'],
+  func: async (page, kwargs) => {
+    await page.goto('https://www.example.com/target-page');
+    const data = await page.evaluate(`(async () => {
+      const res = await fetch('/api/target', { credentials: 'include' });
+      const d = await res.json();
+      return (d.data?.items || []).map(item => ({
+        title: item.title,
+        value: item.value,
+      }));
+    })()`);
+    return (data as any[]).slice(0, kwargs.limit).map((item, i) => ({
+      rank: i + 1,
+      title: item.title || '',
+      value: item.value || '',
+    }));
+  },
+});
+```
+
+### TS — localStorage Bearer（现代 SaaS）
+
+```typescript
+import { cli, Strategy } from '@jackwener/opencli/registry';
+
+cli({
+  site: 'mysite',
+  name: 'mycommand',
+  description: '一句话描述',
+  domain: 'app.example.com',
+  strategy: Strategy.COOKIE,
+  browser: true,
+  args: [{ name: 'limit', type: 'int', default: 20 }],
+  columns: ['rank', 'title', 'value'],
+  func: async (page, kwargs) => {
+    await page.goto('https://app.example.com');
+    const data = await page.evaluate(`(async () => {
+      const token = localStorage.getItem('access_token');
+      const servers = await fetch('https://api.example.com/api/servers', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      }).then(r => r.json());
+      const server = servers[0];
+      const res = await fetch('https://api.example.com/api/items', {
+        headers: { 'Authorization': 'Bearer ' + token, 'X-Server-Id': server.id }
+      });
+      return res.json();
+    })()`);
+    return (data as any[]).slice(0, kwargs.limit).map((item, i) => ({
+      rank: i + 1,
+      title: item.title || '',
+      value: item.value || '',
+    }));
+  },
+});
+```
+
+### TS — Intercept（抓包模式）
+
+```typescript
+import { cli, Strategy } from '@jackwener/opencli/registry';
+
+cli({
+  site: 'mysite',
+  name: 'mycommand',
+  description: '一句话描述',
+  domain: 'www.example.com',
+  strategy: Strategy.INTERCEPT,
+  browser: true,
+  args: [{ name: 'limit', type: 'int', default: 20 }],
+  columns: ['rank', 'title', 'value'],
+  func: async (page, kwargs) => {
+    await page.goto('https://www.example.com/target-page');
+    await page.wait(3);
+    await page.installInterceptor('target-api-keyword');
+    await page.autoScroll({ times: 2, delayMs: 2000 });
+    const requests = await page.getInterceptedRequests();
+    if (!requests?.length) return [];
+    let results: any[] = [];
+    for (const req of requests) {
+      const items = req.data?.data?.items || [];
+      results.push(...items);
+    }
+    return results.slice(0, kwargs.limit).map((item, i) => ({
+      rank: i + 1,
+      title: item.title || '',
+      value: item.value || '',
+    }));
+  },
+});
+```
+
+## 测试（必做）
+
+```bash
+# Repo 贡献：build 后直接运行
+npm run build
+opencli list | grep mysite                 # 确认注册
+opencli mysite mycommand --limit 3 -v      # 实际运行
+
+# 私人 adapter（~/.opencli/clis/）：一键验证
+opencli browser verify <site>/<name>
+```
+
+**Done 标准**：命令运行后返回非空表格，且字段符合预期。
