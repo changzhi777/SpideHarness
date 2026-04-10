@@ -573,31 +573,33 @@ _config_ollama() {
     # 4. 推荐拉取模型
     echo ""
     echo -e "  ${BOLD}推荐模型:${NC}"
-    echo -e "    ${GREEN}q)${NC} qwen3:8b          ${DIM}(通义千问 3, 8B, 通用对话)${NC}"
-    echo -e "    ${GREEN}l)${NC} llama3.1:8b        ${DIM}(Meta Llama 3.1, 8B, 英文优秀)${NC}"
-    echo -e "    ${GREEN}g)${NC} gemma3:4b          ${DIM}(Google Gemma 3, 4B, 轻量高效)${NC}"
-    echo -e "    ${GREEN}d)${NC} deepseek-r1:7b     ${DIM}(DeepSeek R1, 7B, 推理强)${NC}"
+    echo -e "    ${GREEN}g)${NC} gemma4:e4b          ${DIM}(Google Gemma 4, 4B, 多模态, 推荐)${NC}"
+    echo -e "    ${GREEN}q)${NC} qwen3:8b            ${DIM}(通义千问 3, 8B, 通用对话)${NC}"
+    echo -e "    ${GREEN}l)${NC} llama3.1:8b          ${DIM}(Meta Llama 3.1, 8B, 英文优秀)${NC}"
+    echo -e "    ${GREEN}d)${NC} deepseek-r1:7b       ${DIM}(DeepSeek R1, 7B, 推理强)${NC}"
     echo -e "    ${GREEN}s)${NC} 跳过，稍后手动拉取"
     echo ""
 
     local pull_choice
-    safe_read pull_choice "  ${CYAN}选择要拉取的模型 [q/l/g/d/s]:${NC} " || pull_choice="s"
+    safe_read pull_choice "  ${CYAN}选择要拉取的模型 [g/q/l/d/s]:${NC} " || pull_choice="s"
 
     local model_name=""
     case "$pull_choice" in
+        g|G) model_name="gemma4:e4b" ;;
         q|Q) model_name="qwen3:8b" ;;
         l|L) model_name="llama3.1:8b" ;;
-        g|G) model_name="gemma3:4b" ;;
         d|D) model_name="deepseek-r1:7b" ;;
         *) ;;
     esac
 
     if [[ -n "$model_name" ]]; then
-        print_info "拉取模型 $model_name (首次下载约 4-8GB，请耐心等待)..."
-        if ollama pull "$model_name"; then
-            print_ok "模型 $model_name 拉取成功"
+        print_info "拉取并运行模型 $model_name (首次下载约 2-6GB，请耐心等待)..."
+        print_info "ollama run 会自动下载模型并进入交互"
+        echo ""
+        if ollama run "$model_name"; then
+            print_ok "模型 $model_name 就绪"
         else
-            print_warn "模型拉取失败，可稍后手动运行: ollama pull $model_name"
+            print_warn "模型拉取失败，可稍后手动运行: ollama run $model_name"
         fi
     fi
 
