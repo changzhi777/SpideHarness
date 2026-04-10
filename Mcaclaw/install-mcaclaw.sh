@@ -1259,6 +1259,120 @@ helper_install_omlx() {
     echo -e "    ${DIM}OPENAI_BASE_URL=http://localhost:8192/v1${NC}"
 }
 
+# SpideHarness Agent + Skills 辅助安装
+helper_install_agent() {
+    print_step "SpideHarness Agent + Skills 安装"
+    echo ""
+
+    local REPO_URL="https://github.com/changzhi777/SpideHarness.git"
+    local AGENT_DIR="$HOME/SpideHarness"
+    local SKILL_NAMES=(spide-crawl spide-deep-crawl spide-analyze spide-export spide-wordcloud spide-batch spide-schedule spide-search spide-browser spide-autofix spide-explorer spide-oneshot spide-usage spide-search-fallback)
+
+    # 1. 检查 git
+    if ! has_cmd git; then
+        print_error "git 未安装，请先完成步骤 3 环境检查"
+        return 1
+    fi
+
+    # 2. 检查是否已克隆
+    if [[ -d "$AGENT_DIR" && -d "$AGENT_DIR/.git" ]]; then
+        print_ok "项目已存在: $AGENT_DIR"
+        print_info "更新到最新版本..."
+        (cd "$AGENT_DIR" && git pull --ff-only 2>/dev/null) || {
+            print_warn "更新失败，可能存在本地修改"
+        }
+    else
+        # 3. 克隆项目
+        print_info "从 GitHub 克隆 SpideHarness Agent..."
+        print_info "仓库: $REPO_URL"
+        echo ""
+        if git clone "$REPO_URL" "$AGENT_DIR"; then
+            print_ok "克隆成功: $AGENT_DIR"
+        else
+            print_error "克隆失败，请检查网络或手动执行:"
+            echo -e "    ${CYAN}git clone $REPO_URL $AGENT_DIR${NC}"
+            return 1
+        fi
+    fi
+
+    # 4. 检查 Python 环境
+    echo ""
+    print_info "检查运行环境..."
+    local has_uv=false has_pip=false
+    has_cmd uv && has_uv=true
+    has_cmd pip3 && has_pip=true
+
+    if $has_uv; then
+        print_ok "uv: $(uv --version 2>/dev/null | head -1)"
+    else
+        print_warn "uv 未安装，推荐安装: curl -LsSf https://astral.sh/uv/install.sh | sh"
+    fi
+
+    if has_cmd python3; then
+        print_ok "Python: $(python3 --version 2>/dev/null)"
+    else
+        print_warn "Python3 未安装"
+    fi
+
+    # 5. 安装依赖
+    if [[ -f "$AGENT_DIR/pyproject.toml" ]]; then
+        echo ""
+        if $has_uv; then
+            print_info "安装项目依赖 (uv sync)..."
+            (cd "$AGENT_DIR" && uv sync 2>&1) || print_warn "依赖安装失败，可稍后手动执行: cd $AGENT_DIR && uv sync"
+        elif $has_pip; then
+            print_info "安装项目依赖 (pip)..."
+            (cd "$AGENT_DIR" && pip3 install -e . 2>&1) || print_warn "依赖安装失败，可稍后手动执行: cd $AGENT_DIR && pip3 install -e ."
+        else
+            print_warn "无包管理器 (uv/pip)，请安装后手动安装依赖"
+        fi
+    fi
+
+    # 6. 安装 Skills
+    echo ""
+    echo -e "  ${BOLD}安装 SpideHarness Skills:${NC}"
+    echo ""
+
+    # 6a. 安装到 OpenClaw
+    local openclaw_skills="$HOME/.openclaw/skills"
+    local oc_count=0
+    mkdir -p "$openclaw_skills"
+    print_info "安装到 OpenClaw: $openclaw_skills"
+    for skill in "${SKILL_NAMES[@]}"; do
+        local src="$AGENT_DIR/.claude/skills/$skill"
+        local dst="$openclaw_skills/$skill"
+        if [[ -d "$src" ]]; then
+            [[ -L "$dst" ]] && rm "$dst"
+            [[ -d "$dst" ]] && rm -rf "$dst"
+            ln -s "$src" "$dst"
+            ((oc_count++))
+        fi
+    done
+    print_ok "OpenClaw: 已安装 $oc_count/${#SKILL_NAMES[@]} 个 Skills"
+
+    # 6b. 检查 Claude Code 项目目录
+    echo ""
+    print_info "Skills 安装状态:"
+    echo -e "    ${GREEN}OpenClaw:${NC}   $openclaw_skills/"
+    echo -e "    ${GREEN}Agent 目录:${NC} $AGENT_DIR/"
+    echo -e "    ${GREEN}配置文件:${NC}   $AGENT_DIR/configs/"
+    echo ""
+    echo -e "  ${BOLD}可用 Skills:${NC}"
+    for skill in "${SKILL_NAMES[@]}"; do
+        if [[ -f "$openclaw_skills/$skill/SKILL.md" ]]; then
+            echo -e "    ${GREEN}✓${NC} $skill"
+        fi
+    done
+
+    # 7. 配置提示
+    echo ""
+    echo -e "  ${BOLD}快速开始:${NC}"
+    echo -e "    ${CYAN}cd $AGENT_DIR${NC}"
+    echo -e "    ${CYAN}python -m spide --help${NC}           ${DIM}# 查看帮助${NC}"
+    echo -e "    ${CYAN}python -m spide crawl -s weibo --save${NC}  ${DIM}# 采集微博热搜${NC}"
+    echo -e "    ${CYAN}python -m spide dashboard${NC}            ${DIM}# 打开数据看板${NC}"
+}
+
 # ============================== 消息通道配置 ================================
 
 config_channels() {
@@ -1786,6 +1900,7 @@ show_main_menu() {
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}7)${NC} 验证安装           ${_done_7:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════╣${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${CYAN}辅助安装:${NC}                              ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}p)${NC} 安装 SpideHarness Agent+Skills    ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}t)${NC} 安装 Ollama (本地 AI)              ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}m)${NC} 安装 MLX-VLM (M芯片 AI)            ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}x)${NC} 安装 oMLX App (MLX 推理服务)       ${BOLD}${GREEN}║${NC}"
@@ -1890,7 +2005,7 @@ interactive_install() {
         show_main_menu
 
         local choice
-        safe_read choice "\n  ${CYAN}请选择 [1-7/t/m/x/f/l/g/o/d/s/a/q]:${NC} " || choice="q"
+        safe_read choice "\n  ${CYAN}请选择 [1-7/p/t/m/x/f/l/g/o/d/s/a/q]:${NC} " || choice="q"
 
         case "$choice" in
             1) run_step 1 check_network   "网络连通性测试" ;;
@@ -1905,6 +2020,7 @@ interactive_install() {
                     print_summary
                 fi
                 ;;
+            p|P) helper_install_agent ;;
             t|T) helper_install_ollama ;;
             m|M) helper_install_mlx ;;
             x|X) helper_install_omlx ;;
