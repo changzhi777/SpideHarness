@@ -696,81 +696,6 @@ remove_launchd() {
     fi
 }
 
-# ============================== 安装后操作菜单 ===============================
-
-post_install_menu() {
-    while true; do
-        echo ""
-        echo -e "  ${GREEN}${BOLD}========================================${NC}"
-        echo -e "  ${GREEN}${BOLD}  安装后操作${NC}"
-        echo -e "  ${GREEN}${BOLD}========================================${NC}"
-        echo ""
-        echo -e "  ${GREEN}1)${NC} 启动 Gateway 服务   ${DIM}(openclaw gateway start)${NC}"
-        echo -e "  ${GREEN}2)${NC} 运行 onboard 引导   ${DIM}(openclaw onboard)${NC}"
-        echo -e "  ${GREEN}3)${NC} 健康检查             ${DIM}(openclaw doctor)${NC}"
-        echo -e "  ${GREEN}4)${NC} 配置开机自启动       ${DIM}(launchd 服务)${NC}"
-        echo -e "  ${GREEN}5)${NC} 查看安装摘要"
-        echo -e "  ${GREEN}q)${NC} 退出"
-        echo ""
-
-        local action
-        safe_read action "  ${CYAN}请选择 [1-5/q]:${NC} " || action="q"
-
-        case "$action" in
-            1)
-                echo ""
-                if has_cmd openclaw; then
-                    print_info "启动 Gateway 服务..."
-                    if openclaw gateway start 2>&1; then
-                        print_ok "Gateway 服务已启动"
-                    else
-                        print_warn "Gateway 启动失败，可稍后手动运行: openclaw gateway start"
-                    fi
-                else
-                    print_error "openclaw 命令未找到，请先重启终端"
-                fi
-                ;;
-            2)
-                echo ""
-                if has_cmd openclaw; then
-                    print_info "启动 onboard 引导..."
-                    openclaw onboard || print_warn "onboard 已退出"
-                else
-                    print_error "openclaw 命令未找到，请先重启终端"
-                fi
-                ;;
-            3)
-                echo ""
-                if has_cmd openclaw; then
-                    print_info "运行系统诊断..."
-                    openclaw doctor || print_warn "诊断发现问题，请查看上方输出"
-                else
-                    print_error "openclaw 命令未找到，请先重启终端"
-                fi
-                ;;
-            4)
-                echo ""
-                if has_cmd openclaw; then
-                    setup_launchd
-                else
-                    print_error "openclaw 命令未找到，请先重启终端"
-                fi
-                ;;
-            5)
-                print_summary
-                ;;
-            q|Q|exit)
-                echo ""
-                print_ok "感谢使用 Mcaclaw！"
-                return 0
-                ;;
-            *)
-                print_warn "无效选择"
-                ;;
-        esac
-    done
-}
-
 # ============================== 网络连通测试 ================================
 
 # 检测并提示代理配置
@@ -1105,8 +1030,14 @@ show_main_menu() {
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}6)${NC} 配置消息通道       ${_done_6:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}7)${NC} 验证安装           ${_done_7:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════╣${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}a)${NC} 全部顺序执行                    ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}q)${NC} 退出                            ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${CYAN}安装后操作:${NC}                            ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}g)${NC} 启动 Gateway 服务                 ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}o)${NC} 运行 onboard 引导                 ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}d)${NC} 健康检查 (doctor)                  ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}s)${NC} 配置开机自启动                     ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════╣${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}a)${NC} 全部顺序执行                      ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}q)${NC} 退出                              ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}╚══════════════════════════════════════════╝${NC}"
 }
 
@@ -1192,7 +1123,7 @@ interactive_install() {
         show_main_menu
 
         local choice
-        safe_read choice "\n  ${CYAN}请选择步骤 [1-7/a/q]:${NC} " || choice="a"
+        safe_read choice "\n  ${CYAN}请选择 [1-7/g/o/d/s/a/q]:${NC} " || choice="q"
 
         case "$choice" in
             1) run_step 1 check_network   "网络连通性测试" ;;
@@ -1205,13 +1136,41 @@ interactive_install() {
                 run_step 7 verify_installation "验证安装"
                 if _step_done 7; then
                     print_summary
-                    post_install_menu
-                    return 0
+                fi
+                ;;
+            g|G)
+                if has_cmd openclaw; then
+                    print_info "启动 Gateway 服务..."
+                    openclaw gateway start 2>&1 || print_warn "Gateway 启动失败，可稍后手动运行: openclaw gateway start"
+                else
+                    print_error "openclaw 命令未找到，请先完成步骤 4"
+                fi
+                ;;
+            o|O)
+                if has_cmd openclaw; then
+                    print_info "启动 onboard 引导..."
+                    openclaw onboard || print_warn "onboard 已退出"
+                else
+                    print_error "openclaw 命令未找到，请先完成步骤 4"
+                fi
+                ;;
+            d|D)
+                if has_cmd openclaw; then
+                    print_info "运行系统诊断..."
+                    openclaw doctor || print_warn "诊断发现问题，请查看上方输出"
+                else
+                    print_error "openclaw 命令未找到，请先完成步骤 4"
+                fi
+                ;;
+            s|S)
+                if has_cmd openclaw; then
+                    setup_launchd
+                else
+                    print_error "openclaw 命令未找到，请先完成步骤 4"
                 fi
                 ;;
             a|A|all)
                 auto_install
-                return 0
                 ;;
             q|Q|quit|exit)
                 print_info "用户退出。可随时重新运行脚本继续。"
@@ -1255,9 +1214,9 @@ auto_install() {
     # Step 7: 验证安装
     run_step 7 verify_installation "验证安装"
 
-    # 安装摘要 + 安装后操作菜单
+    # 安装摘要 + 返回主菜单
     print_summary
-    post_install_menu
+    print_info "自动安装完成，返回主菜单..."
 }
 
 # 运行主流程
