@@ -20,6 +20,13 @@ readonly SCRIPT_NAME="Mcaclaw"
 readonly SCRIPT_VERSION="1.0.0"
 readonly OPENCLAW_MIN_NODE="22.12.0"
 
+# ============================== 国内镜像源 ===================================
+# 默认使用国内镜像，GitHub 保持不变
+readonly MIRROR_HOMEBREW="https://gitee.com/ineo6/homebrew-install/raw/master/install.sh"
+readonly MIRROR_NVM="https://gitee.com/mirrors/nvm/raw/master/install.sh"
+readonly MIRROR_NPM="https://registry.npmmirror.com"
+readonly MIRROR_NPMJS="https://registry.npmjs.org"
+
 # ============================== 颜色定义 ====================================
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
@@ -255,15 +262,14 @@ install_node_brew() {
 
     if ! has_cmd brew; then
         print_info "先安装 Homebrew..."
-        # 使用清华镜像（大陆用户友好），失败回退官方源
-        local brew_url="https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
-        if ! curl -fsSL --connect-timeout 15 "$brew_url" 2>/dev/null | /bin/bash; then
-            print_warn "官方源下载失败，尝试使用镜像..."
-            # 使用 gitee 镜像安装 Homebrew
-            /bin/bash -c "$(curl -fsSL https://gitee.com/ineo6/homebrew-install/raw/master/install.sh)" || {
-                print_error "Homebrew 安装失败，请手动安装: https://brew.sh"
-                return 1
-            }
+        # 优先使用国内 gitee 镜像，失败回退官方源
+        if curl -fsSL --connect-timeout 15 "$MIRROR_HOMEBREW" 2>/dev/null | /bin/bash; then
+            : # 成功
+        elif curl -fsSL --connect-timeout 15 "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh" 2>/dev/null | /bin/bash; then
+            : # 官方源回退成功
+        else
+            print_error "Homebrew 安装失败，请手动安装: https://brew.sh"
+            return 1
         fi
 
         # Apple Silicon 需要配置 PATH
@@ -289,18 +295,21 @@ install_node_nvm() {
 
     if ! has_cmd nvm; then
         print_info "安装 nvm..."
-        # 尝试官方源，失败使用 gitee 镜像
-        if ! curl -fsSL --connect-timeout 15 https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh 2>/dev/null | bash; then
-            print_warn "nvm 官方源下载失败，使用 gitee 镜像..."
-            curl -fsSL https://gitee.com/mirrors/nvm/raw/master/install.sh | bash || {
-                print_error "nvm 安装失败"
-                return 1
-            }
+        # 优先使用国内 gitee 镜像，失败回退官方源
+        if curl -fsSL --connect-timeout 15 "$MIRROR_NVM" 2>/dev/null | bash; then
+            : # 成功
+        elif curl -fsSL --connect-timeout 15 "https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh" 2>/dev/null | bash; then
+            : # 官方源回退成功
+        else
+            print_error "nvm 安装失败"
+            return 1
         fi
         export NVM_DIR="$HOME/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
     fi
 
+    # 设置 Node.js 二进制下载镜像（国内加速）
+    export NVM_NODEJS_ORG_MIRROR="https://npmmirror.com/mirrors/node"
     nvm install 22
     nvm use 22
     nvm alias default 22
@@ -322,6 +331,8 @@ install_node_fnm() {
         eval "$(fnm env --use-on-cd)"
     fi
 
+    # 设置 Node.js 二进制下载镜像（国内加速）
+    export FNM_NODE_DIST_MIRROR="https://npmmirror.com/mirrors/node"
     fnm install 22
     fnm use 22
     fnm default 22
@@ -358,8 +369,16 @@ install_openclaw() {
     # 修复 npm 缓存权限（常见 EACCES 问题）
     fix_npm_permissions
 
+    # 确保 npm 使用国内镜像
+    local current_registry
+    current_registry="$(npm config get registry 2>/dev/null || echo "")"
+    if [[ "$current_registry" != "$MIRROR_NPM"* ]]; then
+        print_info "切换 npm 到淘宝镜像..."
+        npm config set registry "$MIRROR_NPM"
+    fi
+
     # 默认使用 npm 全局安装（最简单可靠，不会接管 stdin）
-    print_info "通过 npm 全局安装 OpenClaw..."
+    print_info "通过 npm 全局安装 OpenClaw (淘宝镜像)... "
     if ! npm install -g openclaw 2>&1; then
         # npm 全局安装失败时回退到 sudo
         print_warn "普通权限安装失败，使用 sudo 重试..."
@@ -601,14 +620,14 @@ detect_proxy() {
 # 尝试设置镜像加速（中国大陆用户）
 suggest_mirrors() {
     echo ""
-    echo -e "  ${YELLOW}${BOLD}网络访问受限，建议配置代理或使用镜像:${NC}"
+    echo -e "  ${YELLOW}${BOLD}网络访问受限，可尝试以下方案:${NC}"
     echo ""
     echo -e "  ${BOLD}方案 1: 配置代理${NC}"
     echo -e "    export https_proxy=http://127.0.0.1:7890"
     echo -e "    export http_proxy=http://127.0.0.1:7890"
     echo ""
-    echo -e "  ${BOLD}方案 2: npm 淘宝镜像${NC}"
-    echo -e "    npm config set registry https://registry.npmmirror.com"
+    echo -e "  ${BOLD}方案 2: npm 淘宝镜像 (推荐)${NC}"
+    echo -e "    npm config set registry $MIRROR_NPM"
     echo ""
     echo -e "  ${BOLD}方案 3: 设置 DNS (114.114.114.114 或 8.8.8.8)${NC}"
     echo -e "    网络设置 → DNS → 添加 114.114.114.114"
@@ -642,7 +661,7 @@ check_network() {
         print_info "将使用已有代理配置"
     fi
 
-    # 测试 GitHub
+    # 测试 GitHub（保留，不修改）
     print_info "测试 GitHub 连通性..."
     if safe_curl "https://github.com" 1; then
         print_ok "GitHub 访问正常"
@@ -651,31 +670,32 @@ check_network() {
         ((fail_count++))
     fi
 
-    # 测试 raw.githubusercontent.com（Homebrew/nvm 下载源）
-    print_info "测试 GitHub Raw 连通性..."
-    if safe_curl "https://raw.githubusercontent.com" 1; then
-        print_ok "GitHub Raw 访问正常"
+    # 测试 Homebrew/nvm 下载源（优先国内镜像）
+    print_info "测试 Homebrew/nvm 下载源..."
+    if safe_curl "$MIRROR_HOMEBREW" 1; then
+        print_ok "国内镜像源 (gitee) 访问正常"
     else
-        print_warn "GitHub Raw 访问失败 (SSL/网络问题)"
+        print_warn "国内镜像源访问失败"
         ((fail_count++))
     fi
 
-    # 测试 npm registry
-    print_info "测试 npm registry 连通性..."
-    if safe_curl "https://registry.npmjs.org" 1; then
-        print_ok "npm registry 访问正常"
-    else
-        print_warn "npm registry 访问失败"
-        ((fail_count++))
+    # 测试 npm registry（优先淘宝镜像）
+    print_info "测试 npm 淘宝镜像连通性..."
+    if safe_curl "$MIRROR_NPM" 1; then
+        print_ok "npm 淘宝镜像访问正常"
         # 自动设置淘宝镜像
-        if confirm "是否自动切换到 npm 淘宝镜像? (Recommended)"; then
-            npm config set registry https://registry.npmmirror.com
-            print_ok "已切换到淘宝镜像: https://registry.npmmirror.com"
-            ((fail_count--))
+        npm config set registry "$MIRROR_NPM" 2>/dev/null || true
+    else
+        print_warn "npm 淘宝镜像访问失败，尝试官方源..."
+        if safe_curl "$MIRROR_NPMJS" 1; then
+            print_ok "npm 官方源访问正常"
+        else
+            print_warn "npm 所有源访问失败"
+            ((fail_count++))
         fi
     fi
 
-    # 测试 OpenClaw 官网
+    # 测试 OpenClaw 官网（可选，不影响安装）
     print_info "测试 OpenClaw 官网连通性..."
     if safe_curl "https://openclaw.ai" 0; then
         print_ok "OpenClaw 官网访问正常"
