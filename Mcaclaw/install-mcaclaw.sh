@@ -844,6 +844,265 @@ check_local_ai() {
     fi
 }
 
+# ============================== 辅助安装 ====================================
+
+# Ollama 辅助安装
+helper_install_ollama() {
+    print_step "Ollama 辅助安装"
+    echo ""
+
+    # 1. 检查已安装
+    if has_cmd ollama; then
+        local ollama_ver
+        ollama_ver="$(ollama --version 2>/dev/null | head -1 || echo 'unknown')"
+        print_ok "Ollama 已安装: $ollama_ver"
+
+        # 检查服务
+        if curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
+            print_ok "服务运行中"
+        else
+            print_warn "服务未运行，尝试启动..."
+            ollama serve &>/dev/null &
+            sleep 2
+            if curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
+                print_ok "服务已启动"
+            else
+                print_warn "启动超时，请手动运行: ollama serve"
+            fi
+        fi
+    else
+        # 2. 环境检查
+        print_info "环境检查..."
+        print_ok "系统: macOS $(sw_vers -productVersion) ($ARCH_TYPE)"
+
+        local disk_free
+        disk_free="$(df -g / 2>/dev/null | tail -1 | awk '{print $4}' || echo '?')"
+        if [[ "$disk_free" != "?" ]] && (( disk_free < 10 )); then
+            print_warn "磁盘剩余 ${disk_free}GB，建议至少 10GB"
+        else
+            print_ok "磁盘剩余: ${disk_free}GB"
+        fi
+
+        # 3. 安装
+        echo ""
+        echo -e "  ${BOLD}安装方式:${NC}"
+        echo -e "    ${GREEN}1)${NC} Homebrew (推荐)    ${DIM}brew install ollama${NC}"
+        echo -e "    ${GREEN}2)${NC} 官方脚本            ${DIM}curl -fsSL https://ollama.com/install.sh | sh${NC}"
+        echo -e "    ${GREEN}3)${NC} 跳过"
+        echo ""
+        local install_choice
+        safe_read install_choice "  ${CYAN}请选择 [1-3]:${NC} " || install_choice="1"
+
+        case "$install_choice" in
+            1)
+                if has_cmd brew; then
+                    brew install ollama
+                else
+                    print_error "Homebrew 未安装，请先完成步骤 3 环境检查"
+                fi
+                ;;
+            2)
+                curl -fsSL https://ollama.com/install.sh | sh
+                ;;
+            *) return 0 ;;
+        esac
+
+        if has_cmd ollama; then
+            print_ok "Ollama 安装成功"
+        else
+            print_error "安装失败，请手动安装后重试"
+            return 1
+        fi
+    fi
+
+    # 4. 检查模型
+    echo ""
+    print_info "已安装模型:"
+    local models
+    models="$(ollama list 2>/dev/null | tail -n +2 | awk '{print $1}' | grep -v '^$' || true)"
+    if [[ -n "$models" ]]; then
+        echo "$models" | while read -r m; do
+            echo -e "    ${GREEN}*${NC} $m"
+        done
+    else
+        print_info "无模型，推荐拉取:"
+        echo -e "    ${CYAN}ollama run gemma4:e4b${NC}  ${DIM}(Gemma 4, 4B, 多模态)${NC}"
+    fi
+}
+
+# MLX-VLM 辅助安装
+helper_install_mlx() {
+    print_step "MLX-VLM 辅助安装"
+    echo ""
+
+    # 1. 架构检查
+    if [[ "$ARCH_TYPE" != "arm64" ]]; then
+        print_error "MLX-VLM 仅支持 Apple Silicon (M1/M2/M3/M4)"
+        print_info "当前架构: $ARCH_TYPE，建议使用 Ollama"
+        return 1
+    fi
+    print_ok "架构: Apple Silicon ($ARCH_TYPE)"
+
+    # 2. Python 检查
+    if ! has_cmd python3; then
+        print_error "Python3 未安装"
+        print_info "安装: brew install python3"
+        return 1
+    fi
+
+    local python_ver
+    python_ver="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo '0')"
+    if [[ "$python_ver" < "3.10" ]]; then
+        print_error "Python 版本过低 ($python_ver)，需要 >= 3.10"
+        print_info "升级: brew install python@3.12"
+        return 1
+    fi
+    print_ok "Python: $(python3 --version 2>/dev/null)"
+
+    # 3. macOS 版本检查
+    local macos_ver
+    macos_ver="$(sw_vers -productVersion 2>/dev/null || echo '0')"
+    if [[ "$macos_ver" < "14.0" ]]; then
+        print_warn "macOS $macos_ver，MLX 推荐 macOS 14 (Sonoma) 及以上"
+    else
+        print_ok "macOS: $macos_ver"
+    fi
+
+    # 4. 内存检查
+    local mem_gb
+    mem_gb="$(sysctl -n hw.memsize 2>/dev/null | awk '{printf "%.0f", $1/1073741824}' || echo '?')"
+    if [[ "$mem_gb" != "?" ]] && (( mem_gb < 8 )); then
+        print_warn "内存 ${mem_gb}GB，建议至少 8GB 运行 MLX 模型"
+    else
+        print_ok "内存: ${mem_gb}GB"
+    fi
+
+    # 5. 磁盘空间
+    local disk_free
+    disk_free="$(df -g / 2>/dev/null | tail -1 | awk '{print $4}' || echo '?')"
+    print_ok "磁盘剩余: ${disk_free}GB (模型约 2-8GB)"
+
+    # 6. 安装 mlx-vlm
+    if python3 -c "import mlx_vlm" 2>/dev/null; then
+        local mlx_ver
+        mlx_ver="$(python3 -c 'import mlx_vlm; print(mlx_vlm.__version__)' 2>/dev/null || echo 'installed')"
+        print_ok "mlx-vlm 已安装: $mlx_ver"
+    else
+        print_info "安装 mlx-vlm..."
+        pip3 install -U mlx-vlm 2>&1 || {
+            print_error "安装失败，请手动运行: pip3 install -U mlx-vlm"
+            return 1
+        }
+        print_ok "mlx-vlm 安装成功"
+    fi
+
+    # 7. git-lfs 检查
+    if ! git lfs version >/dev/null 2>&1; then
+        print_info "安装 git-lfs..."
+        brew install git-lfs && git lfs install
+    fi
+    print_ok "git-lfs: $(git lfs version 2>/dev/null | awk '{print $3}' || echo 'ready')"
+
+    # 8. 模型检查
+    echo ""
+    print_info "已下载模型:"
+    local model_dir="$HOME/.openclaw/models"
+    if [[ -d "$model_dir" ]]; then
+        local downloaded
+        downloaded="$(find "$model_dir" -maxdepth 1 -mindepth 1 -type d 2>/dev/null || true)"
+        if [[ -n "$downloaded" ]]; then
+            echo "$downloaded" | while read -r d; do
+                local size
+                size="$(du -sh "$d" 2>/dev/null | awk '{print $1}' || echo '?')"
+                echo -e "    ${GREEN}*${NC} $(basename "$d") (${size})"
+            done
+        else
+            print_info "无模型，推荐下载:"
+            echo -e "    ${CYAN}git clone https://www.modelscope.cn/mlx-community/gemma-4-e4b-it-4bit.git${NC}"
+        fi
+    else
+        print_info "无模型，推荐下载:"
+        echo -e "    ${CYAN}git lfs install${NC}"
+        echo -e "    ${CYAN}git clone https://www.modelscope.cn/mlx-community/gemma-4-e4b-it-4bit.git ~/.openclaw/models/gemma-4-e4b-it-4bit${NC}"
+    fi
+}
+
+# 飞书 (Lark) 辅助安装
+helper_install_feishu() {
+    print_step "飞书 (Lark) 辅助安装"
+    echo ""
+
+    # 1. 检查已安装
+    local feishu_found=false
+    if [[ -d "/Applications/Lark.app" ]] || [[ -d "/Applications/Feishu.app" ]]; then
+        print_ok "飞书客户端已安装"
+        feishu_found=true
+    elif [[ -d "$HOME/Applications/Lark.app" ]] || [[ -d "$HOME/Applications/Feishu.app" ]]; then
+        print_ok "飞书客户端已安装 (用户目录)"
+        feishu_found=true
+    else
+        print_warn "飞书客户端未安装"
+    fi
+
+    # 2. 安装选项
+    if [[ "$feishu_found" == "false" ]]; then
+        echo ""
+        echo -e "  ${BOLD}安装方式:${NC}"
+        echo -e "    ${GREEN}1)${NC} Homebrew Cask     ${DIM}brew install --cask lark${NC}"
+        echo -e "    ${GREEN}2)${NC} 官网下载           ${DIM}https://www.larksuite.com/download${NC}"
+        echo -e "    ${GREEN}3)${NC} 跳过"
+        echo ""
+        local install_choice
+        safe_read install_choice "  ${CYAN}请选择 [1-3]:${NC} " || install_choice="1"
+
+        case "$install_choice" in
+            1)
+                if has_cmd brew; then
+                    brew install --cask lark
+                else
+                    print_error "Homebrew 未安装，请先完成步骤 3"
+                fi
+                ;;
+            2)
+                open "https://www.larksuite.com/download"
+                print_info "请在浏览器中下载安装，完成后重新运行检查"
+                ;;
+            *) return 0 ;;
+        esac
+
+        # 再次检查
+        if [[ -d "/Applications/Lark.app" ]] || [[ -d "/Applications/Feishu.app" ]] || \
+           [[ -d "$HOME/Applications/Lark.app" ]] || [[ -d "$HOME/Applications/Feishu.app" ]]; then
+            print_ok "飞书安装成功"
+            feishu_found=true
+        else
+            print_warn "未检测到飞书，可能需要手动确认安装"
+        fi
+    fi
+
+    # 3. OpenClaw 飞书通道配置
+    echo ""
+    echo -e "  ${BOLD}OpenClaw 飞书机器人配置:${NC}"
+    echo ""
+    echo -e "  ${DIM}飞书机器人需要以下信息:${NC}"
+    echo -e "    ${GREEN}1.${NC} 创建飞书开放平台应用: ${CYAN}https://open.feishu.cn/app${NC}"
+    echo -e "    ${GREEN}2.${NC} 开启机器人能力，获取 App ID + App Secret"
+    echo -e "    ${GREEN}3.${NC} 配置事件订阅 (Event Subscription) 回调地址"
+    echo -e "    ${GREEN}4.${NC} 添加权限: 消息读写、通讯录等"
+    echo ""
+
+    if has_cmd openclaw; then
+        if confirm "是否现在配置飞书通道?"; then
+            print_info "启动 OpenClaw 配置向导..."
+            openclaw onboard || print_warn "配置向导已退出"
+        fi
+    else
+        print_info "安装 OpenClaw 后，运行以下命令配置飞书:"
+        echo -e "    ${CYAN}openclaw onboard${NC}"
+        echo -e "    ${CYAN}openclaw channel add lark${NC}"
+    fi
+}
+
 # ============================== 消息通道配置 ================================
 
 config_channels() {
@@ -1370,6 +1629,11 @@ show_main_menu() {
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}6)${NC} 配置消息通道       ${_done_6:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}7)${NC} 验证安装           ${_done_7:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════╣${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${CYAN}辅助安装:${NC}                              ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}t)${NC} 安装 Ollama (本地 AI)              ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}m)${NC} 安装 MLX-VLM (M芯片 AI)            ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}f)${NC} 安装飞书 (Lark)                    ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════╣${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${CYAN}工具与诊断:${NC}                            ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}l)${NC} 本地算力检查 (Ollama/MLX)         ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}g)${NC} 启动 Gateway 服务                 ${BOLD}${GREEN}║${NC}"
@@ -1469,7 +1733,7 @@ interactive_install() {
         show_main_menu
 
         local choice
-        safe_read choice "\n  ${CYAN}请选择 [1-7/l/g/o/d/s/a/q]:${NC} " || choice="q"
+        safe_read choice "\n  ${CYAN}请选择 [1-7/t/m/f/l/g/o/d/s/a/q]:${NC} " || choice="q"
 
         case "$choice" in
             1) run_step 1 check_network   "网络连通性测试" ;;
@@ -1484,6 +1748,9 @@ interactive_install() {
                     print_summary
                 fi
                 ;;
+            t|T) helper_install_ollama ;;
+            m|M) helper_install_mlx ;;
+            f|F) helper_install_feishu ;;
             l|L)
                 check_local_ai
                 ;;
