@@ -353,13 +353,28 @@ install_node_pkg() {
 # ============================== OpenClaw 安装 ===============================
 
 fix_npm_permissions() {
-    # 修复 npm 缓存目录权限（EACCES 常见问题）
+    # 修复 npm 缓存目录 + 全局模块目录权限（EACCES 常见问题）
     local npm_cache
     npm_cache="$(npm config get cache 2>/dev/null || echo "$HOME/.npm")"
     if [ ! -w "$npm_cache" ]; then
         print_warn "npm 缓存目录权限异常，自动修复..."
         sudo chown -R "$(id -u):$(id -g)" "$npm_cache"
         print_ok "npm 缓存权限已修复"
+    fi
+
+    # 修复全局 node_modules 目录权限（EACCES rename 错误根因）
+    local npm_global
+    npm_global="$(npm root -g 2>/dev/null || echo "/usr/local/lib/node_modules")"
+    if [ -d "$npm_global" ] && [ ! -w "$npm_global" ]; then
+        print_warn "npm 全局模块目录权限异常，自动修复..."
+        sudo chown -R "$(id -u):$(id -g)" "$npm_global"
+        # 同时修复 bin 目录
+        local npm_bin
+        npm_bin="$(npm bin -g 2>/dev/null || echo "/usr/local/bin")"
+        if [ -d "$npm_bin" ] && [ ! -w "$npm_bin" ]; then
+            sudo chown -R "$(id -u):$(id -g)" "$npm_bin"
+        fi
+        print_ok "npm 全局目录权限已修复"
     fi
 }
 
@@ -379,10 +394,15 @@ install_openclaw() {
 
     # 默认使用 npm 全局安装（最简单可靠，不会接管 stdin）
     print_info "通过 npm 全局安装 OpenClaw (淘宝镜像)... "
-    if ! npm install -g openclaw 2>&1; then
+    if npm install -g openclaw 2>&1; then
+        : # 成功
+    else
         # npm 全局安装失败时回退到 sudo
         print_warn "普通权限安装失败，使用 sudo 重试..."
-        sudo npm install -g openclaw
+        if ! sudo npm install -g openclaw 2>&1; then
+            print_error "sudo npm install 也失败了，请手动执行: sudo npm install -g openclaw"
+            return 1
+        fi
     fi
 
     # 验证安装
