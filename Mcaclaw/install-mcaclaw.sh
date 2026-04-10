@@ -246,7 +246,7 @@ check_hardware() {
 check_xcode_cli() {
     print_step "检查 Xcode Command Line Tools"
 
-    # 检查是否已安装（多种检测方式）
+    # 检查是否已安装
     if xcode-select -p &>/dev/null; then
         local xcode_path
         xcode_path="$(xcode-select -p 2>/dev/null)"
@@ -266,34 +266,54 @@ check_xcode_cli() {
             print_ok "核心工具 (git/make/cc) 正常"
         else
             print_warn "部分核心工具缺失，尝试重新安装..."
-            _install_xcode_cli
+            _reinstall_xcode_cli
         fi
         return 0
     fi
 
-    # 未安装 — 自动安装
+    # 未安装 — 引导安装
     print_warn "未检测到 Xcode Command Line Tools"
-    print_info "Xcode CLI 提供 git, make, cc 等编译工具，是必需依赖。"
+    echo ""
+    echo -e "  ${BOLD}Xcode Command Line Tools 说明:${NC}"
+    echo ""
+    echo -e "    ${DIM}提供 git, make, cc, clang 等基础编译工具，${NC}"
+    echo -e "    ${DIM}是 Node.js、Homebrew、OpenClaw 运行的必需依赖。${NC}"
+    echo ""
+    echo -e "    ${DIM}安装大小: ~1.5GB | 安装时间: 2-5 分钟 | 需要 sudo 密码${NC}"
+    echo ""
+
+    if ! confirm "是否现在安装 Xcode CLI?"; then
+        print_error "Xcode CLI 是必需依赖，安装中止。"
+        print_info "稍后可手动安装: xcode-select --install"
+        exit 1
+    fi
+
     _install_xcode_cli
 }
 
-# Xcode CLI 安装实现
+# Xcode CLI 首次安装
 _install_xcode_cli() {
     # 方式 1: xcode-select --install (弹出 GUI 安装窗口)
     print_info "正在触发 Xcode CLI 安装..."
 
-    # 先尝试删除旧的不完整安装，避免 "already installed" 误判
-    sudo rm -rf /Library/Developer/CommandLineTools 2>/dev/null || true
-
-    # 触发安装
+    # 触发安装弹窗
     xcode-select --install 2>/dev/null
     local install_rc=$?
+
+    # xcode-select --install 返回码含义:
+    #   0 = 成功触发安装弹窗
+    #   其他 = 可能已安装 / 无法触发
+    # 注意: 不需要预先 rm -rf，首次安装时 /Library/Developer/CommandLineTools 不存在
 
     if (( install_rc == 0 )); then
         # 弹出了安装窗口 — 等待用户完成
         echo ""
-        print_info "已弹出 Xcode CLI 安装窗口，请在弹窗中点击「安装」。"
-        print_info "等待安装完成 (通常 2-5 分钟)..."
+        print_info "已弹出安装窗口，请按以下步骤操作:"
+        echo -e "    ${GREEN}1.${NC} 在弹窗中点击 ${BOLD}「安装」${NC}"
+        echo -e "    ${GREEN}2.${NC} 同意许可协议"
+        echo -e "    ${GREEN}3.${NC} 等待下载完成 (约 1.5GB)"
+        echo ""
+        print_info "脚本正在等待安装完成..."
         echo ""
 
         # 轮询等待安装完成 (最长 10 分钟)
@@ -305,7 +325,7 @@ _install_xcode_cli() {
             if xcode-select -p &>/dev/null; then
                 echo ""
                 print_ok "Xcode CLI 安装完成! (耗时 ${waited}s)"
-                # 重置 SDK 路径
+                # 设置默认工具链路径
                 sudo xcode-select --switch /Library/Developer/CommandLineTools 2>/dev/null || true
                 return 0
             fi
@@ -315,30 +335,82 @@ _install_xcode_cli() {
             fi
         done
 
-        # 超时
+        # 超时 — 安装可能仍在后台进行
         echo ""
         print_warn "等待超时 (${max_wait}s)，安装可能仍在后台进行。"
-        print_info "安装完成后重新运行此脚本即可。"
+        print_info "安装完成后重新运行此脚本即可继续。"
         exit 0
-    else
-        # xcode-select --install 失败 — 尝试备用方式
-        print_warn "xcode-select --install 失败，尝试备用安装方式..."
+    fi
 
-        # 方式 2: 通过软件更新安装 (macOS 10.14+)
-        if softwareupdate --list 2>/dev/null | grep -q "Command Line Tools"; then
-            print_info "通过 softwareupdate 安装..."
-            sudo softwareupdate --install "Command Line Tools" 2>&1 || true
+    # xcode-select --install 未能触发弹窗 — 尝试备用方式
+    print_warn "xcode-select --install 未能触发安装，尝试备用方式..."
+    _install_xcode_cli_fallback
+}
+
+# Xcode CLI 备用安装方式
+_install_xcode_cli_fallback() {
+    # 方式 2: 通过 softwareupdate 安装 (macOS 10.14+)
+    local clt_available
+    clt_available="$(softwareupdate --list 2>/dev/null | grep "Command Line Tools" || true)"
+    if [[ -n "$clt_available" ]]; then
+        print_info "检测到可用更新，通过 softwareupdate 安装..."
+        print_info "$clt_available"
+        echo ""
+        if sudo softwareupdate --install "Command Line Tools" 2>&1; then
+            if xcode-select -p &>/dev/null; then
+                print_ok "Xcode CLI 安装完成 (softwareupdate)"
+                return 0
+            fi
         fi
+    fi
 
-        # 方式 3: 直接下载 DMG
-        echo ""
-        echo -e "  ${YELLOW}自动安装失败，请手动安装:${NC}"
-        echo -e "    ${GREEN}方式 1:${NC} 在终端执行 ${CYAN}xcode-select --install${NC}"
-        echo -e "    ${GREEN}方式 2:${NC} ${CYAN}https://developer.apple.com/download/all/${NC} 搜索 Command Line Tools"
-        echo -e "    ${GREEN}方式 3:${NC} 安装完整 Xcode (App Store)"
-        echo ""
-        print_info "安装完成后重新运行此脚本。"
-        exit 1
+    # 方式 3: 手动安装指引
+    echo ""
+    echo -e "  ${YELLOW}${BOLD}自动安装失败，请选择手动安装方式:${NC}"
+    echo ""
+    echo -e "  ${GREEN}方式 1:${NC} 终端执行命令"
+    echo -e "    ${CYAN}xcode-select --install${NC}"
+    echo ""
+    echo -e "  ${GREEN}方式 2:${NC} Apple 开发者网站下载"
+    echo -e "    ${CYAN}https://developer.apple.com/download/all/${NC}"
+    echo -e "    ${DIM}搜索 \"Command Line Tools\"，选择对应 macOS 版本${NC}"
+    echo ""
+    echo -e "  ${GREEN}方式 3:${NC} 安装完整 Xcode (App Store)"
+    echo -e "    ${DIM}包含 Command Line Tools + IDE + 模拟器 (~12GB)${NC}"
+    echo ""
+    print_info "安装完成后重新运行此脚本即可继续。"
+    exit 1
+}
+
+# Xcode CLI 重装 (核心工具缺失时)
+_reinstall_xcode_cli() {
+    print_warn "检测到 Xcode CLI 安装不完整，尝试修复..."
+
+    # 尝试重置路径
+    sudo xcode-select --reset 2>/dev/null || true
+    sudo xcode-select --switch /Library/Developer/CommandLineTools 2>/dev/null || true
+
+    # 再次验证
+    local still_broken=false
+    for tool in git make cc; do
+        if ! has_cmd "$tool"; then
+            still_broken=true
+            break
+        fi
+    done
+
+    if [[ "$still_broken" == "false" ]]; then
+        print_ok "修复成功，核心工具已恢复"
+        return 0
+    fi
+
+    # 需要完全重装
+    print_info "需要重新安装 Xcode CLI..."
+    if confirm "是否删除旧版本并重新安装?"; then
+        sudo rm -rf /Library/Developer/CommandLineTools 2>/dev/null || true
+        _install_xcode_cli
+    else
+        print_warn "已跳过重装，部分功能可能异常"
     fi
 }
 
