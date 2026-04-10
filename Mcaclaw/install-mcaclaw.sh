@@ -433,19 +433,21 @@ config_ai_model() {
     echo ""
     echo -e "  ${BOLD}选择 AI 算力方案:${NC}"
     echo ""
-    echo -e "  ${GREEN}1)${NC} Ollama 本地模型     ${DIM}(推荐，支持 Intel/Apple Silicon)${NC}"
-    echo -e "  ${GREEN}2)${NC} MLX 本地模型         ${DIM}(Apple Silicon 专属，极限性能)${NC}"
-    echo -e "  ${GREEN}3)${NC} 云端 API 模型        ${DIM}(OpenAI/Claude/Gemini/智谱等)${NC}"
-    echo -e "  ${GREEN}4)${NC} 跳过，稍后配置"
+    echo -e "  ${GREEN}1)${NC} oMLX App           ${DIM}(推荐，macOS 原生 MLX 推理服务)${NC}"
+    echo -e "  ${GREEN}2)${NC} Ollama 本地模型     ${DIM}(通用，支持 Intel/Apple Silicon)${NC}"
+    echo -e "  ${GREEN}3)${NC} MLX-VLM 命令行      ${DIM}(Apple Silicon 专属，极限性能)${NC}"
+    echo -e "  ${GREEN}4)${NC} 云端 API 模型        ${DIM}(OpenAI/Claude/Gemini/智谱等)${NC}"
+    echo -e "  ${GREEN}5)${NC} 跳过，稍后配置"
     echo ""
 
     local model_choice
-    safe_read model_choice "  ${CYAN}请选择 [1-4]:${NC} " || model_choice="1"
+    safe_read model_choice "  ${CYAN}请选择 [1-5]:${NC} " || model_choice="1"
 
     case "$model_choice" in
-        1) _config_ollama "$env_file" ;;
-        2) _config_mlx "$env_file" ;;
-        3) _config_cloud_model "$env_file" ;;
+        1) helper_install_omlx ;;
+        2) _config_ollama "$env_file" ;;
+        3) _config_mlx "$env_file" ;;
+        4) _config_cloud_model "$env_file" ;;
         *) print_info "已跳过 AI 模型配置" ;;
     esac
 
