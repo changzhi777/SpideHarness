@@ -1586,7 +1586,7 @@ safe_curl() {
     local url="$1"
     local max_retries="${2:-2}"
 
-    for attempt in $(seq 1 $((max_retries + 1))); do
+    for attempt in $(_seq 1 $((max_retries + 1))); do
         if curl -fsSL --connect-timeout 10 --retry 1 --retry-delay 3 -o /dev/null "$url" 2>/dev/null; then
             return 0
         fi
@@ -1599,7 +1599,7 @@ safe_curl() {
 }
 
 check_network() {
-    print_step "Step 1/7: 测试网络连通性"
+    print_step "网络连通性测试"
 
     local fail_count=0
 
@@ -1805,7 +1805,7 @@ HELP
 
 # 当前步骤编号
 CURRENT_STEP=1
-TOTAL_STEPS=7
+TOTAL_STEPS=16
 
 # 状态持久化文件
 readonly STATE_FILE="$HOME/.openclaw/.mcaclaw_state"
@@ -1818,12 +1818,21 @@ STEP_DONE_4=0
 STEP_DONE_5=0
 STEP_DONE_6=0
 STEP_DONE_7=0
+STEP_DONE_8=0
+STEP_DONE_9=0
+STEP_DONE_10=0
+STEP_DONE_11=0
+STEP_DONE_12=0
+STEP_DONE_13=0
+STEP_DONE_14=0
+STEP_DONE_15=0
+STEP_DONE_16=0
 
 # 从文件恢复状态
 _load_state() {
     if [[ -f "$STATE_FILE" ]]; then
         local i
-        for i in $(seq 1 $TOTAL_STEPS); do
+        for i in $(_seq 1 $TOTAL_STEPS); do
             local val
             val="$(grep "^STEP_DONE_${i}=" "$STATE_FILE" 2>/dev/null | cut -d= -f2)"
             if [[ "$val" == "1" ]]; then
@@ -1831,7 +1840,7 @@ _load_state() {
             fi
         done
         local loaded=0
-        for i in $(seq 1 $TOTAL_STEPS); do
+        for i in $(_seq 1 $TOTAL_STEPS); do
             if _step_done "$i"; then ((loaded++)); fi
         done
         if (( loaded > 0 )); then
@@ -1845,7 +1854,7 @@ _save_state() {
     mkdir -p "$(dirname "$STATE_FILE")"
     : > "$STATE_FILE"
     local i
-    for i in $(seq 1 $TOTAL_STEPS); do
+    for i in $(_seq 1 $TOTAL_STEPS); do
         echo "STEP_DONE_${i}=$(_step_done "$i")" >> "$STATE_FILE"
     done
 }
@@ -1858,6 +1867,15 @@ _clear_state() {
 # 获取步骤完成状态
 _step_done() { eval "echo \${STEP_DONE_${1}:-0}"; }
 _step_set()  { eval "STEP_DONE_${1}=1"; _save_state; }
+
+# 序列生成（兼容 macOS 无 seq 的情况）
+_seq() {
+    local start="$1" end="$2"
+    local i
+    for ((i=start; i<=end; i++)); do
+        echo "$i"
+    done
+}
 
 show_step_menu() {
     local step="$1"
@@ -1897,6 +1915,7 @@ run_step() {
     local step_num="$1"
     local step_func="$2"
     local step_name="$3"
+    local skippable="${4:-0}"  # 1=可跳过
 
     CURRENT_STEP="$step_num"
 
@@ -1906,48 +1925,70 @@ run_step() {
         return 0
     fi
 
+    # 可跳过步骤：询问用户是否执行
+    if [[ "$skippable" == "1" ]] && [[ "${AUTO_YES:-}" != "1" ]]; then
+        echo ""
+        local skip_choice
+        safe_read skip_choice "\n  ${YELLOW}步骤 ${step_num}: ${step_name}${NC}  [e=执行 / s=跳过 / q=退出] (默认 e): " || skip_choice="e"
+        skip_choice="${skip_choice:-e}"
+        case "$skip_choice" in
+            s|S|skip)
+                print_info "已跳过步骤 ${step_num}: ${step_name}"
+                _step_set "$step_num"
+                return 0
+                ;;
+            q|Q|quit|exit)
+                print_info "用户退出。进度已保存。"
+                exit 0
+                ;;
+            *)
+                # 继续执行
+                ;;
+        esac
+    fi
+
     print_step "Step ${step_num}/${TOTAL_STEPS}: ${step_name}"
 
-    # 执行步骤函数
-    "$step_func"
-    local rc=$?
-
-    if (( rc == 0 )); then
+    # 执行步骤函数（失败不传递错误码，避免 set -e 退出）
+    if "$step_func"; then
         _step_set "$step_num"
+    else
+        print_warn "步骤 ${step_num}: ${step_name} 执行失败，可稍后重试"
     fi
-    return $rc
+
+    return 0
 }
 
 show_main_menu() {
     echo ""
-    echo -e "  ${BOLD}${GREEN}╔══════════════════════════════════════════╗${NC}"
-    echo -e "  ${BOLD}${GREEN}║     Mcaclaw 安装主菜单 v${SCRIPT_VERSION}          ║${NC}"
-    echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════╣${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}1)${NC} 网络连通性测试     ${_done_1:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}2)${NC} 系统检测           ${_done_2:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}3)${NC} 环境检查 (Node.js) ${_done_3:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}4)${NC} 安装 OpenClaw      ${_done_4:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}5)${NC} 配置 AI 模型       ${_done_5:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}6)${NC} 配置消息通道       ${_done_6:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}7)${NC} 验证安装           ${_done_7:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════╣${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${CYAN}辅助安装:${NC}                              ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}t)${NC} 安装 Ollama (本地 AI)              ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}m)${NC} 安装 MLX-VLM (M芯片 AI)            ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}x)${NC} 安装 oMLX App (MLX 推理服务)       ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}f)${NC} 安装飞书 (Lark)                    ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════╣${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${CYAN}工具与诊断:${NC}                            ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}l)${NC} 本地算力检查 (Ollama/MLX)         ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}p)${NC} 安装 SpideHarness Agent+Skills    ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}g)${NC} 启动 Gateway 服务                 ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}o)${NC} 运行 onboard 引导                 ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}d)${NC} 健康检查 (doctor)                  ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}s)${NC} 配置开机自启动                     ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════╣${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}a)${NC} 全部顺序执行                      ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}q)${NC} 退出                              ${BOLD}${GREEN}║${NC}"
-    echo -e "  ${BOLD}${GREEN}╚══════════════════════════════════════════╝${NC}"
+    echo -e "  ${BOLD}${GREEN}╔══════════════════════════════════════════════╗${NC}"
+    echo -e "  ${BOLD}${GREEN}║       Mcaclaw 安装主菜单 v${SCRIPT_VERSION}              ║${NC}"
+    echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════════╣${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${CYAN}基础安装:${NC}                                  ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN} 1)${NC} 网络连通性测试     ${_done_1:-${DIM}待执行${NC}}     ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN} 2)${NC} 系统检测           ${_done_2:-${DIM}待执行${NC}}     ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN} 3)${NC} 环境检查 (Node.js) ${_done_3:-${DIM}待执行${NC}}     ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN} 4)${NC} 安装 OpenClaw      ${_done_4:-${DIM}待执行${NC}}     ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN} 5)${NC} 配置 AI 模型       ${_done_5:-${DIM}待执行${NC}}     ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN} 6)${NC} 配置消息通道       ${_done_6:-${DIM}待执行${NC}}     ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN} 7)${NC} 验证安装           ${_done_7:-${DIM}待执行${NC}}     ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════════╣${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${CYAN}辅助安装 (可跳过):${NC}                           ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN} 8)${NC} 安装 Ollama        ${_done_8:-${DIM}待执行${NC}}     ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN} 9)${NC} 安装 oMLX App      ${_done_9:-${DIM}待执行${NC}}     ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}10)${NC} 安装 MLX-VLM       ${_done_10:-${DIM}待执行${NC}}    ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}11)${NC} 安装飞书 (Lark)    ${_done_11:-${DIM}待执行${NC}}    ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}12)${NC} 安装 SpideHarness  ${_done_12:-${DIM}待执行${NC}}    ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════════╣${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${CYAN}工具与诊断 (可跳过):${NC}                          ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}13)${NC} 启动 Gateway      ${_done_13:-${DIM}待执行${NC}}    ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}14)${NC} Onboard 引导      ${_done_14:-${DIM}待执行${NC}}    ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}15)${NC} 健康检查 (Doctor)  ${_done_15:-${DIM}待执行${NC}}    ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}16)${NC} 开机自启动         ${_done_16:-${DIM}待执行${NC}}    ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════════╣${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}l)${NC} 本地算力检查                              ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}a)${NC} 全部顺序执行    ${GREEN}q)${NC} 退出               ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}╚══════════════════════════════════════════════╝${NC}"
 }
 
 # Step 2 的组合函数
@@ -1960,6 +2001,60 @@ step_check_system() {
 step_check_env() {
     check_xcode_cli
     check_nodejs
+}
+
+# Step 13: 启动 Gateway
+step_gateway_start() {
+    if ! has_cmd openclaw; then
+        print_error "openclaw 命令未找到，请先完成步骤 4"
+        return 1
+    fi
+    print_info "启动 Gateway 服务..."
+    if openclaw gateway start 2>&1; then
+        print_ok "Gateway 服务已启动"
+    else
+        print_warn "Gateway 启动失败，可稍后手动运行: openclaw gateway start"
+        return 1
+    fi
+}
+
+# Step 14: Onboard 引导
+step_onboard() {
+    if ! has_cmd openclaw; then
+        print_error "openclaw 命令未找到，请先完成步骤 4"
+        return 1
+    fi
+    print_info "启动 onboard 引导..."
+    if openclaw onboard; then
+        print_ok "Onboard 引导完成"
+    else
+        print_warn "Onboard 已退出"
+        return 1
+    fi
+}
+
+# Step 15: 健康检查 (Doctor)
+step_doctor() {
+    if ! has_cmd openclaw; then
+        print_error "openclaw 命令未找到，请先完成步骤 4"
+        return 1
+    fi
+    print_info "运行系统诊断..."
+    if openclaw doctor; then
+        print_ok "系统诊断通过"
+    else
+        print_warn "诊断发现问题，请查看上方输出"
+        return 1
+    fi
+}
+
+# Step 16: 开机自启动
+step_autostart() {
+    if ! has_cmd openclaw; then
+        print_error "openclaw 命令未找到，请先完成步骤 4"
+        return 1
+    fi
+    setup_launchd
 }
 
 main() {
@@ -2032,7 +2127,7 @@ interactive_install() {
     while true; do
         # 更新菜单中的完成状态
         local i
-        for i in $(seq 1 $TOTAL_STEPS); do
+        for i in $(_seq 1 $TOTAL_STEPS); do
             if _step_done "$i"; then
                 eval "_done_${i}='${GREEN}✓ 已完成${NC}'"
             fi
@@ -2041,12 +2136,18 @@ interactive_install() {
         show_main_menu
 
         local choice
-        safe_read choice "\n  ${CYAN}请选择 [1-7/p/t/m/x/f/l/g/o/d/s/a/q]:${NC} " || choice="q"
+        if ! safe_read choice "\n  ${CYAN}请选择 [1-16/l/a/q]:${NC} "; then
+            # stdin 不可用，等待 1 秒后重试
+            print_warn "stdin 不可用，等待中..."
+            sleep 1
+            continue
+        fi
 
         case "$choice" in
-            1) run_step 1 check_network   "网络连通性测试" ;;
+            # --- 基础安装 (1-7) ---
+            1) run_step 1 check_network    "网络连通性测试" ;;
             2) run_step 2 step_check_system "系统检测" ;;
-            3) run_step 3 step_check_env  "环境检查" ;;
+            3) run_step 3 step_check_env   "环境检查" ;;
             4) run_step 4 install_openclaw "安装 OpenClaw" ;;
             5) run_step 5 config_ai_model  "配置 AI 模型" ;;
             6) run_step 6 config_channels  "配置消息通道" ;;
@@ -2056,44 +2157,20 @@ interactive_install() {
                     print_summary
                 fi
                 ;;
-            p|P) helper_install_agent ;;
-            t|T) helper_install_ollama ;;
-            m|M) helper_install_mlx ;;
-            x|X) helper_install_omlx ;;
-            f|F) helper_install_feishu ;;
+            # --- 辅助安装 (8-12, 可跳过) ---
+            8)  run_step 8  helper_install_ollama  "安装 Ollama"        1 ;;
+            9)  run_step 9  helper_install_omlx    "安装 oMLX App"      1 ;;
+            10) run_step 10 helper_install_mlx     "安装 MLX-VLM"       1 ;;
+            11) run_step 11 helper_install_feishu  "安装飞书 (Lark)"    1 ;;
+            12) run_step 12 helper_install_agent   "安装 SpideHarness"  1 ;;
+            # --- 工具与诊断 (13-16, 可跳过) ---
+            13) run_step 13 step_gateway_start "启动 Gateway"      1 ;;
+            14) run_step 14 step_onboard      "Onboard 引导"      1 ;;
+            15) run_step 15 step_doctor       "健康检查 (Doctor)" 1 ;;
+            16) run_step 16 step_autostart    "开机自启动"        1 ;;
+            # --- 快捷工具 ---
             l|L)
                 check_local_ai
-                ;;
-            g|G)
-                if has_cmd openclaw; then
-                    print_info "启动 Gateway 服务..."
-                    openclaw gateway start 2>&1 || print_warn "Gateway 启动失败，可稍后手动运行: openclaw gateway start"
-                else
-                    print_error "openclaw 命令未找到，请先完成步骤 4"
-                fi
-                ;;
-            o|O)
-                if has_cmd openclaw; then
-                    print_info "启动 onboard 引导..."
-                    openclaw onboard || print_warn "onboard 已退出"
-                else
-                    print_error "openclaw 命令未找到，请先完成步骤 4"
-                fi
-                ;;
-            d|D)
-                if has_cmd openclaw; then
-                    print_info "运行系统诊断..."
-                    openclaw doctor || print_warn "诊断发现问题，请查看上方输出"
-                else
-                    print_error "openclaw 命令未找到，请先完成步骤 4"
-                fi
-                ;;
-            s|S)
-                if has_cmd openclaw; then
-                    setup_launchd
-                else
-                    print_error "openclaw 命令未找到，请先完成步骤 4"
-                fi
                 ;;
             a|A|all)
                 auto_install
@@ -2112,36 +2189,34 @@ interactive_install() {
 auto_install() {
     print_info "自动模式：顺序执行全部步骤..."
 
-    # Step 1: 网络测试
-    run_step 1 check_network "网络连通性测试"
-    if (( CURRENT_STEP == 1 )); then
-        ask_step_action "n"
-        case $? in
-            2) return ;;
-            3) return ;;
-        esac
-    fi
-
-    # Step 2: 系统检测
+    # --- 基础安装 (1-7) ---
+    run_step 1 check_network     "网络连通性测试"
     run_step 2 step_check_system "系统检测"
-
-    # Step 3: 环境检查
-    run_step 3 step_check_env "环境检查"
-
-    # Step 4: 安装 OpenClaw
-    run_step 4 install_openclaw "安装 OpenClaw"
-
-    # Step 5: 配置 AI 模型
-    run_step 5 config_ai_model "配置 AI 模型"
-
-    # Step 6: 配置消息通道
-    run_step 6 config_channels "配置消息通道"
-
-    # Step 7: 验证安装
+    run_step 3 step_check_env    "环境检查"
+    run_step 4 install_openclaw  "安装 OpenClaw"
+    run_step 5 config_ai_model   "配置 AI 模型"
+    run_step 6 config_channels   "配置消息通道"
     run_step 7 verify_installation "验证安装"
 
-    # 安装摘要 + 返回主菜单
-    print_summary
+    if _step_done 7; then
+        print_summary
+    fi
+
+    # --- 辅助安装 (8-12, 可跳过，自动模式自动跳过失败项) ---
+    print_info "以下为辅助安装，可随时按 Ctrl+C 跳过..."
+    run_step 8  helper_install_ollama "安装 Ollama"        1
+    run_step 9  helper_install_omlx   "安装 oMLX App"      1
+    run_step 10 helper_install_mlx    "安装 MLX-VLM"       1
+    run_step 11 helper_install_feishu "安装飞书 (Lark)"    1
+    run_step 12 helper_install_agent  "安装 SpideHarness"  1
+
+    # --- 工具与诊断 (13-16, 可跳过) ---
+    print_info "以下为工具与诊断步骤..."
+    run_step 13 step_gateway_start "启动 Gateway"      1
+    run_step 14 step_onboard       "Onboard 引导"      1
+    run_step 15 step_doctor        "健康检查 (Doctor)" 1
+    run_step 16 step_autostart     "开机自启动"        1
+
     print_info "自动安装完成，返回主菜单..."
 }
 
