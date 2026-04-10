@@ -1,5 +1,7 @@
 # Mcaclaw — macOS OpenClaw (小龙虾) 一键安装引导
 
+> 作者: 外星动物（常智） / IoTchange / 14455975@qq.com
+>
 > OpenClaw 是一个开源的个人 AI 助手，支持 40+ AI 模型和 20+ 消息平台。
 > Mcaclaw 为 macOS 用户提供一键式安装引导，自动配置环境和模块。
 

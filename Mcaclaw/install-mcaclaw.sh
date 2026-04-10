@@ -49,6 +49,7 @@ print_banner() {
 BANNER
     echo -e "${NC}"
     echo -e "  ${BOLD}macOS OpenClaw (小龙虾) 安装引导${NC} v${SCRIPT_VERSION}"
+    echo -e "  ${DIM}作者: 外星动物（常智） / IoTchange / 14455975@qq.com${NC}"
     echo -e "  ${DIM}GitHub: https://github.com/openclaw/openclaw${NC}"
     echo ""
 }
