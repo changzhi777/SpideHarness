@@ -255,11 +255,20 @@ install_node_brew() {
 
     if ! has_cmd brew; then
         print_info "先安装 Homebrew..."
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        # 使用清华镜像（大陆用户友好），失败回退官方源
+        local brew_url="https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
+        if ! curl -fsSL --connect-timeout 15 "$brew_url" 2>/dev/null | /bin/bash; then
+            print_warn "官方源下载失败，尝试使用镜像..."
+            # 使用 gitee 镜像安装 Homebrew
+            /bin/bash -c "$(curl -fsSL https://gitee.com/ineo6/homebrew-install/raw/master/install.sh)" || {
+                print_error "Homebrew 安装失败，请手动安装: https://brew.sh"
+                return 1
+            }
+        fi
 
         # Apple Silicon 需要配置 PATH
         if [[ "$ARCH_TYPE" == "arm64" ]]; then
-            eval "$(/opt/homebrew/bin/brew shellenv)"
+            eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null || true
             if ! grep -q "brew shellenv" ~/.zprofile 2>/dev/null; then
                 echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
             fi
@@ -280,7 +289,14 @@ install_node_nvm() {
 
     if ! has_cmd nvm; then
         print_info "安装 nvm..."
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+        # 尝试官方源，失败使用 gitee 镜像
+        if ! curl -fsSL --connect-timeout 15 https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh 2>/dev/null | bash; then
+            print_warn "nvm 官方源下载失败，使用 gitee 镜像..."
+            curl -fsSL https://gitee.com/mirrors/nvm/raw/master/install.sh | bash || {
+                print_error "nvm 安装失败"
+                return 1
+            }
+        fi
         export NVM_DIR="$HOME/.nvm"
         [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
     fi
@@ -569,45 +585,116 @@ verify_installation() {
 
 # ============================== 网络连通测试 ================================
 
+# 检测并提示代理配置
+detect_proxy() {
+    # 检查常见代理环境变量
+    local proxy_vars=("https_proxy" "HTTPS_PROXY" "http_proxy" "HTTP_PROXY" "all_proxy" "ALL_PROXY")
+    for var in "${proxy_vars[@]}"; do
+        if [[ -n "${!var:-}" ]]; then
+            print_ok "检测到代理: ${var}=${!var}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# 尝试设置镜像加速（中国大陆用户）
+suggest_mirrors() {
+    echo ""
+    echo -e "  ${YELLOW}${BOLD}网络访问受限，建议配置代理或使用镜像:${NC}"
+    echo ""
+    echo -e "  ${BOLD}方案 1: 配置代理${NC}"
+    echo -e "    export https_proxy=http://127.0.0.1:7890"
+    echo -e "    export http_proxy=http://127.0.0.1:7890"
+    echo ""
+    echo -e "  ${BOLD}方案 2: npm 淘宝镜像${NC}"
+    echo -e "    npm config set registry https://registry.npmmirror.com"
+    echo ""
+    echo -e "  ${BOLD}方案 3: 设置 DNS (114.114.114.114 或 8.8.8.8)${NC}"
+    echo -e "    网络设置 → DNS → 添加 114.114.114.114"
+    echo ""
+}
+
+# 安全 curl：带重试和代理提示
+safe_curl() {
+    local url="$1"
+    local max_retries="${2:-2}"
+
+    for attempt in $(seq 1 $((max_retries + 1))); do
+        if curl -fsSL --connect-timeout 15 --retry 1 --retry-delay 3 -o /dev/null "$url" 2>/dev/null; then
+            return 0
+        fi
+        if (( attempt <= max_retries )); then
+            print_warn "第 ${attempt} 次尝试失败，重试..."
+            sleep 2
+        fi
+    done
+    return 1
+}
+
 check_network() {
     print_step "Step 1/7: 测试网络连通性"
 
-    local all_ok=true
+    local fail_count=0
 
-    # 测试 GitHub 连通
-    print_info "测试 GitHub 连通性..."
-    if curl -fsSL --connect-timeout 10 -o /dev/null "https://github.com" 2>/dev/null; then
-        print_ok "GitHub 访问正常"
-    else
-        print_warn "GitHub 访问失败（可能需要代理）"
-        if ! confirm "GitHub 不可达是否继续? (后续安装可能失败)"; then
-            return 1
-        fi
-        all_ok=false
+    # 检测代理
+    if detect_proxy; then
+        print_info "将使用已有代理配置"
     fi
 
-    # 测试 npm registry 连通
+    # 测试 GitHub
+    print_info "测试 GitHub 连通性..."
+    if safe_curl "https://github.com" 1; then
+        print_ok "GitHub 访问正常"
+    else
+        print_warn "GitHub 访问失败"
+        ((fail_count++))
+    fi
+
+    # 测试 raw.githubusercontent.com（Homebrew/nvm 下载源）
+    print_info "测试 GitHub Raw 连通性..."
+    if safe_curl "https://raw.githubusercontent.com" 1; then
+        print_ok "GitHub Raw 访问正常"
+    else
+        print_warn "GitHub Raw 访问失败 (SSL/网络问题)"
+        ((fail_count++))
+    fi
+
+    # 测试 npm registry
     print_info "测试 npm registry 连通性..."
-    if curl -fsSL --connect-timeout 10 -o /dev/null "https://registry.npmjs.org" 2>/dev/null; then
+    if safe_curl "https://registry.npmjs.org" 1; then
         print_ok "npm registry 访问正常"
     else
         print_warn "npm registry 访问失败"
-        if ! confirm "npm registry 不可达是否继续?"; then
-            return 1
+        ((fail_count++))
+        # 自动设置淘宝镜像
+        if confirm "是否自动切换到 npm 淘宝镜像? (Recommended)"; then
+            npm config set registry https://registry.npmmirror.com
+            print_ok "已切换到淘宝镜像: https://registry.npmmirror.com"
+            ((fail_count--))
         fi
-        all_ok=false
     fi
 
     # 测试 OpenClaw 官网
     print_info "测试 OpenClaw 官网连通性..."
-    if curl -fsSL --connect-timeout 10 -o /dev/null "https://openclaw.ai" 2>/dev/null; then
+    if safe_curl "https://openclaw.ai" 0; then
         print_ok "OpenClaw 官网访问正常"
     else
         print_warn "OpenClaw 官网访问失败（不影响安装）"
     fi
 
-    if [[ "$all_ok" == "true" ]]; then
+    # 结果汇总
+    if (( fail_count == 0 )); then
         print_ok "网络连通性检查全部通过"
+    else
+        echo ""
+        if (( fail_count >= 2 )); then
+            suggest_mirrors
+        fi
+        if ! confirm "有 ${fail_count} 项网络检测失败，是否继续安装?"; then
+            print_info "建议配置代理或镜像后重新运行脚本。"
+            return 1
+        fi
     fi
     return 0
 }
