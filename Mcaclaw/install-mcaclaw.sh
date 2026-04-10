@@ -607,7 +607,7 @@ _config_ollama() {
     fi
 }
 
-# Apple Silicon MLX 本地推理
+# Apple Silicon MLX 本地推理 (视觉+语言多模态)
 _config_mlx() {
     local env_file="$1"
 
@@ -618,10 +618,10 @@ _config_mlx() {
         return 1
     fi
 
-    print_info "MLX — Apple Silicon 极限性能本地推理"
+    print_info "MLX-VLM — Apple Silicon 极限性能多模态推理 (视觉+语言)"
     echo ""
-    echo -e "  ${DIM}MLX 是 Apple 针对 M 系列芯片优化的机器学习框架，${NC}"
-    echo -e "  ${DIM}通过 mlx-lm 或 mlx-community 提供本地模型推理。${NC}"
+    echo -e "  ${DIM}mlx-vlm 是 Apple M 系列芯片优化的多模态视觉语言模型框架，${NC}"
+    echo -e "  ${DIM}支持图像理解、视觉问答、图文生成等任务。${NC}"
     echo ""
 
     # 检查 Python
@@ -640,54 +640,60 @@ _config_mlx() {
         python3 -m ensurepip --upgrade 2>/dev/null || true
     fi
 
-    # 检查/安装 mlx-lm
-    if python3 -c "import mlx_lm" 2>/dev/null; then
+    # 检查/安装 mlx-vlm
+    if python3 -c "import mlx_vlm" 2>/dev/null; then
         local mlx_ver
-        mlx_ver="$(python3 -c 'import mlx_lm; print(mlx_lm.__version__)' 2>/dev/null || echo 'installed')"
-        print_ok "mlx-lm 已安装: $mlx_ver"
+        mlx_ver="$(python3 -c 'import mlx_vlm; print(mlx_vlm.__version__)' 2>/dev/null || echo 'installed')"
+        print_ok "mlx-vlm 已安装: $mlx_ver"
     else
-        print_info "安装 mlx-lm (Apple Silicon 优化推理引擎)..."
-        pip3 install mlx-lm 2>&1 || {
-            print_error "mlx-lm 安装失败，请手动安装: pip3 install mlx-lm"
+        print_info "安装 mlx-vlm (Apple Silicon 多模态视觉推理引擎)..."
+        pip3 install -U mlx-vlm 2>&1 || {
+            print_error "mlx-vlm 安装失败，请手动安装: pip3 install -U mlx-vlm"
             return 1
         }
-        print_ok "mlx-lm 安装成功"
+        print_ok "mlx-vlm 安装成功"
     fi
 
     # 推荐模型
     echo ""
-    echo -e "  ${BOLD}MLX 推荐模型 (mlx-community):${NC}"
-    echo -e "    ${GREEN}q)${NC} Qwen3-8B           ${DIM}(通义千问 3, 8B)${NC}"
-    echo -e "    ${GREEN}l)${NC} Llama-3.1-8B       ${DIM}(Meta Llama 3.1, 8B)${NC}"
-    echo -e "    ${GREEN}g)${NC} Gemma-3-4B         ${DIM}(Google Gemma 3, 4B)${NC}"
+    echo -e "  ${BOLD}MLX-VLM 推荐模型 (mlx-community):${NC}"
+    echo -e "    ${GREEN}g)${NC} gemma-4-e4b-it-4bit  ${DIM}(Google Gemma 4, 4B, 多模态, 推荐)${NC}"
+    echo -e "    ${GREEN}q)${NC} Qwen3-8B-6bit         ${DIM}(通义千问 3, 8B)${NC}"
+    echo -e "    ${GREEN}l)${NC} Llama-3.1-8B-4bit     ${DIM}(Meta Llama 3.1, 8B)${NC}"
     echo -e "    ${GREEN}s)${NC} 跳过，稍后手动下载"
     echo ""
 
     local mlx_choice
-    safe_read mlx_choice "  ${CYAN}选择模型 [q/l/g/s]:${NC} " || mlx_choice="s"
+    safe_read mlx_choice "  ${CYAN}选择模型 [g/q/l/s]:${NC} " || mlx_choice="s"
 
     local mlx_model=""
+    local mlx_default_model="mlx-community/gemma-4-e4b-it-4bit"
     case "$mlx_choice" in
+        g|G) mlx_model="mlx-community/gemma-4-e4b-it-4bit" ;;
         q|Q) mlx_model="mlx-community/Qwen3-8B-6bit" ;;
         l|L) mlx_model="mlx-community/Meta-Llama-3.1-8B-Instruct-4bit" ;;
-        g|G) mlx_model="mlx-community/gemma-3-4b-it-q4-ml" ;;
         *) ;;
     esac
 
     if [[ -n "$mlx_model" ]]; then
-        print_info "下载模型 $mlx_model (首次运行自动缓存)..."
-        print_info "测试命令: python3 -m mlx_lm.generate --model $mlx_model --prompt '你好'"
+        print_info "模型 $mlx_model 将在首次运行时自动下载缓存"
+        echo ""
+        echo -e "  ${BOLD}测试命令:${NC}"
+        echo -e "    ${CYAN}python3 -m mlx_vlm.generate \\${NC}"
+        echo -e "      ${CYAN}--model $mlx_model \\${NC}"
+        echo -e "      ${CYAN}--max-tokens 100 --temperature 0.0 \\${NC}"
+        echo -e "      ${CYAN}--prompt \"Describe this image.\" --image <图片路径>${NC}"
     fi
 
     # 写入 MLX 配置
     if ! grep -q "^MLX_MODEL=" "$env_file" 2>/dev/null; then
-        echo "MLX_MODEL=${mlx_model:-}" >> "$env_file"
+        echo "MLX_MODEL=${mlx_model:-$mlx_default_model}" >> "$env_file"
     fi
     if ! grep -q "^LOCAL_AI_ENGINE=" "$env_file" 2>/dev/null; then
-        echo "LOCAL_AI_ENGINE=mlx" >> "$env_file"
+        echo "LOCAL_AI_ENGINE=mlx-vlm" >> "$env_file"
     fi
 
-    print_ok "MLX 配置完成"
+    print_ok "MLX-VLM 配置完成"
 }
 
 # 本地 AI 算力状态检查
@@ -731,17 +737,17 @@ check_local_ai() {
 
     echo ""
 
-    # ---- MLX (Apple Silicon only) ----
-    echo -e "  ${BOLD}[MLX]${NC}  ${DIM}(Apple Silicon 专属)${NC}"
+    # ---- MLX-VLM (Apple Silicon only) ----
+    echo -e "  ${BOLD}[MLX-VLM]${NC}  ${DIM}(Apple Silicon 专属, 多模态)${NC}"
     if [[ "$ARCH_TYPE" != "arm64" ]]; then
         print_warn "当前为 Intel 架构，MLX 不可用"
-    elif has_cmd python3 && python3 -c "import mlx_lm" 2>/dev/null; then
+    elif has_cmd python3 && python3 -c "import mlx_vlm" 2>/dev/null; then
         local mlx_ver
-        mlx_ver="$(python3 -c 'import mlx_lm; print(mlx_lm.__version__)' 2>/dev/null || echo 'installed')"
-        print_ok "mlx-lm 已安装: $mlx_ver"
+        mlx_ver="$(python3 -c 'import mlx_vlm; print(mlx_vlm.__version__)' 2>/dev/null || echo 'installed')"
+        print_ok "mlx-vlm 已安装: $mlx_ver"
         found_any=true
     else
-        print_warn "未安装 — 安装命令: pip3 install mlx-lm"
+        print_warn "未安装 — 安装命令: pip3 install -U mlx-vlm"
     fi
 
     echo ""
@@ -755,7 +761,7 @@ check_local_ai() {
         echo -e "  ${BOLD}安装建议:${NC}"
         echo -e "    Ollama (通用): ${CYAN}brew install ollama${NC}"
         if [[ "$ARCH_TYPE" == "arm64" ]]; then
-            echo -e "    MLX    (M芯片): ${CYAN}pip3 install mlx-lm${NC}"
+            echo -e "    MLX-VLM (M芯片): ${CYAN}pip3 install -U mlx-vlm${NC}"
         fi
     fi
 }
