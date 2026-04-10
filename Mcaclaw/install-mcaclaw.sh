@@ -1807,6 +1807,9 @@ HELP
 CURRENT_STEP=1
 TOTAL_STEPS=7
 
+# 状态持久化文件
+readonly STATE_FILE="$HOME/.openclaw/.mcaclaw_state"
+
 # 步骤完成标记（bash 3.x 兼容，用普通变量）
 STEP_DONE_1=0
 STEP_DONE_2=0
@@ -1816,9 +1819,45 @@ STEP_DONE_5=0
 STEP_DONE_6=0
 STEP_DONE_7=0
 
+# 从文件恢复状态
+_load_state() {
+    if [[ -f "$STATE_FILE" ]]; then
+        local i
+        for i in $(seq 1 $TOTAL_STEPS); do
+            local val
+            val="$(grep "^STEP_DONE_${i}=" "$STATE_FILE" 2>/dev/null | cut -d= -f2)"
+            if [[ "$val" == "1" ]]; then
+                eval "STEP_DONE_${i}=1"
+            fi
+        done
+        local loaded=0
+        for i in $(seq 1 $TOTAL_STEPS); do
+            if _step_done "$i"; then ((loaded++)); fi
+        done
+        if (( loaded > 0 )); then
+            print_info "已恢复上次进度 (${loaded}/${TOTAL_STEPS} 步已完成)"
+        fi
+    fi
+}
+
+# 保存状态到文件
+_save_state() {
+    mkdir -p "$(dirname "$STATE_FILE")"
+    : > "$STATE_FILE"
+    local i
+    for i in $(seq 1 $TOTAL_STEPS); do
+        echo "STEP_DONE_${i}=$(_step_done "$i")" >> "$STATE_FILE"
+    done
+}
+
+# 清除状态文件（退出时）
+_clear_state() {
+    rm -f "$STATE_FILE" 2>/dev/null
+}
+
 # 获取步骤完成状态
 _step_done() { eval "echo \${STEP_DONE_${1}:-0}"; }
-_step_set()  { eval "STEP_DONE_${1}=1"; }
+_step_set()  { eval "STEP_DONE_${1}=1"; _save_state; }
 
 show_step_menu() {
     local step="$1"
@@ -1845,7 +1884,7 @@ ask_step_action() {
             ;;
         q|Q|quit|exit)
             echo ""
-            print_info "用户退出安装。可随时重新运行脚本继续。"
+            print_info "用户退出。进度已保存，重新运行脚本将恢复。"
             exit 0
             ;;
         *)
@@ -1961,12 +2000,16 @@ main() {
 
     # 卸载模式
     if (( do_uninstall )); then
+        _clear_state
         uninstall_openclaw
         exit 0
     fi
 
     # 欢迎横幅
     print_banner
+
+    # 恢复上次进度
+    _load_state
 
     echo -e "  此脚本将引导你完成 OpenClaw 的安装和配置。"
     echo ""
