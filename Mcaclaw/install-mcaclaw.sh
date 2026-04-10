@@ -831,8 +831,18 @@ HELP
 CURRENT_STEP=1
 TOTAL_STEPS=7
 
-# 步骤完成标记
-declare -A STEP_DONE
+# 步骤完成标记（bash 3.x 兼容，用普通变量）
+STEP_DONE_1=0
+STEP_DONE_2=0
+STEP_DONE_3=0
+STEP_DONE_4=0
+STEP_DONE_5=0
+STEP_DONE_6=0
+STEP_DONE_7=0
+
+# 获取步骤完成状态
+_step_done() { eval "echo \${STEP_DONE_${1}:-0}"; }
+_step_set()  { eval "STEP_DONE_${1}=1"; }
 
 show_step_menu() {
     local step="$1"
@@ -876,7 +886,7 @@ run_step() {
     CURRENT_STEP="$step_num"
 
     # 检查是否已完成
-    if [[ "${STEP_DONE[$step_num]:-}" == "1" ]]; then
+    if [[ "$(_step_done "$step_num")" == "1" ]]; then
         print_ok "步骤 ${step_num}: ${step_name} (已完成)"
         return 0
     fi
@@ -888,7 +898,7 @@ run_step() {
     local rc=$?
 
     if (( rc == 0 )); then
-        STEP_DONE[$step_num]=1
+        _step_set "$step_num"
     fi
     return $rc
 }
@@ -985,7 +995,7 @@ interactive_install() {
         # 更新菜单中的完成状态
         local i
         for i in $(seq 1 $TOTAL_STEPS); do
-            if [[ "${STEP_DONE[$i]:-}" == "1" ]]; then
+            if _step_done "$i"; then
                 eval "_done_${i}='${GREEN}✓ 已完成${NC}'"
             fi
         done
@@ -1004,7 +1014,7 @@ interactive_install() {
             6) run_step 6 config_channels  "配置消息通道" ;;
             7)
                 run_step 7 verify_installation "验证安装"
-                if [[ "${STEP_DONE[7]:-}" == "1" ]]; then
+                if _step_done 7; then
                     print_summary
                     return 0
                 fi
