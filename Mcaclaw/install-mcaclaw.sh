@@ -173,6 +173,17 @@ check_macos() {
 
     local macos_version
     macos_version="$(sw_vers -productVersion)"
+    MACOS_VERSION="$macos_version"
+
+    # 版本检查
+    local ver_major ver_minor
+    IFS='.' read -r ver_major ver_minor _ <<< "$macos_version"
+    if (( ver_major < 12 )); then
+        print_error "macOS $macos_version 版本过低，需要 macOS 12 (Monterey) 及以上"
+        print_info "升级方式: 系统偏好设置 → 软件更新"
+        exit 1
+    fi
+
     print_ok "macOS $macos_version"
 }
 
@@ -196,20 +207,138 @@ check_arch() {
     esac
 }
 
-check_xcode_cli() {
-    print_step "检查 Xcode Command Line Tools"
-    if xcode-select -p &>/dev/null; then
-        print_ok "Xcode CLI 已安装"
+# 检测硬件环境 (内存/磁盘)
+check_hardware() {
+    print_step "检测硬件环境"
+
+    # 内存
+    local mem_gb
+    mem_gb="$(sysctl -n hw.memsize 2>/dev/null | awk '{printf "%.0f", $1/1073741824}' || echo '?')"
+    if [[ "$mem_gb" == "?" ]]; then
+        print_warn "无法检测内存大小"
+    elif (( mem_gb < 8 )); then
+        print_warn "内存 ${mem_gb}GB，建议至少 8GB"
     else
-        print_warn "未检测到 Xcode Command Line Tools"
-        if confirm "需要安装 Xcode CLI (git 等基础工具)。是否现在安装?"; then
-            xcode-select --install 2>/dev/null || true
-            print_info "请在弹出的安装窗口中完成安装后重新运行此脚本。"
-            exit 0
-        else
-            print_error "Xcode CLI 是必需的。安装中止。"
+        print_ok "内存: ${mem_gb}GB"
+    fi
+
+    # 磁盘空间
+    local disk_free
+    disk_free="$(df -g / 2>/dev/null | tail -1 | awk '{print $4}' || echo '?')"
+    if [[ "$disk_free" == "?" ]]; then
+        print_warn "无法检测磁盘空间"
+    elif (( disk_free < 10 )); then
+        print_error "磁盘剩余 ${disk_free}GB，至少需要 10GB 可用空间"
+        if ! confirm "磁盘空间不足，是否继续?"; then
             exit 1
         fi
+    else
+        print_ok "磁盘剩余: ${disk_free}GB"
+    fi
+
+    # Shell 环境
+    local shell_name
+    shell_name="$(basename "${SHELL:-/bin/zsh}")"
+    print_ok "Shell: $shell_name"
+}
+
+# Xcode CLI 检测与安装
+check_xcode_cli() {
+    print_step "检查 Xcode Command Line Tools"
+
+    # 检查是否已安装（多种检测方式）
+    if xcode-select -p &>/dev/null; then
+        local xcode_path
+        xcode_path="$(xcode-select -p 2>/dev/null)"
+        print_ok "Xcode CLI 已安装"
+        print_info "路径: $xcode_path"
+
+        # 验证核心工具可用
+        local tools_ok=true
+        for tool in git make cc; do
+            if ! has_cmd "$tool"; then
+                print_warn "核心工具 $tool 未找到"
+                tools_ok=false
+            fi
+        done
+
+        if [[ "$tools_ok" == "true" ]]; then
+            print_ok "核心工具 (git/make/cc) 正常"
+        else
+            print_warn "部分核心工具缺失，尝试重新安装..."
+            _install_xcode_cli
+        fi
+        return 0
+    fi
+
+    # 未安装 — 自动安装
+    print_warn "未检测到 Xcode Command Line Tools"
+    print_info "Xcode CLI 提供 git, make, cc 等编译工具，是必需依赖。"
+    _install_xcode_cli
+}
+
+# Xcode CLI 安装实现
+_install_xcode_cli() {
+    # 方式 1: xcode-select --install (弹出 GUI 安装窗口)
+    print_info "正在触发 Xcode CLI 安装..."
+
+    # 先尝试删除旧的不完整安装，避免 "already installed" 误判
+    sudo rm -rf /Library/Developer/CommandLineTools 2>/dev/null || true
+
+    # 触发安装
+    xcode-select --install 2>/dev/null
+    local install_rc=$?
+
+    if (( install_rc == 0 )); then
+        # 弹出了安装窗口 — 等待用户完成
+        echo ""
+        print_info "已弹出 Xcode CLI 安装窗口，请在弹窗中点击「安装」。"
+        print_info "等待安装完成 (通常 2-5 分钟)..."
+        echo ""
+
+        # 轮询等待安装完成 (最长 10 分钟)
+        local waited=0
+        local max_wait=600  # 10 分钟
+        while (( waited < max_wait )); do
+            sleep 5
+            waited=$((waited + 5))
+            if xcode-select -p &>/dev/null; then
+                echo ""
+                print_ok "Xcode CLI 安装完成! (耗时 ${waited}s)"
+                # 重置 SDK 路径
+                sudo xcode-select --switch /Library/Developer/CommandLineTools 2>/dev/null || true
+                return 0
+            fi
+            # 每 30 秒提示一次进度
+            if (( waited % 30 == 0 )) && (( waited > 0 )); then
+                print_info "仍在等待安装... (${waited}s / ${max_wait}s)"
+            fi
+        done
+
+        # 超时
+        echo ""
+        print_warn "等待超时 (${max_wait}s)，安装可能仍在后台进行。"
+        print_info "安装完成后重新运行此脚本即可。"
+        exit 0
+    else
+        # xcode-select --install 失败 — 尝试备用方式
+        print_warn "xcode-select --install 失败，尝试备用安装方式..."
+
+        # 方式 2: 通过软件更新安装 (macOS 10.14+)
+        if softwareupdate --list 2>/dev/null | grep -q "Command Line Tools"; then
+            print_info "通过 softwareupdate 安装..."
+            sudo softwareupdate --install "Command Line Tools" 2>&1 || true
+        fi
+
+        # 方式 3: 直接下载 DMG
+        echo ""
+        echo -e "  ${YELLOW}自动安装失败，请手动安装:${NC}"
+        echo -e "    ${GREEN}方式 1:${NC} 在终端执行 ${CYAN}xcode-select --install${NC}"
+        echo -e "    ${GREEN}方式 2:${NC} ${CYAN}https://developer.apple.com/download/all/${NC} 搜索 Command Line Tools"
+        echo -e "    ${GREEN}方式 3:${NC} 安装完整 Xcode (App Store)"
+        echo ""
+        print_info "安装完成后重新运行此脚本。"
+        exit 1
     fi
 }
 
@@ -1807,6 +1936,10 @@ HELP
 CURRENT_STEP=1
 TOTAL_STEPS=16
 
+# 系统信息 (由 check_macos / check_arch 填充)
+MACOS_VERSION=""
+ARCH_TYPE=""
+
 # 状态持久化文件
 readonly STATE_FILE="$HOME/.openclaw/.mcaclaw_state"
 
@@ -1995,6 +2128,7 @@ show_main_menu() {
 step_check_system() {
     check_macos
     check_arch
+    check_hardware
 }
 
 # Step 3 的组合函数
