@@ -264,13 +264,10 @@ install_node_brew() {
 
     if ! has_cmd brew; then
         print_info "先安装 Homebrew..."
-        # 优先使用国内 gitee 镜像，失败回退官方源
-        if curl -fsSL --connect-timeout 15 "$MIRROR_HOMEBREW" 2>/dev/null | /bin/bash; then
-            : # 成功
-        elif curl -fsSL --connect-timeout 15 "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh" 2>/dev/null | /bin/bash; then
-            : # 官方源回退成功
-        else
+        # 使用国内 gitee 镜像安装
+        if ! curl -fsSL --connect-timeout 15 "$MIRROR_HOMEBREW" 2>/dev/null | /bin/bash; then
             print_error "Homebrew 安装失败，请手动安装: https://brew.sh"
+            print_info "或配置代理后重试: export https_proxy=http://127.0.0.1:7890"
             return 1
         fi
 
@@ -297,13 +294,9 @@ install_node_nvm() {
 
     if ! has_cmd nvm; then
         print_info "安装 nvm..."
-        # 优先使用国内 gitee 镜像，失败回退官方源
-        if curl -fsSL --connect-timeout 15 "$MIRROR_NVM" 2>/dev/null | bash; then
-            : # 成功
-        elif curl -fsSL --connect-timeout 15 "https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh" 2>/dev/null | bash; then
-            : # 官方源回退成功
-        else
-            print_error "nvm 安装失败"
+        # 使用国内 gitee 镜像安装
+        if ! curl -fsSL --connect-timeout 15 "$MIRROR_NVM" 2>/dev/null | bash; then
+            print_error "nvm 安装失败，请配置代理后重试"
             return 1
         fi
         export NVM_DIR="$HOME/.nvm"
@@ -1594,7 +1587,7 @@ safe_curl() {
     local max_retries="${2:-2}"
 
     for attempt in $(seq 1 $((max_retries + 1))); do
-        if curl -fsSL --connect-timeout 15 --retry 1 --retry-delay 3 -o /dev/null "$url" 2>/dev/null; then
+        if curl -fsSL --connect-timeout 10 --retry 1 --retry-delay 3 -o /dev/null "$url" 2>/dev/null; then
             return 0
         fi
         if (( attempt <= max_retries )); then
