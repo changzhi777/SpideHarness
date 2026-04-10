@@ -17,7 +17,9 @@ set -euo pipefail
 
 # ============================== 版本信息 ====================================
 readonly SCRIPT_NAME="Mcaclaw"
-readonly SCRIPT_VERSION="1.0.0"
+readonly SCRIPT_VERSION="1.1.0"
+readonly SCRIPT_BUILD="2026-04-10"
+readonly SCRIPT_REPO="https://github.com/changzhi777/SpideHarness/tree/main/Mcaclaw"
 readonly OPENCLAW_MIN_NODE="22.12.0"
 
 # ============================== 国内镜像源 ===================================
@@ -55,9 +57,9 @@ print_banner() {
  |_|  |_|\__,_|\__\___|_|
 BANNER
     echo -e "${NC}"
-    echo -e "  ${BOLD}macOS OpenClaw (小龙虾) 安装引导${NC} v${SCRIPT_VERSION}"
+    echo -e "  ${BOLD}macOS OpenClaw (小龙虾) 安装引导${NC} v${SCRIPT_VERSION} (${SCRIPT_BUILD})"
     echo -e "  ${DIM}作者: 外星动物（常智） / IoTchange / 14455975@qq.com${NC}"
-    echo -e "  ${DIM}GitHub: https://github.com/openclaw/openclaw${NC}"
+    echo -e "  ${DIM}仓库: ${SCRIPT_REPO}${NC}"
     echo ""
 }
 
@@ -1149,13 +1151,21 @@ print_summary() {
 
     echo ""
     echo -e "  ${GREEN}${BOLD}========================================${NC}"
-    echo -e "  ${GREEN}${BOLD}  Mcaclaw — 安装摘要${NC}"
+    echo -e "  ${GREEN}${BOLD}  Mcaclaw v${SCRIPT_VERSION} — 安装摘要${NC}"
     echo -e "  ${GREEN}${BOLD}========================================${NC}"
     echo ""
     echo -e "  系统:     macOS $(sw_vers -productVersion) ($ARCH_TYPE)"
     echo -e "  Node.js:  $(node -v 2>/dev/null || echo 'N/A')"
     echo -e "  OpenClaw: $(openclaw --version 2>/dev/null || echo 'N/A')"
     echo -e "  配置:     ~/.openclaw/"
+    # 本地 AI 状态
+    local ai_engine="未配置"
+    if has_cmd ollama && curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
+        ai_engine="Ollama ✓"
+    elif has_cmd python3 && python3 -c "import mlx_vlm" 2>/dev/null; then
+        ai_engine="MLX-VLM ✓"
+    fi
+    echo -e "  本地 AI:  ${ai_engine}"
     echo ""
     echo -e "  ${BOLD}后续步骤:${NC}"
     echo ""
@@ -1250,12 +1260,13 @@ Mcaclaw — macOS OpenClaw (小龙虾) 一键安装引导
   --version    显示版本号
 
 步骤:
-  1. 系统检测 (macOS + 芯片架构)
-  2. 环境检查 (Xcode CLI + Node.js)
-  3. 安装 OpenClaw
-  4. 配置 AI 模型 (API Key)
-  5. 配置消息通道 (Telegram/Discord/WhatsApp 等)
-  6. 验证安装
+  1. 网络连通性测试
+  2. 系统检测 (macOS + 芯片架构)
+  3. 环境检查 (Xcode CLI + Node.js)
+  4. 安装 OpenClaw
+  5. 配置 AI 模型 (Ollama/MLX/云端)
+  6. 配置消息通道 (Telegram/Discord/WhatsApp 等)
+  7. 验证安装
 
 示例:
   bash install-mcaclaw.sh              # 交互式安装
@@ -1263,8 +1274,8 @@ Mcaclaw — macOS OpenClaw (小龙虾) 一键安装引导
   bash install-mcaclaw.sh --uninstall  # 卸载
 
 更多信息:
-  GitHub: https://github.com/openclaw/openclaw
-  文档:   https://docs.openclaw.ai
+  仓库: https://github.com/changzhi777/SpideHarness/tree/main/Mcaclaw
+  OpenClaw: https://github.com/openclaw/openclaw
 HELP
 }
 
@@ -1349,7 +1360,7 @@ run_step() {
 show_main_menu() {
     echo ""
     echo -e "  ${BOLD}${GREEN}╔══════════════════════════════════════════╗${NC}"
-    echo -e "  ${BOLD}${GREEN}║        Mcaclaw 安装主菜单                ║${NC}"
+    echo -e "  ${BOLD}${GREEN}║     Mcaclaw 安装主菜单 v${SCRIPT_VERSION}          ║${NC}"
     echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════╣${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}1)${NC} 网络连通性测试     ${_done_1:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}2)${NC} 系统检测           ${_done_2:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
@@ -1402,7 +1413,12 @@ main() {
                 exit 0
                 ;;
             --version|-v)
-                echo "Mcaclaw v${SCRIPT_VERSION}"
+                echo ""
+                echo "  Mcaclaw v${SCRIPT_VERSION} (${SCRIPT_BUILD})"
+                echo "  作者: 外星动物（常智） / IoTchange"
+                echo "  仓库: ${SCRIPT_REPO}"
+                echo "  要求: Node.js >= ${OPENCLAW_MIN_NODE}"
+                echo ""
                 exit 0
                 ;;
             *)
