@@ -75,6 +75,18 @@ version_gte() {
     return 0
 }
 
+# 安全读取用户输入（防止 stdin 异常导致脚本退出）
+safe_read() {
+    local var_name="$1"
+    local prompt="$2"
+    if ! read -r -p "$(echo -e "$prompt")" "$var_name" 2>/dev/null; then
+        # stdin 不可用（管道/非交互模式），使用默认值
+        eval "$var_name=''"
+        return 1
+    fi
+    return 0
+}
+
 # 确认提示
 confirm() {
     local prompt="${1:-是否继续?} [Y/n] "
@@ -83,7 +95,10 @@ confirm() {
         echo -e "${prompt}y"
         return 0
     fi
-    read -r -p "$(echo -e "$prompt")" answer
+    local answer
+    if ! safe_read answer "$prompt"; then
+        answer="$default"
+    fi
     answer="${answer:-$default}"
     [[ "$answer" =~ ^[Yy] ]] || [[ -z "$answer" && "$default" == "Y" ]]
 }
@@ -97,8 +112,12 @@ select_option() {
     for i in "${!options[@]}"; do
         echo -e "  ${GREEN}$((i+1)))${NC} ${options[$i]}"
     done
-    read -r -p "$(echo -e "\n${CYAN}请选择 [1-${#options[@]}]:${NC} ")" choice
-    # 默认选第一个
+    local choice
+    if ! safe_read choice "\n${CYAN}请选择 [1-${#options[@]}] (默认 1):${NC} "; then
+        # stdin 不可用，使用默认值
+        SELECTED_INDEX=0
+        return 0
+    fi
     choice="${choice:-1}"
     if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#options[@]} )); then
         SELECTED_INDEX=$((choice - 1))
@@ -118,7 +137,11 @@ multi_select() {
         echo -e "  ${GREEN}$((i+1)))${NC} ${options[$i]}"
     done
     echo -e "  ${YELLOW}输入编号，多个用空格分隔 (如: 1 3 5)，直接回车跳过${NC}"
-    read -r -p "$(echo -e "\n${CYAN}请选择:${NC} ")" choices
+    local choices
+    if ! safe_read choices "\n${CYAN}请选择:${NC} "; then
+        MULTI_SELECTED=()
+        return 0
+    fi
     MULTI_SELECTED=()
     if [[ -n "$choices" ]]; then
         for c in $choices; do
@@ -346,25 +369,36 @@ install_openclaw() {
 config_ai_model() {
     print_step "配置 AI 模型"
 
+    local env_file="$HOME/.openclaw/.env"
+    mkdir -p "$HOME/.openclaw"
+    touch "$env_file"
+
+    # 默认使用 Ollama 本地模型（无需 API Key，不会因输入异常中断）
+    print_info "默认使用 Ollama 本地模型（无需 API Key）"
+    _config_ollama "$env_file"
+    print_ok "AI 模型配置完成（Ollama 本地模式）"
+
+    # 询问是否切换为云端模型
+    if confirm "是否切换为云端 AI 模型? (需要 API Key) [y/N]" "N"; then
+        _config_cloud_model "$env_file"
+    fi
+}
+
+_config_cloud_model() {
+    local env_file="$1"
+
     local models=(
         "OpenAI (GPT-4o / o3) — 需要 OPENAI_API_KEY"
         "Anthropic (Claude Opus/Sonnet) — 需要 ANTHROPIC_API_KEY"
         "Google (Gemini 2.5 Pro) — 需要 GEMINI_API_KEY"
         "OpenRouter (多模型聚合) — 需要 OPENROUTER_API_KEY"
         "智谱 AI (GLM-5.1) — 需要 ZAI_API_KEY"
-        "Moonshot (Kimi K2.5，推荐) — 需要 MOONSHOT_API_KEY"
+        "Moonshot (Kimi K2.5) — 需要 MOONSHOT_API_KEY"
         "Deepseek — 需要 DEEPSEEK_API_KEY"
-        "Ollama (本地模型) — 无需 API Key"
-        "跳过，稍后配置"
+        "返回，保持 Ollama"
     )
 
-    select_option "选择主要 AI 模型提供商:" "${models[@]}"
-
-    local env_file="$HOME/.openclaw/.env"
-    mkdir -p "$HOME/.openclaw"
-
-    # 如果 .env 不存在则创建
-    touch "$env_file"
+    select_option "选择云端 AI 模型提供商:" "${models[@]}"
 
     case "$SELECTED_INDEX" in
         0) _config_api_key "OPENAI_API_KEY" "OpenAI" "$env_file" ;;
@@ -374,8 +408,7 @@ config_ai_model() {
         4) _config_api_key "ZAI_API_KEY" "智谱 AI" "$env_file" ;;
         5) _config_api_key "MOONSHOT_API_KEY" "Moonshot" "$env_file" ;;
         6) _config_api_key "DEEPSEEK_API_KEY" "Deepseek" "$env_file" ;;
-        7) _config_ollama "$env_file" ;;
-        8) print_info "已跳过模型配置，稍后可通过编辑 ~/.openclaw/.env 配置。" ;;
+        7) print_info "保持 Ollama 本地模型" ;;
     esac
 
     print_ok "AI 模型配置完成"
@@ -389,10 +422,13 @@ _config_api_key() {
     echo ""
     echo -e "  ${BOLD}配置 $provider API Key${NC}"
     echo -e "  ${DIM}获取地址: https://platform.openclaw.ai/models${NC}"
-    read -r -p "$(echo -e "  ${CYAN}请输入 ${var_name}:${NC} ")" api_key
+    local api_key
+    if ! safe_read api_key "  ${CYAN}请输入 ${var_name} (回车跳过):${NC} "; then
+        print_warn "无法读取输入，跳过。稍后编辑 $env_file"
+        return 0
+    fi
 
     if [[ -n "$api_key" ]]; then
-        # 移除旧的配置
         if grep -q "^${var_name}=" "$env_file" 2>/dev/null; then
             sed -i '' "s|^${var_name}=.*|${var_name}=${api_key}|" "$env_file"
         else
