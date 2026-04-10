@@ -428,15 +428,26 @@ config_ai_model() {
     mkdir -p "$HOME/.openclaw"
     touch "$env_file"
 
-    # 默认使用 Ollama 本地模型（无需 API Key，不会因输入异常中断）
-    print_info "默认使用 Ollama 本地模型（无需 API Key）"
-    _config_ollama "$env_file"
-    print_ok "AI 模型配置完成（Ollama 本地模式）"
+    echo ""
+    echo -e "  ${BOLD}选择 AI 算力方案:${NC}"
+    echo ""
+    echo -e "  ${GREEN}1)${NC} Ollama 本地模型     ${DIM}(推荐，支持 Intel/Apple Silicon)${NC}"
+    echo -e "  ${GREEN}2)${NC} MLX 本地模型         ${DIM}(Apple Silicon 专属，极限性能)${NC}"
+    echo -e "  ${GREEN}3)${NC} 云端 API 模型        ${DIM}(OpenAI/Claude/Gemini/智谱等)${NC}"
+    echo -e "  ${GREEN}4)${NC} 跳过，稍后配置"
+    echo ""
 
-    # 询问是否切换为云端模型
-    if confirm "是否切换为云端 AI 模型? (需要 API Key) [y/N]" "N"; then
-        _config_cloud_model "$env_file"
-    fi
+    local model_choice
+    safe_read model_choice "  ${CYAN}请选择 [1-4]:${NC} " || model_choice="1"
+
+    case "$model_choice" in
+        1) _config_ollama "$env_file" ;;
+        2) _config_mlx "$env_file" ;;
+        3) _config_cloud_model "$env_file" ;;
+        *) print_info "已跳过 AI 模型配置" ;;
+    esac
+
+    print_ok "AI 模型配置完成"
 }
 
 _config_cloud_model() {
@@ -498,18 +509,254 @@ _config_api_key() {
 _config_ollama() {
     local env_file="$1"
 
-    print_info "Ollama 使用本地模型，无需 API Key"
+    print_info "Ollama — 本地大模型运行引擎，无需 API Key"
+
+    # 1. 检查/安装 Ollama
     if has_cmd ollama; then
-        print_ok "Ollama 已安装"
+        local ollama_ver
+        ollama_ver="$(ollama --version 2>/dev/null | head -1 || echo 'unknown')"
+        print_ok "Ollama 已安装: $ollama_ver"
     else
-        if confirm "是否安装 Ollama?"; then
+        print_info "Ollama 未安装，开始安装..."
+        if has_cmd brew; then
             brew install ollama
+        else
+            # 无 brew 时用官方脚本
+            curl -fsSL https://ollama.com/install.sh | sh
+        fi
+
+        if has_cmd ollama; then
+            print_ok "Ollama 安装成功"
+        else
+            print_error "Ollama 安装失败，请手动安装: https://ollama.com"
+            return 1
         fi
     fi
 
-    # 设置 Ollama 基础 URL
+    # 2. 启动 Ollama 服务
+    print_info "检查 Ollama 服务状态..."
+    if curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
+        print_ok "Ollama 服务已运行"
+    else
+        print_info "启动 Ollama 服务..."
+        ollama serve &>/dev/null &
+        # 等待服务就绪
+        local retry=0
+        while (( retry < 10 )); do
+            if curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
+                print_ok "Ollama 服务已启动"
+                break
+            fi
+            sleep 1
+            ((retry++))
+        done
+        if ! curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
+            print_warn "Ollama 服务启动超时，可稍后手动运行: ollama serve"
+        fi
+    fi
+
+    # 3. 检查已安装的模型
+    print_info "检查已安装的本地模型..."
+    local installed_models
+    installed_models="$(ollama list 2>/dev/null | tail -n +2 | awk '{print $1}' | grep -v '^$' || true)"
+
+    if [[ -n "$installed_models" ]]; then
+        echo ""
+        print_ok "已安装的模型:"
+        echo "$installed_models" | while read -r m; do
+            echo -e "    ${GREEN}*${NC} $m"
+        done
+    else
+        print_info "尚未安装任何模型"
+    fi
+
+    # 4. 推荐拉取模型
+    echo ""
+    echo -e "  ${BOLD}推荐模型:${NC}"
+    echo -e "    ${GREEN}q)${NC} qwen3:8b          ${DIM}(通义千问 3, 8B, 通用对话)${NC}"
+    echo -e "    ${GREEN}l)${NC} llama3.1:8b        ${DIM}(Meta Llama 3.1, 8B, 英文优秀)${NC}"
+    echo -e "    ${GREEN}g)${NC} gemma3:4b          ${DIM}(Google Gemma 3, 4B, 轻量高效)${NC}"
+    echo -e "    ${GREEN}d)${NC} deepseek-r1:7b     ${DIM}(DeepSeek R1, 7B, 推理强)${NC}"
+    echo -e "    ${GREEN}s)${NC} 跳过，稍后手动拉取"
+    echo ""
+
+    local pull_choice
+    safe_read pull_choice "  ${CYAN}选择要拉取的模型 [q/l/g/d/s]:${NC} " || pull_choice="s"
+
+    local model_name=""
+    case "$pull_choice" in
+        q|Q) model_name="qwen3:8b" ;;
+        l|L) model_name="llama3.1:8b" ;;
+        g|G) model_name="gemma3:4b" ;;
+        d|D) model_name="deepseek-r1:7b" ;;
+        *) ;;
+    esac
+
+    if [[ -n "$model_name" ]]; then
+        print_info "拉取模型 $model_name (首次下载约 4-8GB，请耐心等待)..."
+        if ollama pull "$model_name"; then
+            print_ok "模型 $model_name 拉取成功"
+        else
+            print_warn "模型拉取失败，可稍后手动运行: ollama pull $model_name"
+        fi
+    fi
+
+    # 5. 写入配置
     if ! grep -q "^OLLAMA_BASE_URL=" "$env_file" 2>/dev/null; then
         echo "OLLAMA_BASE_URL=http://localhost:11434" >> "$env_file"
+    fi
+}
+
+# Apple Silicon MLX 本地推理
+_config_mlx() {
+    local env_file="$1"
+
+    # 检查是否为 Apple Silicon
+    if [[ "$ARCH_TYPE" != "arm64" ]]; then
+        print_error "MLX 仅支持 Apple Silicon (M1/M2/M3/M4)，当前架构: $ARCH_TYPE"
+        print_info "建议选择 Ollama 方案"
+        return 1
+    fi
+
+    print_info "MLX — Apple Silicon 极限性能本地推理"
+    echo ""
+    echo -e "  ${DIM}MLX 是 Apple 针对 M 系列芯片优化的机器学习框架，${NC}"
+    echo -e "  ${DIM}通过 mlx-lm 或 mlx-community 提供本地模型推理。${NC}"
+    echo ""
+
+    # 检查 Python
+    if ! has_cmd python3; then
+        print_error "需要 Python 3，请先通过 Homebrew 安装: brew install python3"
+        return 1
+    fi
+
+    local python_ver
+    python_ver="$(python3 --version 2>/dev/null || echo 'unknown')"
+    print_ok "Python: $python_ver"
+
+    # 检查 pip
+    if ! python3 -m pip --version >/dev/null 2>&1; then
+        print_info "安装 pip..."
+        python3 -m ensurepip --upgrade 2>/dev/null || true
+    fi
+
+    # 检查/安装 mlx-lm
+    if python3 -c "import mlx_lm" 2>/dev/null; then
+        local mlx_ver
+        mlx_ver="$(python3 -c 'import mlx_lm; print(mlx_lm.__version__)' 2>/dev/null || echo 'installed')"
+        print_ok "mlx-lm 已安装: $mlx_ver"
+    else
+        print_info "安装 mlx-lm (Apple Silicon 优化推理引擎)..."
+        pip3 install mlx-lm 2>&1 || {
+            print_error "mlx-lm 安装失败，请手动安装: pip3 install mlx-lm"
+            return 1
+        }
+        print_ok "mlx-lm 安装成功"
+    fi
+
+    # 推荐模型
+    echo ""
+    echo -e "  ${BOLD}MLX 推荐模型 (mlx-community):${NC}"
+    echo -e "    ${GREEN}q)${NC} Qwen3-8B           ${DIM}(通义千问 3, 8B)${NC}"
+    echo -e "    ${GREEN}l)${NC} Llama-3.1-8B       ${DIM}(Meta Llama 3.1, 8B)${NC}"
+    echo -e "    ${GREEN}g)${NC} Gemma-3-4B         ${DIM}(Google Gemma 3, 4B)${NC}"
+    echo -e "    ${GREEN}s)${NC} 跳过，稍后手动下载"
+    echo ""
+
+    local mlx_choice
+    safe_read mlx_choice "  ${CYAN}选择模型 [q/l/g/s]:${NC} " || mlx_choice="s"
+
+    local mlx_model=""
+    case "$mlx_choice" in
+        q|Q) mlx_model="mlx-community/Qwen3-8B-6bit" ;;
+        l|L) mlx_model="mlx-community/Meta-Llama-3.1-8B-Instruct-4bit" ;;
+        g|G) mlx_model="mlx-community/gemma-3-4b-it-q4-ml" ;;
+        *) ;;
+    esac
+
+    if [[ -n "$mlx_model" ]]; then
+        print_info "下载模型 $mlx_model (首次运行自动缓存)..."
+        print_info "测试命令: python3 -m mlx_lm.generate --model $mlx_model --prompt '你好'"
+    fi
+
+    # 写入 MLX 配置
+    if ! grep -q "^MLX_MODEL=" "$env_file" 2>/dev/null; then
+        echo "MLX_MODEL=${mlx_model:-}" >> "$env_file"
+    fi
+    if ! grep -q "^LOCAL_AI_ENGINE=" "$env_file" 2>/dev/null; then
+        echo "LOCAL_AI_ENGINE=mlx" >> "$env_file"
+    fi
+
+    print_ok "MLX 配置完成"
+}
+
+# 本地 AI 算力状态检查
+check_local_ai() {
+    print_step "本地 AI 算力检查"
+    echo ""
+
+    local found_any=false
+
+    # ---- Ollama ----
+    echo -e "  ${BOLD}[Ollama]${NC}"
+    if has_cmd ollama; then
+        local ollama_ver
+        ollama_ver="$(ollama --version 2>/dev/null | head -1 || echo 'unknown')"
+        print_ok "已安装: $ollama_ver"
+
+        # 服务状态
+        if curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
+            print_ok "服务运行中 (localhost:11434)"
+
+            # 列出已安装模型
+            local models
+            models="$(ollama list 2>/dev/null | tail -n +2 | awk '{print $1}' | grep -v '^$' || true)"
+            if [[ -n "$models" ]]; then
+                local model_count
+                model_count="$(echo "$models" | wc -l | tr -d ' ')"
+                print_ok "已加载模型 ($model_count 个):"
+                echo "$models" | while read -r m; do
+                    echo -e "      ${GREEN}*${NC} $m"
+                done
+            else
+                print_warn "无已安装模型，运行: ollama pull qwen3:8b"
+            fi
+        else
+            print_warn "服务未运行，启动命令: ollama serve"
+        fi
+        found_any=true
+    else
+        print_warn "未安装 — 安装命令: brew install ollama"
+    fi
+
+    echo ""
+
+    # ---- MLX (Apple Silicon only) ----
+    echo -e "  ${BOLD}[MLX]${NC}  ${DIM}(Apple Silicon 专属)${NC}"
+    if [[ "$ARCH_TYPE" != "arm64" ]]; then
+        print_warn "当前为 Intel 架构，MLX 不可用"
+    elif has_cmd python3 && python3 -c "import mlx_lm" 2>/dev/null; then
+        local mlx_ver
+        mlx_ver="$(python3 -c 'import mlx_lm; print(mlx_lm.__version__)' 2>/dev/null || echo 'installed')"
+        print_ok "mlx-lm 已安装: $mlx_ver"
+        found_any=true
+    else
+        print_warn "未安装 — 安装命令: pip3 install mlx-lm"
+    fi
+
+    echo ""
+
+    # ---- 汇总 ----
+    if [[ "$found_any" == "true" ]]; then
+        print_ok "本地算力就绪"
+    else
+        print_warn "未检测到本地 AI 引擎"
+        echo ""
+        echo -e "  ${BOLD}安装建议:${NC}"
+        echo -e "    Ollama (通用): ${CYAN}brew install ollama${NC}"
+        if [[ "$ARCH_TYPE" == "arm64" ]]; then
+            echo -e "    MLX    (M芯片): ${CYAN}pip3 install mlx-lm${NC}"
+        fi
     fi
 }
 
@@ -1030,7 +1277,8 @@ show_main_menu() {
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}6)${NC} 配置消息通道       ${_done_6:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}7)${NC} 验证安装           ${_done_7:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════╣${NC}"
-    echo -e "  ${BOLD}${GREEN}║${NC} ${CYAN}安装后操作:${NC}                            ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${CYAN}工具与诊断:${NC}                            ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}l)${NC} 本地算力检查 (Ollama/MLX)         ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}g)${NC} 启动 Gateway 服务                 ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}o)${NC} 运行 onboard 引导                 ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}d)${NC} 健康检查 (doctor)                  ${BOLD}${GREEN}║${NC}"
@@ -1123,7 +1371,7 @@ interactive_install() {
         show_main_menu
 
         local choice
-        safe_read choice "\n  ${CYAN}请选择 [1-7/g/o/d/s/a/q]:${NC} " || choice="q"
+        safe_read choice "\n  ${CYAN}请选择 [1-7/l/g/o/d/s/a/q]:${NC} " || choice="q"
 
         case "$choice" in
             1) run_step 1 check_network   "网络连通性测试" ;;
@@ -1137,6 +1385,9 @@ interactive_install() {
                 if _step_done 7; then
                     print_summary
                 fi
+                ;;
+            l|L)
+                check_local_ai
                 ;;
             g|G)
                 if has_cmd openclaw; then
