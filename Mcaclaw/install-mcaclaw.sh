@@ -654,9 +654,32 @@ _config_mlx() {
         print_ok "mlx-vlm 安装成功"
     fi
 
+    # 检查/安装 git + git-lfs (模型下载需要)
+    if ! has_cmd git; then
+        print_info "安装 git..."
+        if has_cmd brew; then
+            brew install git
+        else
+            print_error "需要 git，请先安装 Xcode CLI: xcode-select --install"
+            return 1
+        fi
+    fi
+
+    if ! git lfs version >/dev/null 2>&1; then
+        print_info "安装 git-lfs (大文件下载支持)..."
+        if has_cmd brew; then
+            brew install git-lfs
+        else
+            print_error "git-lfs 安装失败，请手动安装: brew install git-lfs"
+            return 1
+        fi
+    fi
+    git lfs install 2>/dev/null || true
+    print_ok "git + git-lfs 就绪"
+
     # 推荐模型
     echo ""
-    echo -e "  ${BOLD}MLX-VLM 推荐模型 (mlx-community):${NC}"
+    echo -e "  ${BOLD}MLX-VLM 推荐模型 (ModelScope 国内源):${NC}"
     echo -e "    ${GREEN}g)${NC} gemma-4-e4b-it-4bit  ${DIM}(Google Gemma 4, 4B, 多模态, 推荐)${NC}"
     echo -e "    ${GREEN}q)${NC} Qwen3-8B-6bit         ${DIM}(通义千问 3, 8B)${NC}"
     echo -e "    ${GREEN}l)${NC} Llama-3.1-8B-4bit     ${DIM}(Meta Llama 3.1, 8B)${NC}"
@@ -666,28 +689,61 @@ _config_mlx() {
     local mlx_choice
     safe_read mlx_choice "  ${CYAN}选择模型 [g/q/l/s]:${NC} " || mlx_choice="s"
 
+    # ModelScope 下载地址映射
     local mlx_model=""
-    local mlx_default_model="mlx-community/gemma-4-e4b-it-4bit"
+    local mlx_local_path="$HOME/.openclaw/models"
+    local modelscope_url=""
     case "$mlx_choice" in
-        g|G) mlx_model="mlx-community/gemma-4-e4b-it-4bit" ;;
-        q|Q) mlx_model="mlx-community/Qwen3-8B-6bit" ;;
-        l|L) mlx_model="mlx-community/Meta-Llama-3.1-8B-Instruct-4bit" ;;
+        g|G)
+            mlx_model="mlx-community/gemma-4-e4b-it-4bit"
+            modelscope_url="https://www.modelscope.cn/mlx-community/gemma-4-e4b-it-4bit.git"
+            ;;
+        q|Q)
+            mlx_model="mlx-community/Qwen3-8B-6bit"
+            modelscope_url="https://www.modelscope.cn/mlx-community/Qwen3-8B-6bit.git"
+            ;;
+        l|L)
+            mlx_model="mlx-community/Meta-Llama-3.1-8B-Instruct-4bit"
+            modelscope_url="https://www.modelscope.cn/mlx-community/Meta-Llama-3.1-8B-Instruct-4bit.git"
+            ;;
         *) ;;
     esac
 
     if [[ -n "$mlx_model" ]]; then
-        print_info "模型 $mlx_model 将在首次运行时自动下载缓存"
+        mkdir -p "$mlx_local_path"
+        local model_dir="$mlx_local_path/$(basename "$mlx_model")"
+
+        if [[ -d "$model_dir" ]]; then
+            print_ok "模型已存在: $model_dir"
+        else
+            print_info "从 ModelScope 下载模型 $mlx_model..."
+            print_info "下载地址: $modelscope_url"
+            print_info "模型较大 (2-6GB)，请耐心等待..."
+            echo ""
+            if git clone "$modelscope_url" "$model_dir"; then
+                print_ok "模型下载完成: $model_dir"
+            else
+                print_warn "模型下载失败，可稍后手动下载:"
+                echo -e "    ${CYAN}git lfs install${NC}"
+                echo -e "    ${CYAN}git clone $modelscope_url $model_dir${NC}"
+            fi
+        fi
+
+        # 写入本地模型路径
         echo ""
         echo -e "  ${BOLD}测试命令:${NC}"
         echo -e "    ${CYAN}python3 -m mlx_vlm.generate \\${NC}"
-        echo -e "      ${CYAN}--model $mlx_model \\${NC}"
+        echo -e "      ${CYAN}--model $model_dir \\${NC}"
         echo -e "      ${CYAN}--max-tokens 100 --temperature 0.0 \\${NC}"
         echo -e "      ${CYAN}--prompt \"Describe this image.\" --image <图片路径>${NC}"
     fi
 
     # 写入 MLX 配置
     if ! grep -q "^MLX_MODEL=" "$env_file" 2>/dev/null; then
-        echo "MLX_MODEL=${mlx_model:-$mlx_default_model}" >> "$env_file"
+        echo "MLX_MODEL=${mlx_model:-mlx-community/gemma-4-e4b-it-4bit}" >> "$env_file"
+    fi
+    if ! grep -q "^MLX_MODEL_PATH=" "$env_file" 2>/dev/null && [[ -n "$mlx_model" ]]; then
+        echo "MLX_MODEL_PATH=$mlx_local_path/$(basename "$mlx_model")" >> "$env_file"
     fi
     if ! grep -q "^LOCAL_AI_ENGINE=" "$env_file" 2>/dev/null; then
         echo "LOCAL_AI_ENGINE=mlx-vlm" >> "$env_file"
@@ -745,6 +801,23 @@ check_local_ai() {
         local mlx_ver
         mlx_ver="$(python3 -c 'import mlx_vlm; print(mlx_vlm.__version__)' 2>/dev/null || echo 'installed')"
         print_ok "mlx-vlm 已安装: $mlx_ver"
+
+        # 检查已下载模型
+        local model_dir="$HOME/.openclaw/models"
+        if [[ -d "$model_dir" ]]; then
+            local downloaded
+            downloaded="$(find "$model_dir" -maxdepth 1 -mindepth 1 -type d 2>/dev/null || true)"
+            if [[ -n "$downloaded" ]]; then
+                local dl_count
+                dl_count="$(echo "$downloaded" | wc -l | tr -d ' ')"
+                print_ok "已下载模型 ($dl_count 个):"
+                echo "$downloaded" | while read -r d; do
+                    echo -e "      ${GREEN}*${NC} $(basename "$d")"
+                done
+            else
+                print_warn "无已下载模型"
+            fi
+        fi
         found_any=true
     else
         print_warn "未安装 — 安装命令: pip3 install -U mlx-vlm"
@@ -762,6 +835,7 @@ check_local_ai() {
         echo -e "    Ollama (通用): ${CYAN}brew install ollama${NC}"
         if [[ "$ARCH_TYPE" == "arm64" ]]; then
             echo -e "    MLX-VLM (M芯片): ${CYAN}pip3 install -U mlx-vlm${NC}"
+            echo -e "    然后下载模型:     ${CYAN}git lfs install && git clone https://www.modelscope.cn/mlx-community/gemma-4-e4b-it-4bit.git${NC}"
         fi
     fi
 }
