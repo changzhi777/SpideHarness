@@ -40,6 +40,8 @@ _PLATFORM_MAP: dict[str, TopicSource] = {
     "douyin": TopicSource.DOUYIN,
     "zhihu": TopicSource.ZHIHU,
     "bilibili": TopicSource.BILIBILI,
+    "kuaishou": TopicSource.KUAISHOU,
+    "tieba": TopicSource.TIEBA,
 }
 
 # UAPI 热搜 API 路径
@@ -134,7 +136,7 @@ class UAPIClient:
                 hot_value=_parse_int(item.get("hot_value")),
                 url=item.get("url"),
                 rank=item.get("index"),
-                extra=item.get("extra", {}),
+                extra=item.get("extra") or {},
             )
             topics.append(topic)
 

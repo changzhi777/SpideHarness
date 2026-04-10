@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 import typer
 from rich.console import Console
@@ -487,6 +488,61 @@ def memory_add(
 
     path = add_memory(workspace, title=title, content=content)
     console.print(f"[green]记忆已添加:[/green] {path}")
+
+
+# ---------------------------------------------------------------------------
+# dashboard 命令
+# ---------------------------------------------------------------------------
+
+
+@app.command()
+def dashboard(
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="工作空间路径"),
+    output: str | None = typer.Option(None, "--output", "-o", help="输出文件路径"),
+    open_browser: bool = typer.Option(True, "--open/--no-open", help="自动打开浏览器"),
+) -> None:
+    """生成数据看板并在浏览器中打开."""
+    asyncio.run(_dashboard_async(workspace, output, open_browser))
+
+
+async def _dashboard_async(
+    workspace: str | None, output: str | None, open_browser: bool
+) -> None:
+    """Dashboard 异步实现."""
+    import webbrowser
+
+    from spide.dashboard import collect_dashboard_data, render_dashboard
+    from spide.dashboard.renderer import write_dashboard
+
+    ws = get_workspace_root(workspace)
+    db_path = str(ws / "spide_data.db")
+
+    # 检查数据库是否存在
+    if not Path(db_path).exists():
+        console.print("[yellow]未找到数据库，请先运行:[/yellow] spide crawl")
+        return
+
+    data = await collect_dashboard_data(db_path=db_path)
+
+    if data["total_count"] == 0:
+        console.print("[yellow]数据库为空，请先运行:[/yellow] spide crawl")
+        return
+
+    html = render_dashboard(data)
+
+    # 确定输出路径
+    if output:
+        out_path = Path(output)
+    else:
+        out_path = ws / "dashboard" / "index.html"
+
+    filepath = write_dashboard(html, out_path)
+    console.print(f"[green]看板已生成:[/green] {filepath}")
+    console.print(f"[dim]数据: {data['total_count']} 条话题, {data['stats_summary']['platforms']} 个平台[/dim]")
+
+    if open_browser:
+        webbrowser.open(filepath.as_uri())
+        console.print("[dim]已在浏览器中打开[/dim]")
 
 
 # ---------------------------------------------------------------------------

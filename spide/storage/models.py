@@ -32,6 +32,8 @@ class TopicSource(str, Enum):
     DOUYIN = "douyin"
     ZHIHU = "zhihu"
     BILIBILI = "bilibili"
+    KUAISHOU = "kuaishou"
+    TIEBA = "tieba"
     WEB_SEARCH = "web_search"
     CUSTOM = "custom"
 
