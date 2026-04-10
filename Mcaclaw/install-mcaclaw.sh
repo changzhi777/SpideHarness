@@ -567,6 +567,51 @@ verify_installation() {
     fi
 }
 
+# ============================== 网络连通测试 ================================
+
+check_network() {
+    print_step "Step 1/7: 测试网络连通性"
+
+    local all_ok=true
+
+    # 测试 GitHub 连通
+    print_info "测试 GitHub 连通性..."
+    if curl -fsSL --connect-timeout 10 -o /dev/null "https://github.com" 2>/dev/null; then
+        print_ok "GitHub 访问正常"
+    else
+        print_warn "GitHub 访问失败（可能需要代理）"
+        if ! confirm "GitHub 不可达是否继续? (后续安装可能失败)"; then
+            return 1
+        fi
+        all_ok=false
+    fi
+
+    # 测试 npm registry 连通
+    print_info "测试 npm registry 连通性..."
+    if curl -fsSL --connect-timeout 10 -o /dev/null "https://registry.npmjs.org" 2>/dev/null; then
+        print_ok "npm registry 访问正常"
+    else
+        print_warn "npm registry 访问失败"
+        if ! confirm "npm registry 不可达是否继续?"; then
+            return 1
+        fi
+        all_ok=false
+    fi
+
+    # 测试 OpenClaw 官网
+    print_info "测试 OpenClaw 官网连通性..."
+    if curl -fsSL --connect-timeout 10 -o /dev/null "https://openclaw.ai" 2>/dev/null; then
+        print_ok "OpenClaw 官网访问正常"
+    else
+        print_warn "OpenClaw 官网访问失败（不影响安装）"
+    fi
+
+    if [[ "$all_ok" == "true" ]]; then
+        print_ok "网络连通性检查全部通过"
+    fi
+    return 0
+}
+
 # ============================== 安装摘要 ====================================
 
 print_summary() {
@@ -695,6 +740,102 @@ HELP
 
 # ============================== 主流程 ====================================
 
+# 当前步骤编号
+CURRENT_STEP=1
+TOTAL_STEPS=7
+
+# 步骤完成标记
+declare -A STEP_DONE
+
+show_step_menu() {
+    local step="$1"
+    echo ""
+    echo -e "  ${BOLD}${CYAN}─────────────────────────────────${NC}"
+    echo -e "  ${BOLD}步骤 ${step}/${TOTAL_STEPS}${NC}  |  ${DIM}m=菜单  p=上一步  n=下一步  q=退出${NC}"
+    echo -e "  ${BOLD}${CYAN}─────────────────────────────────${NC}"
+}
+
+ask_step_action() {
+    local default_action="${1:-n}"  # n=next, p=prev, m=menu
+    local action
+    if [[ "${AUTO_YES:-}" == "1" ]]; then
+        return 0
+    fi
+    safe_read action "\n  ${CYAN}操作 [n/p/m/q] (默认 n):${NC} " || action="$default_action"
+    action="${action:-$default_action}"
+    case "$action" in
+        p|P|prev|back|b|B)
+            return 2  # 上一步
+            ;;
+        m|M|menu)
+            return 3  # 主菜单
+            ;;
+        q|Q|quit|exit)
+            echo ""
+            print_info "用户退出安装。可随时重新运行脚本继续。"
+            exit 0
+            ;;
+        *)
+            return 0  # 下一步
+            ;;
+    esac
+}
+
+run_step() {
+    local step_num="$1"
+    local step_func="$2"
+    local step_name="$3"
+
+    CURRENT_STEP="$step_num"
+
+    # 检查是否已完成
+    if [[ "${STEP_DONE[$step_num]:-}" == "1" ]]; then
+        print_ok "步骤 ${step_num}: ${step_name} (已完成)"
+        return 0
+    fi
+
+    print_step "Step ${step_num}/${TOTAL_STEPS}: ${step_name}"
+
+    # 执行步骤函数
+    "$step_func"
+    local rc=$?
+
+    if (( rc == 0 )); then
+        STEP_DONE[$step_num]=1
+    fi
+    return $rc
+}
+
+show_main_menu() {
+    echo ""
+    echo -e "  ${BOLD}${GREEN}╔══════════════════════════════════════════╗${NC}"
+    echo -e "  ${BOLD}${GREEN}║        Mcaclaw 安装主菜单                ║${NC}"
+    echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════╣${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}1)${NC} 网络连通性测试     ${_done_1:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}2)${NC} 系统检测           ${_done_2:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}3)${NC} 环境检查 (Node.js) ${_done_3:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}4)${NC} 安装 OpenClaw      ${_done_4:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}5)${NC} 配置 AI 模型       ${_done_5:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}6)${NC} 配置消息通道       ${_done_6:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}7)${NC} 验证安装           ${_done_7:-${DIM}待执行${NC}}   ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════╣${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}a)${NC} 全部顺序执行                    ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}q)${NC} 退出                            ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}╚══════════════════════════════════════════╝${NC}"
+}
+
+# Step 2 的组合函数
+step_check_system() {
+    check_macos
+    check_arch
+}
+
+# Step 3 的组合函数
+step_check_env() {
+    check_xcode_cli
+    check_nodejs
+}
+
 main() {
     # 解析参数
     local skip_confirm=0
@@ -743,29 +884,91 @@ main() {
             print_info "已取消。"
             exit 0
         fi
+
+        # 交互模式：使用步骤导航
+        interactive_install
+    else
+        # 自动模式：顺序执行全部步骤
+        auto_install
+    fi
+}
+
+interactive_install() {
+    while true; do
+        # 更新菜单中的完成状态
+        local i
+        for i in $(seq 1 $TOTAL_STEPS); do
+            if [[ "${STEP_DONE[$i]:-}" == "1" ]]; then
+                eval "_done_${i}='${GREEN}✓ 已完成${NC}'"
+            fi
+        done
+
+        show_main_menu
+
+        local choice
+        safe_read choice "\n  ${CYAN}请选择步骤 [1-7/a/q]:${NC} " || choice="a"
+
+        case "$choice" in
+            1) run_step 1 check_network   "网络连通性测试" ;;
+            2) run_step 2 step_check_system "系统检测" ;;
+            3) run_step 3 step_check_env  "环境检查" ;;
+            4) run_step 4 install_openclaw "安装 OpenClaw" ;;
+            5) run_step 5 config_ai_model  "配置 AI 模型" ;;
+            6) run_step 6 config_channels  "配置消息通道" ;;
+            7)
+                run_step 7 verify_installation "验证安装"
+                if [[ "${STEP_DONE[7]:-}" == "1" ]]; then
+                    print_summary
+                    return 0
+                fi
+                ;;
+            a|A|all)
+                auto_install
+                return 0
+                ;;
+            q|Q|quit|exit)
+                print_info "用户退出。可随时重新运行脚本继续。"
+                exit 0
+                ;;
+            *)
+                print_warn "无效选择"
+                ;;
+        esac
+    done
+}
+
+auto_install() {
+    print_info "自动模式：顺序执行全部步骤..."
+
+    # Step 1: 网络测试
+    run_step 1 check_network "网络连通性测试"
+    if (( CURRENT_STEP == 1 )); then
+        ask_step_action "n"
+        case $? in
+            2) return ;;
+            3) return ;;
+        esac
     fi
 
-    # Step 1: 系统检查
-    check_macos
-    check_arch
+    # Step 2: 系统检测
+    run_step 2 step_check_system "系统检测"
 
-    # Step 2: 环境检查
-    check_xcode_cli
-    check_nodejs
+    # Step 3: 环境检查
+    run_step 3 step_check_env "环境检查"
 
-    # Step 3: 安装 OpenClaw
-    install_openclaw
+    # Step 4: 安装 OpenClaw
+    run_step 4 install_openclaw "安装 OpenClaw"
 
-    # Step 4: 配置 AI 模型
-    config_ai_model
+    # Step 5: 配置 AI 模型
+    run_step 5 config_ai_model "配置 AI 模型"
 
-    # Step 5: 配置消息通道
-    config_channels
+    # Step 6: 配置消息通道
+    run_step 6 config_channels "配置消息通道"
 
-    # Step 6: 验证安装
-    verify_installation
+    # Step 7: 验证安装
+    run_step 7 verify_installation "验证安装"
 
-    # Step 7: 安装摘要
+    # Step 8: 安装摘要
     print_summary
 }
 
