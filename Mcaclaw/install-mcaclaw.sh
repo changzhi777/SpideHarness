@@ -622,6 +622,155 @@ verify_installation() {
     fi
 }
 
+# ============================== 开机自启动 (launchd) =========================
+
+setup_launchd() {
+    local plist_name="ai.openclaw.gateway"
+    local plist_path="$HOME/Library/LaunchAgents/${plist_name}.plist"
+    local openclaw_bin
+    openclaw_bin="$(command -v openclaw 2>/dev/null || echo '/usr/local/bin/openclaw')"
+
+    if [[ -f "$plist_path" ]]; then
+        print_info "开机自启动已配置，跳过"
+        return 0
+    fi
+
+    mkdir -p "$HOME/Library/LaunchAgents"
+
+    cat > "$plist_path" << PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>${plist_name}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${openclaw_bin}</string>
+        <string>gateway</string>
+        <string>start</string>
+        <string>--foreground</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>$HOME/.openclaw/logs/gateway.stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>$HOME/.openclaw/logs/gateway.stderr.log</string>
+    <key>WorkingDirectory</key>
+    <string>$HOME/.openclaw</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:$HOME/.nvm/versions/node/$(node -v 2>/dev/null || echo 'v22')/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>$HOME</string>
+    </dict>
+</dict>
+</plist>
+PLIST
+
+    # 创建日志目录
+    mkdir -p "$HOME/.openclaw/logs"
+
+    # 加载服务
+    launchctl bootout "gui/$UID/${plist_name}" 2>/dev/null || true
+    launchctl bootstrap "gui/$UID" "$plist_path" 2>/dev/null || true
+
+    print_ok "已配置开机自启动 (launchd)"
+    print_info "管理命令:"
+    print_info "  launchctl bootout   gui/$UID/${plist_name}   # 停止自启动"
+    print_info "  launchctl bootstrap gui/$UID ${plist_path}  # 重新启用"
+}
+
+remove_launchd() {
+    local plist_name="ai.openclaw.gateway"
+    local plist_path="$HOME/Library/LaunchAgents/${plist_name}.plist"
+
+    launchctl bootout "gui/$UID/${plist_name}" 2>/dev/null || true
+    if [[ -f "$plist_path" ]]; then
+        rm -f "$plist_path"
+        print_ok "已移除开机自启动"
+    fi
+}
+
+# ============================== 安装后操作菜单 ===============================
+
+post_install_menu() {
+    while true; do
+        echo ""
+        echo -e "  ${GREEN}${BOLD}========================================${NC}"
+        echo -e "  ${GREEN}${BOLD}  安装后操作${NC}"
+        echo -e "  ${GREEN}${BOLD}========================================${NC}"
+        echo ""
+        echo -e "  ${GREEN}1)${NC} 启动 Gateway 服务   ${DIM}(openclaw gateway start)${NC}"
+        echo -e "  ${GREEN}2)${NC} 运行 onboard 引导   ${DIM}(openclaw onboard)${NC}"
+        echo -e "  ${GREEN}3)${NC} 健康检查             ${DIM}(openclaw doctor)${NC}"
+        echo -e "  ${GREEN}4)${NC} 配置开机自启动       ${DIM}(launchd 服务)${NC}"
+        echo -e "  ${GREEN}5)${NC} 查看安装摘要"
+        echo -e "  ${GREEN}q)${NC} 退出"
+        echo ""
+
+        local action
+        safe_read action "  ${CYAN}请选择 [1-5/q]:${NC} " || action="q"
+
+        case "$action" in
+            1)
+                echo ""
+                if has_cmd openclaw; then
+                    print_info "启动 Gateway 服务..."
+                    if openclaw gateway start 2>&1; then
+                        print_ok "Gateway 服务已启动"
+                    else
+                        print_warn "Gateway 启动失败，可稍后手动运行: openclaw gateway start"
+                    fi
+                else
+                    print_error "openclaw 命令未找到，请先重启终端"
+                fi
+                ;;
+            2)
+                echo ""
+                if has_cmd openclaw; then
+                    print_info "启动 onboard 引导..."
+                    openclaw onboard || print_warn "onboard 已退出"
+                else
+                    print_error "openclaw 命令未找到，请先重启终端"
+                fi
+                ;;
+            3)
+                echo ""
+                if has_cmd openclaw; then
+                    print_info "运行系统诊断..."
+                    openclaw doctor || print_warn "诊断发现问题，请查看上方输出"
+                else
+                    print_error "openclaw 命令未找到，请先重启终端"
+                fi
+                ;;
+            4)
+                echo ""
+                if has_cmd openclaw; then
+                    setup_launchd
+                else
+                    print_error "openclaw 命令未找到，请先重启终端"
+                fi
+                ;;
+            5)
+                print_summary
+                ;;
+            q|Q|exit)
+                echo ""
+                print_ok "感谢使用 Mcaclaw！"
+                return 0
+                ;;
+            *)
+                print_warn "无效选择"
+                ;;
+        esac
+    done
+}
+
 # ============================== 网络连通测试 ================================
 
 # 检测并提示代理配置
@@ -765,7 +914,10 @@ print_summary() {
     echo -e "  3. ${CYAN}健康检查:${NC}"
     echo -e "     openclaw doctor"
     echo ""
-    echo -e "  4. ${CYAN}查看文档:${NC}"
+    echo -e "  4. ${CYAN}配置开机自启动:${NC}"
+    echo -e "     在安装后菜单中选择，或手动配置 launchd"
+    echo ""
+    echo -e "  5. ${CYAN}查看文档:${NC}"
     echo -e "     https://docs.openclaw.ai"
     echo ""
     echo -e "  ${BOLD}常用命令:${NC}"
@@ -810,15 +962,12 @@ uninstall_openclaw() {
 _manual_uninstall() {
     print_info "执行手动卸载..."
 
-    # 停止 Gateway
+    # 停止 Gateway + 移除 launchd 自启动
+    remove_launchd 2>/dev/null || true
     if has_cmd openclaw; then
         openclaw gateway stop 2>/dev/null || true
         openclaw gateway uninstall 2>/dev/null || true
     fi
-
-    # 移除 launchd 服务
-    launchctl bootout "gui/$UID/ai.openclaw.gateway" 2>/dev/null || true
-    rm -f ~/Library/LaunchAgents/ai.openclaw.gateway.plist 2>/dev/null || true
 
     # 删除状态目录
     rm -rf "${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
@@ -1056,6 +1205,7 @@ interactive_install() {
                 run_step 7 verify_installation "验证安装"
                 if _step_done 7; then
                     print_summary
+                    post_install_menu
                     return 0
                 fi
                 ;;
@@ -1105,8 +1255,9 @@ auto_install() {
     # Step 7: 验证安装
     run_step 7 verify_installation "验证安装"
 
-    # Step 8: 安装摘要
+    # 安装摘要 + 安装后操作菜单
     print_summary
+    post_install_menu
 }
 
 # 运行主流程
