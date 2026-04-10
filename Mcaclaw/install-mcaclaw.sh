@@ -829,6 +829,25 @@ check_local_ai() {
 
     echo ""
 
+    # ---- oMLX (macOS 原生 MLX App) ----
+    echo -e "  ${BOLD}[oMLX]${NC}  ${DIM}(macOS 原生 MLX 推理服务 App)${NC}"
+    if [[ -d "/Applications/oMLX.app" ]]; then
+        print_ok "oMLX App 已安装"
+        if curl -sf http://localhost:8192/v1/models >/dev/null 2>&1; then
+            print_ok "服务运行中 (localhost:8192)"
+        else
+            print_warn "服务未运行"
+        fi
+        found_any=true
+    elif curl -sf http://localhost:8192/v1/models >/dev/null 2>&1; then
+        print_ok "oMLX 服务运行中 (localhost:8192)"
+        found_any=true
+    else
+        print_warn "未安装 — 下载: https://omlx.ai"
+    fi
+
+    echo ""
+
     # ---- 汇总 ----
     if [[ "$found_any" == "true" ]]; then
         print_ok "本地算力就绪"
@@ -838,8 +857,8 @@ check_local_ai() {
         echo -e "  ${BOLD}安装建议:${NC}"
         echo -e "    Ollama (通用): ${CYAN}brew install ollama${NC}"
         if [[ "$ARCH_TYPE" == "arm64" ]]; then
+            echo -e "    oMLX App (M芯片): ${CYAN}https://omlx.ai 下载 DMG${NC}"
             echo -e "    MLX-VLM (M芯片): ${CYAN}pip3 install -U mlx-vlm${NC}"
-            echo -e "    然后下载模型:     ${CYAN}git lfs install && git clone https://www.modelscope.cn/mlx-community/gemma-4-e4b-it-4bit.git${NC}"
         fi
     fi
 }
@@ -1101,6 +1120,141 @@ helper_install_feishu() {
         echo -e "    ${CYAN}openclaw onboard${NC}"
         echo -e "    ${CYAN}openclaw channel add lark${NC}"
     fi
+}
+
+# oMLX 辅助安装 (macOS 原生 MLX 推理服务 App)
+helper_install_omlx() {
+    print_step "oMLX 辅助安装 (macOS 原生 MLX 推理服务)"
+    echo ""
+
+    # 1. 环境检查
+    if [[ "$ARCH_TYPE" != "arm64" ]]; then
+        print_error "oMLX 仅支持 Apple Silicon (M1/M2/M3/M4/M5)"
+        print_info "当前架构: $ARCH_TYPE"
+        return 1
+    fi
+    print_ok "架构: Apple Silicon ($ARCH_TYPE)"
+
+    # macOS 版本检查 (需要 15+)
+    local macos_ver
+    macos_ver="$(sw_vers -productVersion 2>/dev/null || echo '0')"
+    if [[ "$macos_ver" < "15.0" ]]; then
+        print_error "oMLX 需要 macOS 15 (Sequoia) 及以上，当前: $macos_ver"
+        return 1
+    fi
+    print_ok "macOS: $macos_ver"
+
+    # 内存检查 (最低 16GB，推荐 64GB+)
+    local mem_gb
+    mem_gb="$(sysctl -n hw.memsize 2>/dev/null | awk '{printf "%.0f", $1/1073741824}' || echo '?')"
+    if [[ "$mem_gb" != "?" ]] && (( mem_gb < 16 )); then
+        print_error "内存 ${mem_gb}GB，oMLX 最低要求 16GB"
+        return 1
+    elif [[ "$mem_gb" != "?" ]] && (( mem_gb < 64 )); then
+        print_warn "内存 ${mem_gb}GB，推荐 64GB+ 以获得更好体验"
+    else
+        print_ok "内存: ${mem_gb}GB"
+    fi
+
+    # 磁盘空间
+    local disk_free
+    disk_free="$(df -g / 2>/dev/null | tail -1 | awk '{print $4}' || echo '?')"
+    if [[ "$disk_free" != "?" ]] && (( disk_free < 20 )); then
+        print_warn "磁盘剩余 ${disk_free}GB，建议至少 20GB (模型较大)"
+    else
+        print_ok "磁盘剩余: ${disk_free}GB"
+    fi
+
+    # 2. 检查已安装
+    local omlx_found=false
+    if [[ -d "/Applications/oMLX.app" ]]; then
+        print_ok "oMLX App 已安装"
+        omlx_found=true
+    elif has_cmd omlx; then
+        print_ok "oMLX CLI 已安装"
+        omlx_found=true
+    else
+        print_warn "oMLX 未安装"
+    fi
+
+    # 3. 安装选项
+    if [[ "$omlx_found" == "false" ]]; then
+        echo ""
+        echo -e "  ${BOLD}oMLX 特性:${NC}"
+        echo -e "    ${DIM}- 原生 macOS 菜单栏 App (非 Electron)${NC}"
+        echo -e "    ${DIM}- SSD KV 缓存，Agent 场景 TTFT < 5秒${NC}"
+        echo -e "    ${DIM}- OpenAI/Anthropic 兼容 API，支持 Claude Code/Cursor${NC}"
+        echo -e "    ${DIM}- 连续批处理，最高 4x 吞吐量提升${NC}"
+        echo ""
+        echo -e "  ${BOLD}安装方式:${NC}"
+        echo -e "    ${GREEN}1)${NC} 下载 DMG (推荐)     ${DIM}https://omlx.ai${NC}"
+        echo -e "    ${GREEN}2)${NC} Homebrew Cask        ${DIM}brew install --cask omlx${NC}"
+        echo -e "    ${GREEN}3)${NC} GitHub Release       ${DIM}https://github.com/nicholasgasior/omlx${NC}"
+        echo -e "    ${GREEN}4)${NC} 跳过"
+        echo ""
+        local install_choice
+        safe_read install_choice "  ${CYAN}请选择 [1-4]:${NC} " || install_choice="1"
+
+        case "$install_choice" in
+            1)
+                open "https://omlx.ai"
+                print_info "请在浏览器中下载 DMG 安装包，拖拽到 Applications 文件夹"
+                print_info "安装完成后重新运行此检查"
+                ;;
+            2)
+                if has_cmd brew; then
+                    brew install --cask omlx || print_warn "Cask 未找到，请尝试 DMG 方式"
+                else
+                    print_error "Homebrew 未安装"
+                fi
+                ;;
+            3)
+                open "https://github.com/nicholasgasior/omlx/releases"
+                print_info "请在 GitHub Releases 页面下载最新 DMG"
+                ;;
+            *) return 0 ;;
+        esac
+
+        # 再次检查
+        if [[ -d "/Applications/oMLX.app" ]] || has_cmd omlx; then
+            print_ok "oMLX 安装成功"
+            omlx_found=true
+        else
+            print_warn "未检测到 oMLX，安装可能需要手动确认"
+            print_info "安装后重新运行此检查即可"
+        fi
+    fi
+
+    # 4. 服务状态检查
+    echo ""
+    if curl -sf http://localhost:8192/v1/models >/dev/null 2>&1; then
+        print_ok "oMLX 服务运行中 (localhost:8192)"
+        # 显示已加载模型
+        local model_list
+        model_list="$(curl -sf http://localhost:8192/v1/models 2>/dev/null | python3 -c 'import sys,json; [print(f"    * {m["id"]}") for m in json.load(sys.stdin).get("data",[])]' 2>/dev/null || true)"
+        if [[ -n "$model_list" ]]; then
+            print_info "已加载模型:"
+            echo "$model_list"
+        fi
+    else
+        if [[ "$omlx_found" == "true" ]]; then
+            print_info "oMLX 服务未运行，启动方式:"
+            echo -e "    ${CYAN}打开 oMLX App (菜单栏/Applications)${NC}"
+            echo -e "    ${CYAN}或通过 Web 管理面板: http://localhost:8192${NC}"
+        fi
+    fi
+
+    # 5. OpenClaw 集成提示
+    echo ""
+    echo -e "  ${BOLD}OpenClaw 集成:${NC}"
+    echo ""
+    echo -e "  oMLX 提供 OpenAI 兼容 API，可替代云端模型:"
+    echo -e "    ${CYAN}Base URL:  http://localhost:8192/v1${NC}"
+    echo -e "    ${CYAN}API Key:   omlx${NC} (或任意值)"
+    echo ""
+    echo -e "  ${DIM}编辑 ~/.openclaw/.env 添加:${NC}"
+    echo -e "    ${DIM}OPENAI_API_KEY=omlx${NC}"
+    echo -e "    ${DIM}OPENAI_BASE_URL=http://localhost:8192/v1${NC}"
 }
 
 # ============================== 消息通道配置 ================================
@@ -1632,6 +1786,7 @@ show_main_menu() {
     echo -e "  ${BOLD}${GREEN}║${NC} ${CYAN}辅助安装:${NC}                              ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}t)${NC} 安装 Ollama (本地 AI)              ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}m)${NC} 安装 MLX-VLM (M芯片 AI)            ${BOLD}${GREEN}║${NC}"
+    echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}x)${NC} 安装 oMLX App (MLX 推理服务)       ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${GREEN}f)${NC} 安装飞书 (Lark)                    ${BOLD}${GREEN}║${NC}"
     echo -e "  ${BOLD}${GREEN}╠══════════════════════════════════════════╣${NC}"
     echo -e "  ${BOLD}${GREEN}║${NC} ${CYAN}工具与诊断:${NC}                            ${BOLD}${GREEN}║${NC}"
@@ -1733,7 +1888,7 @@ interactive_install() {
         show_main_menu
 
         local choice
-        safe_read choice "\n  ${CYAN}请选择 [1-7/t/m/f/l/g/o/d/s/a/q]:${NC} " || choice="q"
+        safe_read choice "\n  ${CYAN}请选择 [1-7/t/m/x/f/l/g/o/d/s/a/q]:${NC} " || choice="q"
 
         case "$choice" in
             1) run_step 1 check_network   "网络连通性测试" ;;
@@ -1750,6 +1905,7 @@ interactive_install() {
                 ;;
             t|T) helper_install_ollama ;;
             m|M) helper_install_mlx ;;
+            x|X) helper_install_omlx ;;
             f|F) helper_install_feishu ;;
             l|L)
                 check_local_ai
