@@ -102,6 +102,16 @@ def _empty_dashboard() -> dict[str, Any]:
 
 def _aggregate(topics: list[HotTopic], total_count: int) -> dict[str, Any]:
     """聚合计算看板统计指标."""
+    # --- 按 (title, source) 去重，保留 hot_value 最高的一条 ---
+    seen: dict[tuple[str, str], HotTopic] = {}
+    for t in topics:
+        key = (t.title.strip().lower(), t.source.value)
+        existing = seen.get(key)
+        if existing is None or (t.hot_value or 0) > (existing.hot_value or 0):
+            seen[key] = t
+    topics = list(seen.values())
+    total_count = len(topics)
+
     now = datetime.now()
     today_str = now.strftime("%Y-%m-%d")
 

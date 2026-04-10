@@ -91,28 +91,87 @@ class SqliteRepository:
         await self._db.commit()
         return cursor.lastrowid
 
-    async def save_many(self, items: list[T]) -> list[int]:
-        """批量保存 — 单事务提交."""
+    async def save_many(
+        self, items: list[T], *, dedup_fields: list[str] | None = None
+    ) -> list[int]:
+        """批量保存 — 单事务提交.
+
+        Args:
+            items: 待保存的记录列表
+            dedup_fields: 去重字段组合，如 ["title", "source"]
+                提供时按字段组合查询已存在记录:
+                - 已存在 → UPDATE（更新 hot_value/rank/fetched_at 等）
+                - 不存在 → INSERT
+                - 不提供 → 保持原行为（盲 INSERT）
+        """
         self._ensure_db()
         start = time.monotonic()
         ids: list[int] = []
+        upserted = 0
+
         for item in items:
             data = self._serialize_dump(item)
+
             if item.id is not None:  # type: ignore[attr-defined]
+                # 有 ID 的记录直接 UPDATE
                 sets = ", ".join(f"{k} = :{k}" for k in data if k != "id")
                 await self._db.execute(f"UPDATE {self._table} SET {sets} WHERE id = :id", data)
                 ids.append(item.id)  # type: ignore[attr-defined]
+            elif dedup_fields:
+                # 按 dedup_fields 查询已存在记录
+                existing_id = await self._find_by_fields(data, dedup_fields)
+                if existing_id is not None:
+                    # 已存在 → UPDATE
+                    data["id"] = existing_id
+                    sets = ", ".join(f"{k} = :{k}" for k in data if k != "id")
+                    await self._db.execute(f"UPDATE {self._table} SET {sets} WHERE id = :id", data)
+                    ids.append(existing_id)
+                    upserted += 1
+                else:
+                    # 不存在 → INSERT
+                    columns = ", ".join(k for k in data.keys() if k != "id")
+                    placeholders = ", ".join(f":{k}" for k in data.keys() if k != "id")
+                    cursor = await self._db.execute(
+                        f"INSERT INTO {self._table} ({columns}) VALUES ({placeholders})", data
+                    )
+                    ids.append(cursor.lastrowid)
             else:
+                # 无去重 → 盲 INSERT（原行为）
                 columns = ", ".join(data.keys())
                 placeholders = ", ".join(f":{k}" for k in data)
                 cursor = await self._db.execute(
                     f"INSERT INTO {self._table} ({columns}) VALUES ({placeholders})", data
                 )
                 ids.append(cursor.lastrowid)
+
         await self._db.commit()
         duration_ms = (time.monotonic() - start) * 1000
-        logger.debug("save_many_duration", duration_ms=round(duration_ms, 1), record_count=len(items), table=self._table)
+        logger.debug(
+            "save_many_duration",
+            duration_ms=round(duration_ms, 1),
+            record_count=len(items),
+            table=self._table,
+            upserted=upserted,
+        )
         return ids
+
+    async def _find_by_fields(self, data: dict[str, Any], fields: list[str]) -> int | None:
+        """按指定字段组合查询已存在记录的 ID."""
+        conditions = []
+        values = []
+        for field in fields:
+            if field not in data:
+                return None
+            conditions.append(f"{field} = ?")
+            values.append(data[field])
+
+        where = " AND ".join(conditions)
+        cursor = await self._db.execute(
+            f"SELECT id FROM {self._table} WHERE {where} ORDER BY id DESC LIMIT 1",
+            values,
+        )
+        row = await cursor.fetchone()
+        return row[0] if row else None
 
     async def get(self, id: int) -> T | None:
         """按 ID 获取."""

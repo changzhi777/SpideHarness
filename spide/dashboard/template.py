@@ -157,8 +157,6 @@ window.__DASHBOARD_DATA__ = {{JSON_DATA}};
       h('span', {ref: timeRef, className:'text-xs font-mono px-2 py-0.5 rounded', style:{color:'#7ED4A6', background:'rgba(126,212,166,0.1)'}})
     );
   }
-    );
-  }
 
   // --- 统计卡片 ---
   function StatCard(props) {

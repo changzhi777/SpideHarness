@@ -231,7 +231,7 @@ async def _crawl_async(
 
             total = 0
             for _platform, topics in results.items():
-                ids = await repo.save_many(topics)
+                ids = await repo.save_many(topics, dedup_fields=["title", "source"])
                 total += len(ids)
 
             await repo.stop()
@@ -514,8 +514,10 @@ async def _dashboard_async(
     from spide.dashboard import collect_dashboard_data, render_dashboard
     from spide.dashboard.renderer import write_dashboard
 
-    ws = get_workspace_root(workspace)
-    db_path = str(ws / "spide_data.db")
+    # 使用与 crawl 相同的数据库路径逻辑
+    from spide.config import load_settings
+    settings = load_settings()
+    db_path = settings.storage.sqlite_path
 
     # 检查数据库是否存在
     if not Path(db_path).exists():
@@ -534,7 +536,7 @@ async def _dashboard_async(
     if output:
         out_path = Path(output)
     else:
-        out_path = ws / "dashboard" / "index.html"
+        out_path = Path("dashboard") / "index.html"
 
     filepath = write_dashboard(html, out_path)
     console.print(f"[green]看板已生成:[/green] {filepath}")
@@ -543,6 +545,91 @@ async def _dashboard_async(
     if open_browser:
         webbrowser.open(filepath.as_uri())
         console.print("[dim]已在浏览器中打开[/dim]")
+
+
+# ---------------------------------------------------------------------------
+# dedup 命令
+# ---------------------------------------------------------------------------
+
+
+@app.command()
+def dedup(
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="工作空间路径"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="仅预览，不实际删除"),
+) -> None:
+    """清理数据库中的重复记录（按 title+source 去重）."""
+    asyncio.run(_dedup_async(workspace, dry_run))
+
+
+async def _dedup_async(workspace: str | None, dry_run: bool) -> None:
+    """Dedup 异步实现."""
+    from spide.config import load_settings
+    from spide.storage.models import HotTopic
+    from spide.storage.sqlite_repo import SqliteRepository
+
+    settings = load_settings()
+    db_path = settings.storage.sqlite_path
+
+    if not Path(db_path).exists():
+        console.print("[yellow]未找到数据库，请先运行:[/yellow] spide crawl")
+        return
+
+    repo = SqliteRepository(HotTopic, db_path=db_path)
+    await repo.start()
+
+    total = await repo.count()
+    if total == 0:
+        console.print("[yellow]数据库为空[/yellow]")
+        await repo.stop()
+        return
+
+    # 查询所有记录
+    all_topics = await repo.query(limit=total)
+
+    # 按 (title, source) 分组，保留 hot_value 最高 + fetched_at 最新的一条
+    groups: dict[tuple[str, str], list] = {}
+    for t in all_topics:
+        key = (t.title.strip().lower(), t.source.value)
+        groups.setdefault(key, []).append(t)
+
+    # 找出需要删除的 ID
+    ids_to_delete: list[int] = []
+    for key, items in groups.items():
+        if len(items) <= 1:
+            continue
+        # 排序：hot_value 降序 → fetched_at 降序，保留第一条
+        items.sort(key=lambda t: (t.hot_value or 0, t.fetched_at.isoformat() if t.fetched_at else ""), reverse=True)
+        for item in items[1:]:
+            if item.id is not None:
+                ids_to_delete.append(item.id)
+
+    await repo.stop()
+
+    if not ids_to_delete:
+        console.print(f"[green]数据库无重复记录 ({total} 条)[/green]")
+        return
+
+    # 输出预览
+    distinct = len(groups)
+    console.print(f"\n[bold]数据去重分析[/bold]")
+    console.print(f"  总记录数:   {total}")
+    console.print(f"  不重复:     {distinct}")
+    console.print(f"  重复待清理: [red]{len(ids_to_delete)}[/red] 条")
+
+    if dry_run:
+        console.print("\n[yellow]--dry-run 模式，未实际删除。[/yellow]")
+        return
+
+    # 执行删除
+    repo = SqliteRepository(HotTopic, db_path=db_path)
+    await repo.start()
+    deleted = 0
+    for id_ in ids_to_delete:
+        if await repo.delete(id_):
+            deleted += 1
+    await repo.stop()
+
+    console.print(f"\n[green]已清理 {deleted} 条重复记录，保留 {total - deleted} 条[/green]")
 
 
 # ---------------------------------------------------------------------------

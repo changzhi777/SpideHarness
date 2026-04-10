@@ -304,30 +304,9 @@ install_node_pkg() {
 install_openclaw() {
     print_step "安装 OpenClaw (小龙虾)"
 
-    echo ""
-    echo -e "  ${BOLD}请选择安装方式:${NC}"
-    echo -e "  ${GREEN}1)${NC} 一键脚本安装 (curl，官方推荐)"
-    echo -e "  ${GREEN}2)${NC} npx 直接运行 (无需全局安装)"
-    echo -e "  ${GREEN}3)${NC} npm 全局安装"
-
-    read -r -p "$(echo -e "\n${CYAN}请选择 [1-3]:${NC} ")" choice
-    choice="${choice:-1}"
-
-    case "$choice" in
-        1)
-            print_info "使用官方安装脚本..."
-            curl -fsSL https://openclaw.ai/install.sh | bash
-            ;;
-        2)
-            print_info "通过 npx 运行 onboard 引导..."
-            npx openclaw@latest onboard
-            ;;
-        3)
-            print_info "全局安装 OpenClaw..."
-            npm install -g openclaw
-            print_ok "安装完成。运行 'openclaw onboard' 进行初始配置。"
-            ;;
-    esac
+    # 默认使用 npm 全局安装（最简单可靠，不会接管 stdin）
+    print_info "通过 npm 全局安装 OpenClaw..."
+    npm install -g openclaw
 
     # 验证安装
     if has_cmd openclaw; then
@@ -336,6 +315,10 @@ install_openclaw() {
         print_ok "OpenClaw $oc_version 安装成功"
     else
         print_warn "未在 PATH 中找到 openclaw 命令，可能需要重启终端。"
+        print_info "手动安装方式:"
+        print_info "  npm install -g openclaw          # npm 全局安装"
+        print_info "  npx openclaw@latest onboard       # npx 免安装运行"
+        print_info "  curl -fsSL https://openclaw.ai/install.sh | bash  # 官方脚本"
     fi
 }
 

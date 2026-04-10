@@ -140,6 +140,10 @@ class UAPIClient:
             )
             topics.append(topic)
 
+        # 数据清洗 + 去重
+        from spide.spider.pipeline import clean_topics
+        topics = clean_topics(topics)
+
         logger.debug(
             "hotboard_fetched",
             platform=platform,
