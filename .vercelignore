@@ -1,0 +1,48 @@
+# 排除大型/不必要的文件，减小部署包体积
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 子项目（独立仓库）
+MediaCrawler/
+OpenHarness/
+OpenCLI/
+Mcaclaw/
+
+# IDE
+.idea/
+.vscode/
+
+# 敏感配置
+configs/mqtt.yaml
+configs/llm.yaml
+configs/uapi.yaml
+CA/
+
+# Claude Code / ZCF 工具缓存
+.claude/
+.zcf/
+.spec-workflow/
+skills/
+sessions/
+
+# 构建产物
+dist/
+build/
+*.egg-info/
+
+# 图片（非部署需要）
+*.png
+
+# 其他
+.claude/
+tests/
+scripts/
+install.ps1
+install.sh
+install-skills.sh
+uv.lock
+.python-version
