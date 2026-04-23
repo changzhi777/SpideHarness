@@ -65,4 +65,22 @@ OpenHarness/
 output/
 data/
 
+# 本地数据
+spide_data.db
+sessions/
+
+# 生成物
+dashboard/
+*.png
+vercel-dashboard.png
+dashboard-*.png
+
+# 旧依赖文件
+requirements.txt
+
+# 子项目
+OpenCLI/
+.playwright-mcp/
+Mcaclaw/
+
 .vercel
