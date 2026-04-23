@@ -34,6 +34,8 @@ class TopicSource(str, Enum):
     BILIBILI = "bilibili"
     KUAISHOU = "kuaishou"
     TIEBA = "tieba"
+    GITHUB = "github"
+    GITHUB_AI = "github_ai"
     WEB_SEARCH = "web_search"
     CUSTOM = "custom"
 

@@ -29,7 +29,9 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP",
 ]
 
-dependencies = []
+dependencies = [
+    "psycopg2-binary>=2.9.12",
+]
 
 [project.optional-dependencies]
 cli = [

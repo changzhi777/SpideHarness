@@ -98,7 +98,7 @@ class SupabaseRepository:
         data = self._serialize(item)
 
         if item.id is not None:  # type: ignore[attr-defined]
-            resp = (
+            await (
                 self._client.table(self._table)
                 .update(data)
                 .eq("id", item.id)  # type: ignore[attr-defined]
@@ -107,7 +107,7 @@ class SupabaseRepository:
             return item.id  # type: ignore[attr-defined]
 
         data.pop("id", None)
-        resp = self._client.table(self._table).insert(data).execute()
+        resp = await self._client.table(self._table).insert(data).execute()
         return resp.data[0]["id"]
 
     async def save_many(
@@ -138,13 +138,13 @@ class SupabaseRepository:
             batch = records[i : i + _BATCH_SIZE]
 
             if on_conflict:
-                resp = (
+                resp = await (
                     self._client.table(self._table)
                     .upsert(batch, on_conflict=on_conflict)
                     .execute()
                 )
             else:
-                resp = self._client.table(self._table).insert(batch).execute()
+                resp = await self._client.table(self._table).insert(batch).execute()
 
             for row in resp.data:
                 ids.append(row["id"])
@@ -162,7 +162,7 @@ class SupabaseRepository:
     async def get(self, id: int) -> T | None:
         """按 ID 获取."""
         self._ensure_client()
-        resp = (
+        resp = await (
             self._client.table(self._table)
             .select("*")
             .eq("id", id)
@@ -184,7 +184,7 @@ class SupabaseRepository:
         self._ensure_client()
         q = self._client.table(self._table).select("*")
         q = self._apply_filters(q, filters)
-        resp = q.order("id", desc=True).range(offset, offset + limit - 1).execute()
+        resp = await q.order("id", desc=True).range(offset, offset + limit - 1).execute()
         return [self._row_to_model(row) for row in resp.data]
 
     async def count(self, **filters: Any) -> int:
@@ -192,13 +192,13 @@ class SupabaseRepository:
         self._ensure_client()
         q = self._client.table(self._table).select("*", count="exact")
         q = self._apply_filters(q, filters)
-        resp = q.execute()
+        resp = await q.execute()
         return resp.count or 0
 
     async def delete(self, id: int) -> bool:
         """按 ID 删除."""
         self._ensure_client()
-        resp = self._client.table(self._table).delete().eq("id", id).execute()
+        resp = await self._client.table(self._table).delete().eq("id", id).execute()
         return len(resp.data) > 0
 
     async def exists(self, **filters: Any) -> bool:

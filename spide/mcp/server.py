@@ -238,7 +238,27 @@ def _create_zai_client(settings: Any) -> Any:
     )
 
 
-async def serve_mcp(project_root: Path | None = None) -> None:
+async def serve_mcp(
+    project_root: Path | None = None,
+    transport: str = "stdio",
+    host: str = "0.0.0.0",
+    port: int = 8768,
+) -> None:
+    """启动 MCP Server.
+
+    Args:
+        project_root: 项目根目录
+        transport: 传输方式 ("stdio" 或 "http")
+        host: HTTP 绑定地址
+        port: HTTP 端口
+    """
+    if transport == "http":
+        await serve_mcp_http(host=host, port=port, project_root=project_root)
+    else:
+        await serve_mcp_stdio(project_root=project_root)
+
+
+async def serve_mcp_stdio(project_root: Path | None = None) -> None:
     """启动 MCP Server（stdio 模式）."""
     server = create_mcp_server(project_root=project_root)
     async with stdio_server() as (read_stream, write_stream):
@@ -250,3 +270,15 @@ async def serve_mcp(project_root: Path | None = None) -> None:
                 server_version=_SERVER_VERSION,
             ),
         )
+
+
+async def serve_mcp_http(
+    host: str = "0.0.0.0",
+    port: int = 8768,
+    project_root: Path | None = None,
+) -> None:
+    """启动 MCP Server（HTTP 模式）."""
+    from spide.mcp.transport.http import HttpTransport
+
+    transport = HttpTransport(host=host, port=port)
+    await transport.start()

@@ -265,6 +265,98 @@ def _display_crawl_results(results: dict[str, list]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# github 命令
+# ---------------------------------------------------------------------------
+
+
+@app.command("github")
+def github(
+    mode: str = typer.Option(
+        "trending", "--mode", "-m", help="采集模式 (trending/ai)"
+    ),
+    language: str = typer.Option("", "--language", "-l", help="编程语言筛选 (python/typescript/go...)"),
+    save: bool = typer.Option(False, "--save", help="保存到数据库"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="工作空间路径"),
+) -> None:
+    """采集 GitHub 热门榜单和 AI 相关项目."""
+    asyncio.run(_github_async(mode, language, save, workspace))
+
+
+async def _github_async(
+    mode: str,
+    language: str,
+    save_to_db: bool,
+    workspace: str | None,
+) -> None:
+    """GitHub 采集异步实现."""
+    from spide.config import load_settings
+    from spide.harness import Engine
+
+    settings = load_settings()
+    engine = Engine(settings)
+
+    try:
+        bundle = await engine.start(workspace=workspace)
+        console.print(f"[cyan]会话 {bundle.session_id} 已启动[/cyan]\n")
+
+        from spide.spider.github_client import GitHubClient
+
+        client = GitHubClient()
+        await client.start()
+
+        if mode == "trending":
+            console.print("[yellow]正在采集 GitHub Trending...[/yellow]")
+            results = await client.fetch_trending(language=language)
+            source = "github"
+        elif mode == "ai":
+            console.print("[yellow]正在采集 GitHub AI 项目...[/yellow]")
+            results = await client.fetch_ai_projects()
+            source = "github_ai"
+        else:
+            console.print(f"[red]未知模式: {mode}[/red]")
+            raise typer.Exit(1) from None
+
+        await client.stop()
+
+        # 展示结果
+        table = Table(title=f"GitHub {mode} ({len(results)} 条)")
+        table.add_column("排名", style="cyan", width=6)
+        table.add_column("项目", style="white")
+        table.add_column("语言", style="magenta", width=12)
+        table.add_column("⭐ Stars", style="yellow", width=10)
+
+        for item in results[:20]:
+            table.add_row(
+                str(item.get("rank", "-")),
+                item.get("title", ""),
+                item.get("language", "-"),
+                str(item.get("stars", 0)),
+            )
+
+        console.print(table)
+
+        # 可选保存到数据库
+        if save_to_db:
+            from spide.storage import create_repo
+            from spide.storage.models import HotTopic
+
+            repo = create_repo(HotTopic, storage_config=settings.storage)
+            await repo.start()
+
+            topics = client.to_hot_topics(results, source=source)
+            ids = await repo.save_many(topics)
+
+            await repo.stop()
+            console.print(f"\n[green]已保存 {len(ids)} 条记录到数据库[/green]")
+
+    except Exception as e:
+        console.print(f"[red]采集失败: {e}[/red]")
+        raise typer.Exit(1) from None
+    finally:
+        await engine.stop()
+
+
+# ---------------------------------------------------------------------------
 # deep-crawl 命令
 # ---------------------------------------------------------------------------
 
@@ -644,16 +736,119 @@ async def _dedup_async(workspace: str | None, dry_run: bool) -> None:
 
 
 @app.command("mcp-serve")
-def mcp_serve() -> None:
-    """启动 MCP Server（stdio 模式，供外部 MCP 客户端连接）."""
-    asyncio.run(_mcp_serve_async())
+def mcp_serve(
+    transport: str = typer.Option("stdio", "--transport", "-t", help="传输方式 (stdio/http)"),
+    host: str = typer.Option("0.0.0.0", "--host", help="HTTP 绑定地址"),
+    port: int = typer.Option(8768, "--port", "-p", help="HTTP 端口"),
+) -> None:
+    """启动 MCP Server.
+
+    支持两种传输模式:
+    - stdio: 供 Claude Code 等 MCP 客户端通过 stdio 连接
+    - http: 启动 HTTP 服务器，供远程 MCP 客户端连接
+    """
+    asyncio.run(_mcp_serve_async(transport, host, port))
 
 
-async def _mcp_serve_async() -> None:
+async def _mcp_serve_async(transport: str, host: str, port: int) -> None:
     """MCP Server 异步启动."""
     from spide.mcp.server import serve_mcp
 
-    await serve_mcp()
+    if transport not in ("stdio", "http"):
+        console.print(f"[red]不支持的传输方式: {transport}[/red]")
+        raise typer.Exit(1) from None
+
+    console.print(f"[cyan]启动 MCP Server ({transport} 模式)...[/cyan]")
+
+    await serve_mcp(transport=transport, host=host, port=port)
+
+
+# ---------------------------------------------------------------------------
+# mcp-connect 命令
+# ---------------------------------------------------------------------------
+
+
+@app.command("mcp-connect")
+def mcp_connect(
+    target: str = typer.Option(..., "--target", "-t", help="目标服务 (openclaw/hermes)"),
+    url: str = typer.Option(None, "--url", "-u", help="MCP Server URL（HTTP 模式）"),
+    action: str = typer.Option("list", "--action", "-a", help="操作: list/tools/run/status"),
+    tool: str = typer.Option(None, "--tool", help="工具名称（run 时使用）"),
+    args: str = typer.Option("", "--args", help="工具参数 (JSON 字符串)"),
+) -> None:
+    """连接外部 MCP 服务并调用工具."""
+    asyncio.run(_mcp_connect_async(target, url, action, tool, args))
+
+
+async def _mcp_connect_async(
+    target: str,
+    url: str | None,
+    action: str,
+    tool: str | None,
+    args: str,
+) -> None:
+    """MCP Connect 异步执行."""
+    import json
+
+    if target == "openclaw":
+        from spide.mcp.adapters.openclaw import OpenClawAdapter
+
+        adapter = OpenClawAdapter(connection_url=url)
+        async with adapter:
+            if action == "list":
+                tools = adapter.get_tools()
+                console.print(f"[cyan]OpenClaw 工具列表 ({len(tools)} 个):[/cyan]")
+                for t in tools:
+                    console.print(f"  - {t['name']}: {t['description'][:50]}...")
+            elif action == "status":
+                result = await adapter.gateway_status()
+                console.print(f"[green]Gateway 状态:[/green]")
+                console.print(json.dumps(result, indent=2, ensure_ascii=False))
+            elif action == "tools":
+                result = await adapter.list_tools()
+                console.print(json.dumps(result, indent=2, ensure_ascii=False))
+            elif action == "run":
+                if not tool:
+                    console.print("[red]请指定 --tool[/red]")
+                    raise typer.Exit(1) from None
+                tool_args = json.loads(args) if args else {}
+                result = await adapter.call_tool(tool, tool_args)
+                console.print(json.dumps(result, indent=2, ensure_ascii=False))
+            else:
+                console.print(f"[red]未知操作: {action}[/red]")
+                raise typer.Exit(1) from None
+
+    elif target == "hermes":
+        from spide.mcp.adapters.hermes import HermesAdapter
+
+        adapter = HermesAdapter(connection_url=url)
+        async with adapter:
+            if action == "list":
+                tools = adapter.get_tools()
+                console.print(f"[cyan]Hermes 工具列表 ({len(tools)} 个):[/cyan]")
+                for t in tools:
+                    console.print(f"  - {t['name']}: {t['description'][:50]}...")
+            elif action == "status":
+                result = await adapter.list_skills()
+                console.print(f"[green]Skills 状态:[/green]")
+                console.print(json.dumps(result, indent=2, ensure_ascii=False))
+            elif action == "tools":
+                result = await adapter.list_models()
+                console.print(json.dumps(result, indent=2, ensure_ascii=False))
+            elif action == "run":
+                if not tool:
+                    console.print("[red]请指定 --tool[/red]")
+                    raise typer.Exit(1) from None
+                tool_args = json.loads(args) if args else {}
+                result = await adapter.call_tool(tool, tool_args)
+                console.print(json.dumps(result, indent=2, ensure_ascii=False))
+            else:
+                console.print(f"[red]未知操作: {action}[/red]")
+                raise typer.Exit(1) from None
+
+    else:
+        console.print(f"[red]未知目标: {target}[/red]")
+        raise typer.Exit(1) from None
 
 
 # ---------------------------------------------------------------------------
