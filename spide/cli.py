@@ -222,20 +222,19 @@ async def _crawl_async(
 
         # 可选保存到数据库
         if save_to_db:
+            from spide.storage import create_repo
             from spide.storage.models import HotTopic
-            from spide.storage.sqlite_repo import SqliteRepository
 
-            db_path = settings.storage.sqlite_path
-            repo = SqliteRepository(HotTopic, db_path=db_path)
+            repo = create_repo(HotTopic, storage_config=settings.storage)
             await repo.start()
 
             total = 0
             for _platform, topics in results.items():
-                ids = await repo.save_many(topics, dedup_fields=["title", "source"])
+                ids = await repo.save_many(topics)
                 total += len(ids)
 
             await repo.stop()
-            console.print(f"\n[green]已保存 {total} 条记录到 {db_path}[/green]")
+            console.print(f"\n[green]已保存 {total} 条记录[/green]")
 
     except Exception as e:
         console.print(f"[red]采集失败: {e}[/red]")
@@ -369,26 +368,24 @@ async def _deep_crawl_async(
 
         # 保存到数据库
         if save and contents:
+            from spide.storage import create_repo
             from spide.storage.models import DeepComment, DeepContent, DeepCreator
-            from spide.storage.sqlite_repo import SqliteRepository
 
-            db_path = settings.storage.sqlite_path
-
-            repo = SqliteRepository(DeepContent, db_path=db_path)
+            repo = create_repo(DeepContent, storage_config=settings.storage)
             await repo.start()
             ids = await repo.save_many(contents)
             await repo.stop()
-            console.print(f"\n[green]已保存 {len(ids)} 条内容到 {db_path}[/green]")
+            console.print(f"\n[green]已保存 {len(ids)} 条内容[/green]")
 
             if comments_list:
-                repo = SqliteRepository(DeepComment, db_path=db_path)
+                repo = create_repo(DeepComment, storage_config=settings.storage)
                 await repo.start()
                 ids = await repo.save_many(comments_list)
                 await repo.stop()
                 console.print(f"[green]已保存 {len(ids)} 条评论[/green]")
 
             if creators_list:
-                repo = SqliteRepository(DeepCreator, db_path=db_path)
+                repo = create_repo(DeepCreator, storage_config=settings.storage)
                 await repo.start()
                 ids = await repo.save_many(creators_list)
                 await repo.stop()
@@ -539,6 +536,8 @@ async def _dashboard_async(
         out_path = Path("dashboard") / "index.html"
 
     filepath = write_dashboard(html, out_path)
+    # 转为绝对路径，确保 as_uri() 可用
+    filepath = filepath.resolve()
     console.print(f"[green]看板已生成:[/green] {filepath}")
     console.print(f"[dim]数据: {data['total_count']} 条话题, {data['stats_summary']['platforms']} 个平台[/dim]")
 
@@ -564,17 +563,24 @@ def dedup(
 async def _dedup_async(workspace: str | None, dry_run: bool) -> None:
     """Dedup 异步实现."""
     from spide.config import load_settings
+    from spide.storage import create_repo
     from spide.storage.models import HotTopic
-    from spide.storage.sqlite_repo import SqliteRepository
 
     settings = load_settings()
-    db_path = settings.storage.sqlite_path
 
+    if settings.storage.supabase_url:
+        if dry_run:
+            console.print("[yellow]Supabase 模式下不支持 --dry-run 预览[/yellow]")
+        else:
+            console.print("[green]Supabase 模式 — 数据库级 UNIQUE 约束自动去重，无需手动执行[/green]")
+        return
+
+    db_path = settings.storage.sqlite_path
     if not Path(db_path).exists():
         console.print("[yellow]未找到数据库，请先运行:[/yellow] spide crawl")
         return
 
-    repo = SqliteRepository(HotTopic, db_path=db_path)
+    repo = create_repo(HotTopic, storage_config=settings.storage)
     await repo.start()
 
     total = await repo.count()
@@ -621,7 +627,7 @@ async def _dedup_async(workspace: str | None, dry_run: bool) -> None:
         return
 
     # 执行删除
-    repo = SqliteRepository(HotTopic, db_path=db_path)
+    repo = create_repo(HotTopic, storage_config=settings.storage)
     await repo.start()
     deleted = 0
     for id_ in ids_to_delete:
@@ -1094,36 +1100,34 @@ async def _batch_crawl_async(
 
         # 保存到数据库
         if save_to_db and (result.contents or result.comments or result.creators):
-            from spide.config import load_settings
+            from spide.storage import create_repo
             from spide.storage.models import DeepComment, DeepContent, DeepCreator
-            from spide.storage.sqlite_repo import SqliteRepository
 
             settings = load_settings()
-            db_path = settings.storage.sqlite_path
             total_saved = 0
 
             if result.contents:
-                repo = SqliteRepository(DeepContent, db_path=db_path)
+                repo = create_repo(DeepContent, storage_config=settings.storage)
                 await repo.start()
                 ids = await repo.save_many(result.contents)
                 await repo.stop()
                 total_saved += len(ids)
 
             if result.comments:
-                repo = SqliteRepository(DeepComment, db_path=db_path)
+                repo = create_repo(DeepComment, storage_config=settings.storage)
                 await repo.start()
                 ids = await repo.save_many(result.comments)
                 await repo.stop()
                 total_saved += len(ids)
 
             if result.creators:
-                repo = SqliteRepository(DeepCreator, db_path=db_path)
+                repo = create_repo(DeepCreator, storage_config=settings.storage)
                 await repo.start()
                 ids = await repo.save_many(result.creators)
                 await repo.stop()
                 total_saved += len(ids)
 
-            console.print(f"\n[green]已保存 {total_saved} 条记录到 {db_path}[/green]")
+            console.print(f"\n[green]已保存 {total_saved} 条记录[/green]")
 
         # 导出
         if export_fmt and result.contents:

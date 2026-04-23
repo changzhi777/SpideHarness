@@ -133,6 +133,9 @@ class StorageConfig(BaseModel):
     sqlite_path: str = "spide_data.db"
     redis_url: str = "redis://localhost:6379/0"
     redis_prefix: str = "spide:"
+    supabase_url: str = ""
+    supabase_service_key: str = ""
+    supabase_anon_key: str = ""
 
 
 class Settings(BaseModel):
@@ -166,6 +169,7 @@ def _map_yaml_to_settings(filename: str, data: dict) -> dict:
         "llm.yaml": "llm",
         "mqtt.yaml": "mqtt",
         "uapi.yaml": "uapi",
+        "supabase.yaml": "storage",
         "default.yaml": None,
     }
 
@@ -230,7 +234,7 @@ def load_settings(
     merged: dict = {}
 
     # 按优先级依次加载并合并
-    for filename in ("default.yaml", "llm.yaml", "mqtt.yaml", "uapi.yaml"):
+    for filename in ("default.yaml", "llm.yaml", "mqtt.yaml", "uapi.yaml", "supabase.yaml"):
         file_data = _load_yaml(cfg_dir / filename)
         if file_data:
             # YAML 文件的顶层 key 需要映射到 Settings 对应的 section

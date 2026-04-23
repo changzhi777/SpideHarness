@@ -32,6 +32,7 @@ htmlcov/
 configs/mqtt.yaml
 configs/llm.yaml
 configs/uapi.yaml
+configs/supabase.yaml
 CA/
 
 # uv
@@ -63,3 +64,5 @@ OpenHarness/
 # 安装脚本生成的产物
 output/
 data/
+
+.vercel

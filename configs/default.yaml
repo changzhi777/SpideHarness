@@ -5,3 +5,6 @@ storage:
   sqlite_path: "spide_data.db"
   redis_url: "redis://localhost:6379/0"
   redis_prefix: "spide:"
+  supabase_url: ""
+  supabase_service_key: ""
+  supabase_anon_key: ""

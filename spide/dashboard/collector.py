@@ -1,24 +1,25 @@
 # Copyright (C) 2026 IoTchange - All Rights Reserved
 # Author: 外星动物（常智） / IoTchange / 14455975@qq.com
-"""数据聚合器 — 从 SQLite 读取数据并计算看板统计指标.
+"""数据聚合器 — 从数据库读取数据并计算看板统计指标.
 
 用法:
     from spide.dashboard.collector import collect_dashboard_data
 
-    data = await collect_dashboard_data(db_path="spide_data.db")
-    # data 为 JSON-serializable dict，可直接传递给渲染器
+    data = await collect_dashboard_data(storage_config=settings.storage)
 """
 
 from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime
-from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from spide.logging import get_logger
+from spide.storage import create_repo
 from spide.storage.models import HotTopic
-from spide.storage.sqlite_repo import SqliteRepository
+
+if TYPE_CHECKING:
+    from spide.config import StorageConfig
 
 logger = get_logger(__name__)
 
@@ -51,20 +52,26 @@ PLATFORM_COLORS: dict[str, str] = {
 
 async def collect_dashboard_data(
     *,
+    storage_config: StorageConfig | None = None,
     db_path: str = "spide_data.db",
     workspace: str | None = None,
 ) -> dict[str, Any]:
-    """从 SQLite 读取数据并聚合看板统计指标.
+    """从数据库读取数据并聚合看板统计指标.
+
+    Args:
+        storage_config: 存储配置（支持 Supabase/SQLite 自动切换）
+        db_path: SQLite 路径（降级时使用）
+        workspace: 工作空间路径
 
     Returns:
         看板数据字典，包含 total_count / platform_stats / top_topics / 等
     """
-    # 解析 db_path
-    actual_db_path = db_path
-    if workspace:
-        actual_db_path = str(Path(workspace) / "spide_data.db")
-
-    repo = SqliteRepository(HotTopic, db_path=actual_db_path)
+    # 使用传入的 config 或创建默认 SQLite 配置
+    cfg = storage_config
+    if cfg is None:
+        from spide.config import StorageConfig
+        cfg = StorageConfig(sqlite_path=db_path)
+    repo = create_repo(HotTopic, storage_config=cfg)
 
     try:
         await repo.start()
