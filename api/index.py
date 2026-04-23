@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", os.environ.get("SUPABASE_SERVICE_KEY", ""))
 
 PLATFORM_MAP: dict[str, dict[str, str]] = {
     "weibo": {"label": "微博", "color": "#E6162D"},
@@ -23,6 +24,8 @@ PLATFORM_MAP: dict[str, dict[str, str]] = {
     "bilibili": {"label": "B站", "color": "#00A1D6"},
     "kuaishou": {"label": "快手", "color": "#FF8C00"},
     "tieba": {"label": "贴吧", "color": "#4879BD"},
+    "github": {"label": "GitHub", "color": "#24292E"},
+    "github_ai": {"label": "GitHub AI", "color": "#7C3AED"},
 }
 
 
@@ -33,7 +36,9 @@ def _pm(source: str) -> dict[str, str]:
 def _get_sb() -> Any:
     from supabase import create_client
 
-    return create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+    # 优先使用 service role key（如果可用），否则使用 anon key
+    key = SUPABASE_SERVICE_KEY or SUPABASE_ANON_KEY
+    return create_client(SUPABASE_URL, key)
 
 
 app = FastAPI(title="SpideHarness Dashboard API", version="3.1.1")
