@@ -12,7 +12,9 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+# Vercel Supabase 集成提供多种环境变量
+# 优先使用 Vercel 集成的 POSTGRES_URL（连接池），降级到 SUPABASE_URL
+SUPABASE_URL = os.environ.get("SUPABASE_URL", os.environ.get("POSTGRES_URL", ""))
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", os.environ.get("SUPABASE_SERVICE_KEY", ""))
 
@@ -38,6 +40,10 @@ def _get_sb() -> Any:
 
     # 优先使用 service role key（如果可用），否则使用 anon key
     key = SUPABASE_SERVICE_KEY or SUPABASE_ANON_KEY
+
+    if not SUPABASE_URL:
+        raise RuntimeError("SUPABASE_URL 环境变量未设置")
+
     return create_client(SUPABASE_URL, key)
 
 
@@ -54,9 +60,29 @@ app.add_middleware(
 @app.get("/api/dashboard", summary="获取 Dashboard 全量数据")
 def get_dashboard() -> JSONResponse:
     """返回前端 Dashboard 所需的全部数据。"""
-    sb = _get_sb()
+    try:
+        sb = _get_sb()
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "database_connection_failed",
+                "message": str(e),
+                "hint": "请确保 Supabase 环境变量已正确配置"
+            }
+        )
 
-    resp = sb.table("hot_topics").select("*", count="exact").execute()
+    try:
+        resp = sb.table("hot_topics").select("*", count="exact").execute()
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "query_failed",
+                "message": str(e)
+            }
+        )
+
     all_rows = resp.data
     total_count = resp.count or 0
 
