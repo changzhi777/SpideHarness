@@ -7,5 +7,5 @@
     { "src": "/api/(.*)", "dest": "/api/index.py" },
     { "src": "/", "dest": "/dashboard/index.html" }
   ],
-  "install": "pip install -r requirements.txt"
+  "installCommand": "pip install -r requirements.txt"
 }
