@@ -31,6 +31,8 @@ classifiers = [
 
 dependencies = [
     "psycopg2-binary>=2.9.12",
+    "fastapi>=0.110.0",
+    "supabase>=2.0",
 ]
 
 [project.optional-dependencies]
