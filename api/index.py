@@ -44,6 +44,14 @@ def _get_sb() -> Any:
     if not SUPABASE_URL:
         raise RuntimeError("SUPABASE_URL 环境变量未设置")
 
+    if not key:
+        raise RuntimeError("SUPABASE_ANON_KEY 和 SUPABASE_SERVICE_ROLE_KEY 都未设置")
+
+    # 调试：打印密钥前缀（不要打印完整密钥）
+    key_preview = key[:20] + "..." if len(key) > 20 else "***"
+    print(f"DEBUG: Supabase URL: {SUPABASE_URL[:50]}...")
+    print(f"DEBUG: Using key starting with: {key_preview}")
+
     return create_client(SUPABASE_URL, key)
 
 
