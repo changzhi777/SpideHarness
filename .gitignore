@@ -39,8 +39,22 @@ CA/
 uv.lock
 
 # OS
-.D.S_Store
+.DS_Store
 Thumbs.db
+
+# Node.js
+node_modules/
+package.json
+package-lock.json
+
+# 数据库
+spide_data.db
+
+# Playwright MCP 缓存
+.playwright-mcp/
+
+# 会话数据
+sessions/
 
 # 日志
 *.log
