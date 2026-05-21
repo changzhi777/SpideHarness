@@ -10,7 +10,6 @@ import asyncio
 
 import pytest
 
-from spide.config import load_settings
 from spide.storage.models import HotTopic
 from spide.storage.sqlite_repo import SqliteRepository
 
@@ -21,21 +20,23 @@ from spide.storage.sqlite_repo import SqliteRepository
 
 
 @pytest.fixture
-def real_settings():
-    settings = load_settings()
-    if not settings.uapi.api_key:
-        pytest.skip("UAPI API Key 未配置")
-    return settings
-
-
-@pytest.fixture
 async def real_uapi(real_settings):
+    if not real_settings.uapi.api_key:
+        pytest.skip("UAPI API Key 未配置")
+
     from spide.spider.uapi_client import UAPIClient
 
     client = UAPIClient(real_settings.uapi)
     await client.start()
     yield client
     await client.stop()
+
+
+def _skip_on_rate_limit(exc: Exception) -> None:
+    """429 限流时跳过测试."""
+    msg = str(exc)
+    if "429" in msg or "Rate limit" in msg:
+        pytest.skip(f"UAPI 限流: {msg}")
 
 
 # ---------------------------------------------------------------------------
@@ -48,27 +49,44 @@ class TestRealHotTopicFetch:
     """各平台真实热搜采集."""
 
     async def test_fetch_weibo_hotboard(self, real_uapi):
-        topics = await real_uapi.fetch_hotboard("weibo")
+        try:
+            topics = await real_uapi.fetch_hotboard("weibo")
+        except Exception as e:
+            _skip_on_rate_limit(e)
+            raise
         assert len(topics) > 0, "微博热搜应返回非空列表"
         assert topics[0].title, "第一条热搜应有标题"
 
     async def test_fetch_baidu_hotboard(self, real_uapi):
-        topics = await real_uapi.fetch_hotboard("baidu")
+        try:
+            topics = await real_uapi.fetch_hotboard("baidu")
+        except Exception as e:
+            _skip_on_rate_limit(e)
+            raise
         assert len(topics) > 0, "百度热搜应返回非空列表"
 
     async def test_fetch_douyin_hotboard(self, real_uapi):
         try:
             topics = await real_uapi.fetch_hotboard("douyin")
-            assert isinstance(topics, list), "抖音应返回列表"
-        except Exception:
-            pytest.skip("抖音 API 暂时不可用")
+        except Exception as e:
+            _skip_on_rate_limit(e)
+            raise
+        assert isinstance(topics, list), "抖音应返回列表"
 
     async def test_fetch_zhihu_hotboard(self, real_uapi):
-        topics = await real_uapi.fetch_hotboard("zhihu")
+        try:
+            topics = await real_uapi.fetch_hotboard("zhihu")
+        except Exception as e:
+            _skip_on_rate_limit(e)
+            raise
         assert len(topics) > 0, "知乎热搜应返回非空列表"
 
     async def test_fetch_bilibili_hotboard(self, real_uapi):
-        topics = await real_uapi.fetch_hotboard("bilibili")
+        try:
+            topics = await real_uapi.fetch_hotboard("bilibili")
+        except Exception as e:
+            _skip_on_rate_limit(e)
+            raise
         assert len(topics) > 0, "B站热搜应返回非空列表"
 
 
@@ -82,7 +100,11 @@ class TestHotTopicStructure:
     """热搜数据结构完整性."""
 
     async def test_hot_topic_data_structure(self, real_uapi):
-        topics = await real_uapi.fetch_hotboard("weibo")
+        try:
+            topics = await real_uapi.fetch_hotboard("weibo")
+        except Exception as e:
+            _skip_on_rate_limit(e)
+            raise
         assert len(topics) > 0
 
         for topic in topics[:5]:
@@ -97,7 +119,7 @@ class TestHotTopicStructure:
 
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                continue  # 个别平台失败不影响整体
+                continue
             assert isinstance(result, list), f"{platforms[i]} 应返回列表"
 
     async def test_fetch_all_method(self, real_uapi):
@@ -116,7 +138,11 @@ class TestCrawlPersist:
     """采集 → SQLite 持久化."""
 
     async def test_crawl_and_save_to_sqlite(self, real_uapi, tmp_db):
-        topics = await real_uapi.fetch_hotboard("weibo")
+        try:
+            topics = await real_uapi.fetch_hotboard("weibo")
+        except Exception as e:
+            _skip_on_rate_limit(e)
+            raise
         assert len(topics) > 0
 
         repo = SqliteRepository(HotTopic, db_path=str(tmp_db))

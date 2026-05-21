@@ -10,7 +10,6 @@ import asyncio
 
 import pytest
 
-from spide.config import load_settings
 from spide.llm import LLMClient
 
 
@@ -20,17 +19,22 @@ from spide.llm import LLMClient
 
 
 @pytest.fixture
-def real_settings():
-    settings = load_settings()
-    if not settings.llm.common.api_key:
-        pytest.skip("智谱 LLM API Key 未配置")
-    return settings
-
-
-@pytest.fixture
 async def real_llm(real_settings):
+    from spide.exceptions import LLMError
+
+    if not real_settings.llm.common.api_key:
+        pytest.skip("智谱 LLM API Key 未配置")
+
     client = LLMClient(real_settings.llm)
     await client.start()
+    # 验证 API Key 有效，401 时跳过后续测试
+    try:
+        client.chat(messages=[{"role": "user", "content": "hi"}], max_tokens=5)
+    except LLMError as e:
+        await client.stop()
+        if "401" in str(e) or "Authentication" in str(e):
+            pytest.skip(f"智谱 LLM API Key 认证失败: {e}")
+        raise
     yield client
     await client.stop()
 
@@ -84,7 +88,7 @@ class TestRealSummarizer:
             content="OpenAI今天正式发布了GPT-5模型，该模型在多项基准测试中取得了突破性进展，"
             "包括代码生成、数学推理和多语言理解等。",
         )
-        assert "summary" in result or "error" not in result
+        assert "summary" in result, f"unexpected result: {result}"
         if "summary" in result:
             assert isinstance(result["summary"], str)
             assert len(result["summary"]) > 0
@@ -107,7 +111,7 @@ class TestRealSummarizer:
         result = await summarizer.analyze_sentiment(
             comments=["这个产品真的很好用", "体验太差了", "一般般吧"],
         )
-        assert "overall" in result or "error" not in result
+        assert "overall" in result, f"unexpected result: {result}"
         if "overall" in result:
             assert result["overall"] in ("positive", "negative", "neutral", "mixed")
 
@@ -135,7 +139,7 @@ class TestRealTrendAnalyzer:
         result = await analyzer.analyze(current_topics=topics)
         assert isinstance(result, dict)
         # 至少包含 analysis 或 error 之一
-        assert "analysis" in result or "error" in result
+        assert "analysis" in result or "error" in result, f"unexpected result: {result}"
 
 
 # ---------------------------------------------------------------------------

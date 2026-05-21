@@ -15,7 +15,9 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import AsyncGenerator
 
 import typer
 from rich.console import Console
@@ -46,6 +48,33 @@ app = typer.Typer(
 # 子命令组
 memory_app = typer.Typer(help="记忆管理")
 app.add_typer(memory_app, name="memory")
+
+
+# ---------------------------------------------------------------------------
+# 公共 Engine 会话上下文管理器
+# ---------------------------------------------------------------------------
+
+
+@asynccontextmanager
+async def _engine_session(
+    workspace: str | None = None,
+) -> AsyncGenerator[tuple, None]:
+    """创建 Engine 会话，自动管理生命周期.
+
+    用法:
+        async with _engine_session(workspace) as (engine, bundle, settings):
+            ...
+    """
+    from spide.config import load_settings
+    from spide.harness import Engine
+
+    settings = load_settings()
+    engine = Engine(settings)
+    try:
+        bundle = await engine.start(workspace=workspace)
+        yield engine, bundle, settings
+    finally:
+        await engine.stop()
 
 
 # ---------------------------------------------------------------------------
@@ -196,52 +225,43 @@ async def _crawl_async(
     workspace: str | None,
 ) -> None:
     """采集异步实现."""
-    from spide.config import load_settings
-    from spide.harness import Engine
-
-    settings = load_settings()
-    engine = Engine(settings)
-
     try:
-        bundle = await engine.start(workspace=workspace)
-        console.print(f"[cyan]会话 {bundle.session_id} 已启动[/cyan]\n")
+        async with _engine_session(workspace) as (engine, bundle, settings):
+            console.print(f"[cyan]会话 {bundle.session_id} 已启动[/cyan]\n")
 
-        if source:
-            # 单源采集
-            console.print(f"[yellow]正在采集 {source} 热搜...[/yellow]")
-            results = await engine.crawl(sources=[source])
-            _display_crawl_results(results)
-        elif all_sources:
-            # 全源采集
-            console.print("[yellow]正在采集所有热搜源...[/yellow]")
-            results = await engine.crawl()
-            _display_crawl_results(results)
-        else:
-            console.print("[red]请指定 --source <平台> 或 --all[/red]")
-            raise typer.Exit(1) from None
+            if source:
+                console.print(f"[yellow]正在采集 {source} 热搜...[/yellow]")
+                results = await engine.crawl(sources=[source])
+                _display_crawl_results(results)
+            elif all_sources:
+                console.print("[yellow]正在采集所有热搜源...[/yellow]")
+                results = await engine.crawl()
+                _display_crawl_results(results)
+            else:
+                console.print("[red]请指定 --source <平台> 或 --all[/red]")
+                raise typer.Exit(1) from None
 
-        # 可选保存到数据库
-        if save_to_db:
-            from spide.storage.models import HotTopic
-            from spide.storage.sqlite_repo import SqliteRepository
+            if save_to_db:
+                from spide.storage.models import HotTopic
+                from spide.storage.sqlite_repo import SqliteRepository
 
-            db_path = settings.storage.sqlite_path
-            repo = SqliteRepository(HotTopic, db_path=db_path)
-            await repo.start()
+                db_path = settings.storage.sqlite_path
+                repo = SqliteRepository(HotTopic, db_path=db_path)
+                await repo.start()
 
-            total = 0
-            for _platform, topics in results.items():
-                ids = await repo.save_many(topics, dedup_fields=["title", "source"])
-                total += len(ids)
+                total = 0
+                for _platform, topics in results.items():
+                    ids = await repo.save_many(topics, dedup_fields=["title", "source"])
+                    total += len(ids)
 
-            await repo.stop()
-            console.print(f"\n[green]已保存 {total} 条记录到 {db_path}[/green]")
+                await repo.stop()
+                console.print(f"\n[green]已保存 {total} 条记录到 {db_path}[/green]")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]采集失败: {e}[/red]")
         raise typer.Exit(1) from None
-    finally:
-        await engine.stop()
 
 
 def _display_crawl_results(results: dict[str, list]) -> None:
@@ -316,89 +336,80 @@ async def _deep_crawl_async(
     workspace: str | None,
 ) -> None:
     """深度采集异步实现."""
-    from spide.config import load_settings
-    from spide.harness import Engine
-
-    settings = load_settings()
-    engine = Engine(settings)
-
     try:
-        bundle = await engine.start(workspace=workspace)
-        console.print(f"[cyan]会话 {bundle.session_id}[/cyan]")
-        console.print(f"[dim]深度采集: {platform} / {mode}[/dim]\n")
+        async with _engine_session(workspace) as (engine, bundle, settings):
+            console.print(f"[cyan]会话 {bundle.session_id}[/cyan]")
+            console.print(f"[dim]深度采集: {platform} / {mode}[/dim]\n")
 
-        # 解析参数
-        kw_list = [k.strip() for k in keywords.split(",") if k.strip()] if keywords else None
-        url_list = [u.strip() for u in urls.split(",") if u.strip()] if urls else None
-        creator_list = [c.strip() for c in creators.split(",") if c.strip()] if creators else None
+            kw_list = [k.strip() for k in keywords.split(",") if k.strip()] if keywords else None
+            url_list = [u.strip() for u in urls.split(",") if u.strip()] if urls else None
+            creator_list = [c.strip() for c in creators.split(",") if c.strip()] if creators else None
 
-        results = await engine.deep_crawl(
-            platform=platform,
-            mode=mode,
-            keywords=kw_list,
-            content_ids=url_list,
-            creator_ids=creator_list,
-            max_notes=max_notes,
-            enable_comments=comments,
-            headless=headless,
-        )
+            results = await engine.deep_crawl(
+                platform=platform,
+                mode=mode,
+                keywords=kw_list,
+                content_ids=url_list,
+                creator_ids=creator_list,
+                max_notes=max_notes,
+                enable_comments=comments,
+                headless=headless,
+            )
 
-        # 展示结果
-        contents = results.get("contents", [])
-        comments_list = results.get("comments", [])
-        creators_list = results.get("creators", [])
+            contents = results.get("contents", [])
+            comments_list = results.get("comments", [])
+            creators_list = results.get("creators", [])
 
-        console.print(f"[green]内容: {len(contents)} 条[/green]")
-        console.print(f"[green]评论: {len(comments_list)} 条[/green]")
-        console.print(f"[green]创作者: {len(creators_list)} 条[/green]")
+            console.print(f"[green]内容: {len(contents)} 条[/green]")
+            console.print(f"[green]评论: {len(comments_list)} 条[/green]")
+            console.print(f"[green]创作者: {len(creators_list)} 条[/green]")
 
-        if contents:
-            table = Table(title=f"{platform} 采集结果 ({len(contents)} 条)")
-            table.add_column("标题", style="white", max_width=50)
-            table.add_column("作者", style="cyan", width=12)
-            table.add_column("点赞", style="yellow", width=8)
-            table.add_column("评论", style="green", width=8)
-            for item in contents[:20]:
-                table.add_row(
-                    item.title[:50] if item.title else "-",
-                    item.author_name[:12] if item.author_name else "-",
-                    str(item.like_count or "-"),
-                    str(item.comment_count or "-"),
-                )
-            console.print(table)
+            if contents:
+                table = Table(title=f"{platform} 采集结果 ({len(contents)} 条)")
+                table.add_column("标题", style="white", max_width=50)
+                table.add_column("作者", style="cyan", width=12)
+                table.add_column("点赞", style="yellow", width=8)
+                table.add_column("评论", style="green", width=8)
+                for item in contents[:20]:
+                    table.add_row(
+                        item.title[:50] if item.title else "-",
+                        item.author_name[:12] if item.author_name else "-",
+                        str(item.like_count or "-"),
+                        str(item.comment_count or "-"),
+                    )
+                console.print(table)
 
-        # 保存到数据库
-        if save and contents:
-            from spide.storage.models import DeepComment, DeepContent, DeepCreator
-            from spide.storage.sqlite_repo import SqliteRepository
+            if save and contents:
+                from spide.storage.models import DeepComment, DeepContent, DeepCreator
+                from spide.storage.sqlite_repo import SqliteRepository
 
-            db_path = settings.storage.sqlite_path
+                db_path = settings.storage.sqlite_path
 
-            repo = SqliteRepository(DeepContent, db_path=db_path)
-            await repo.start()
-            ids = await repo.save_many(contents)
-            await repo.stop()
-            console.print(f"\n[green]已保存 {len(ids)} 条内容到 {db_path}[/green]")
-
-            if comments_list:
-                repo = SqliteRepository(DeepComment, db_path=db_path)
+                repo = SqliteRepository(DeepContent, db_path=db_path)
                 await repo.start()
-                ids = await repo.save_many(comments_list)
+                ids = await repo.save_many(contents)
                 await repo.stop()
-                console.print(f"[green]已保存 {len(ids)} 条评论[/green]")
+                console.print(f"\n[green]已保存 {len(ids)} 条内容到 {db_path}[/green]")
 
-            if creators_list:
-                repo = SqliteRepository(DeepCreator, db_path=db_path)
-                await repo.start()
-                ids = await repo.save_many(creators_list)
-                await repo.stop()
-                console.print(f"[green]已保存 {len(ids)} 条创作者[/green]")
+                if comments_list:
+                    repo = SqliteRepository(DeepComment, db_path=db_path)
+                    await repo.start()
+                    ids = await repo.save_many(comments_list)
+                    await repo.stop()
+                    console.print(f"[green]已保存 {len(ids)} 条评论[/green]")
 
+                if creators_list:
+                    repo = SqliteRepository(DeepCreator, db_path=db_path)
+                    await repo.start()
+                    ids = await repo.save_many(creators_list)
+                    await repo.stop()
+                    console.print(f"[green]已保存 {len(ids)} 条创作者[/green]")
+
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]深度采集失败: {e}[/red]")
         raise typer.Exit(1) from None
-    finally:
-        await engine.stop()
 
 
 # ---------------------------------------------------------------------------
@@ -418,36 +429,28 @@ def run(
 
 async def _run_async(prompt: str, use_stream: bool, workspace: str | None) -> None:
     """Agent 运行异步实现."""
-    from spide.config import load_settings
-    from spide.harness import Engine
-
-    settings = load_settings()
-    engine = Engine(settings)
-
     try:
-        bundle = await engine.start(workspace=workspace)
-        console.print(f"[cyan]会话 {bundle.session_id}[/cyan]")
-        console.print(f"[dim]模型: {bundle.settings.llm.text.model}[/dim]\n")
+        async with _engine_session(workspace) as (engine, bundle, settings):
+            console.print(f"[cyan]会话 {bundle.session_id}[/cyan]")
+            console.print(f"[dim]模型: {bundle.settings.llm.text.model}[/dim]\n")
 
-        if use_stream:
-            stream = engine.chat_stream(prompt)
-            full_text = ""
-            for chunk in stream:
-                delta = chunk.choices[0].delta.content
-                if delta:
-                    console.print(delta, end="")
-                    full_text += delta
-            console.print("\n")
-        else:
-            response = engine.chat(prompt)
-            content = response.choices[0].message.content  # type: ignore[attr-defined]
-            console.print(content)
+            if use_stream:
+                stream = engine.chat_stream(prompt)
+                for chunk in stream:
+                    delta = chunk.choices[0].delta.content
+                    if delta:
+                        console.print(delta, end="")
+                console.print("\n")
+            else:
+                response = engine.chat(prompt)
+                content = response.choices[0].message.content  # type: ignore[attr-defined]
+                console.print(content)
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"\n[red]运行失败: {e}[/red]")
         raise typer.Exit(1) from None
-    finally:
-        await engine.stop()
 
 
 # ---------------------------------------------------------------------------
@@ -539,6 +542,8 @@ async def _dashboard_async(
         out_path = Path("dashboard") / "index.html"
 
     filepath = write_dashboard(html, out_path)
+    # 转为绝对路径，确保 as_uri() 可用
+    filepath = filepath.resolve()
     console.print(f"[green]看板已生成:[/green] {filepath}")
     console.print(f"[dim]数据: {data['total_count']} 条话题, {data['stats_summary']['platforms']} 个平台[/dim]")
 
@@ -772,15 +777,9 @@ async def _analyze_async(
     workspace: str | None,
 ) -> None:
     """AI 分析异步实现."""
-    from spide.config import load_settings
-    from spide.harness import Engine
-
-    settings = load_settings()
-    engine = Engine(settings)
-
     try:
-        bundle = await engine.start(workspace=workspace)
-        console.print(f"[cyan]会话 {bundle.session_id}[/cyan]\n")
+        async with _engine_session(workspace) as (engine, bundle, settings):
+            console.print(f"[cyan]会话 {bundle.session_id}[/cyan]\n")
 
         from spide.analysis.summarizer import ContentSummarizer, SmartCrawlStrategy, TrendAnalyzer
 
@@ -851,11 +850,11 @@ async def _analyze_async(
             else:
                 console.print("[red]请指定 --source 或 --keywords[/red]")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]分析失败: {e}[/red]")
         raise typer.Exit(1) from None
-    finally:
-        await engine.stop()
 
 
 # ---------------------------------------------------------------------------
@@ -885,44 +884,36 @@ async def _export_async(
     workspace: str | None,
 ) -> None:
     """数据导出异步实现."""
-    from spide.config import load_settings
-    from spide.harness import Engine
-
-    settings = load_settings()
-    engine = Engine(settings)
-
     try:
-        bundle = await engine.start(workspace=workspace)
-        console.print(f"[cyan]会话 {bundle.session_id}[/cyan]\n")
+        async with _engine_session(workspace) as (engine, bundle, settings):
+            console.print(f"[cyan]会话 {bundle.session_id}[/cyan]\n")
 
-        if not source:
-            console.print("[red]请指定 --source <平台>[/red]")
-            raise typer.Exit(1) from None
+            if not source:
+                console.print("[red]请指定 --source <平台>[/red]")
+                raise typer.Exit(1) from None
 
-        # 采集数据
-        console.print(f"[yellow]正在采集 {source} 热搜...[/yellow]")
-        results = await engine.crawl(sources=[source])
-        topics = results.get(source, [])
+            console.print(f"[yellow]正在采集 {source} 热搜...[/yellow]")
+            results = await engine.crawl(sources=[source])
+            topics = results.get(source, [])
 
-        if not topics:
-            console.print("[yellow]无数据可导出[/yellow]")
-            return
+            if not topics:
+                console.print("[yellow]无数据可导出[/yellow]")
+                return
 
-        # 导出
-        from spide.storage.exporter import DataExporter
+            from spide.storage.exporter import DataExporter
 
-        out_dir = output_dir or "data/export"
-        fname = filename or f"{source}_hot"
-        exporter = DataExporter(output_dir=out_dir)
-        filepath = await exporter.export(topics, filename=fname, fmt=fmt)  # type: ignore[arg-type]
+            out_dir = output_dir or "data/export"
+            fname = filename or f"{source}_hot"
+            exporter = DataExporter(output_dir=out_dir)
+            filepath = await exporter.export(topics, filename=fname, fmt=fmt)  # type: ignore[arg-type]
 
-        console.print(f"[green]已导出 {len(topics)} 条数据到 {filepath}[/green]")
+            console.print(f"[green]已导出 {len(topics)} 条数据到 {filepath}[/green]")
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]导出失败: {e}[/red]")
         raise typer.Exit(1) from None
-    finally:
-        await engine.stop()
 
 
 # ---------------------------------------------------------------------------
@@ -967,7 +958,6 @@ async def _wordcloud_async(
 
     try:
         if texts_str:
-            # 直接用文本生成
             text_list = [t.strip() for t in texts_str.split(",") if t.strip()]
             if show_keywords:
                 freq = await gen.get_top_keywords(text_list, text_field="")
@@ -980,15 +970,7 @@ async def _wordcloud_async(
             console.print(f"[green]词云已生成: {filepath}[/green]")
 
         elif source:
-            # 从热搜标题生成
-            from spide.config import load_settings
-            from spide.harness import Engine
-
-            settings = load_settings()
-            engine = Engine(settings)
-
-            try:
-                bundle = await engine.start(workspace=workspace)
+            async with _engine_session(workspace) as (engine, bundle, settings):
                 console.print(f"[cyan]会话 {bundle.session_id}[/cyan]")
                 console.print(f"[yellow]正在采集 {source} 热搜标题...[/yellow]")
 
@@ -999,7 +981,6 @@ async def _wordcloud_async(
                     console.print("[yellow]无数据可生成词云[/yellow]")
                     return
 
-                # 用热搜标题作为文本
                 titles = [t.title for t in topics if t.title]
 
                 if show_keywords:
@@ -1015,13 +996,12 @@ async def _wordcloud_async(
                     title=title or f"{source} 热搜词云",
                 )
                 console.print(f"[green]词云已生成: {filepath}[/green]")
-
-            finally:
-                await engine.stop()
         else:
             console.print("[red]请指定 --source <平台> 或 --texts <文本>[/red]")
             raise typer.Exit(1) from None
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]词云生成失败: {e}[/red]")
         raise typer.Exit(1) from None
@@ -1237,6 +1217,256 @@ async def _schedule_async(
     else:
         console.print(f"[red]未知操作: {action}，可选: start / status / stop[/red]")
         raise typer.Exit(1) from None
+
+
+@app.command("crawl-diff")
+def crawl_diff(
+    source: str = typer.Option("weibo", "--source", "-s", help="数据源平台"),
+    last: bool = typer.Option(False, "--last", help="查看最近一次 diff"),
+    history: bool = typer.Option(False, "--history", help="查看历史 diff 统计"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w"),
+) -> None:
+    """采集并对比增量差异."""
+    asyncio.run(_crawl_diff_async(source, last, history, workspace))
+
+
+async def _crawl_diff_async(
+    source: str, last: bool, history: bool, workspace: str | None
+) -> None:
+    async with _engine_session(workspace) as (engine, bundle, settings):
+        if last or history:
+            from spide.storage.sqlite_repo import SqliteRepository
+            from spide.storage.models import CrawlSnapshot
+
+            repo = SqliteRepository(CrawlSnapshot, db_path=settings.storage.sqlite_path)
+            await repo.start()
+            try:
+                snapshots = await repo.query(source=source, limit=10 if history else 1)
+                if not snapshots:
+                    console.print(f"[yellow]无 {source} 的历史快照[/yellow]")
+                    return
+                table = Table(title=f"{'历史' if history else '最近'} Diff — {source}")
+                table.add_column("快照 Key", style="cyan")
+                table.add_column("总数", justify="right")
+                table.add_column("新增", style="green", justify="right")
+                table.add_column("上升", style="yellow", justify="right")
+                table.add_column("下降", style="red", justify="right")
+                table.add_column("掉榜", style="dim", justify="right")
+                table.add_column("时间", style="dim")
+                for s in snapshots:
+                    table.add_row(
+                        s.snapshot_key,
+                        str(s.total_topics),
+                        str(s.new_count),
+                        str(s.rising_count),
+                        str(s.falling_count),
+                        str(s.dropped_count),
+                        s.created_at.strftime("%H:%M:%S"),
+                    )
+                console.print(table)
+            finally:
+                await repo.stop()
+            return
+
+        results = await engine.crawl_diff(sources=[source])
+        diff_data = results.get(source, {})
+        report = diff_data.get("report", {})
+        changes = diff_data.get("changes", [])
+
+        if not changes:
+            console.print(f"[yellow]{source} 无变化数据[/yellow]")
+            return
+
+        summary = report.get("summary", {})
+        console.print(f"\n[bold cyan]{source} 增量差异报告[/bold cyan]")
+        console.print(f"  新增: [green]{summary.get('new', 0)}[/green]  "
+                      f"上升: [yellow]{summary.get('rising', 0)}[/yellow]  "
+                      f"下降: [red]{summary.get('falling', 0)}[/red]  "
+                      f"掉榜: [dim]{summary.get('dropped', 0)}[/dim]")
+
+        table = Table(title="话题变化详情")
+        table.add_column("标题", style="cyan", max_width=40)
+        table.add_column("状态", justify="center")
+        table.add_column("热度变化", justify="right")
+        for c in changes[:20]:
+            status_colors = {"new": "green", "rising": "yellow", "falling": "red", "stable": "dim", "dropped": "dim"}
+            color = status_colors.get(c.status.value, "white")
+            change_str = f"+{c.hot_value_change}" if (c.hot_value_change or 0) > 0 else str(c.hot_value_change or "-")
+            table.add_row(c.title[:40], f"[{color}]{c.status.value}[/{color}]", change_str)
+        console.print(table)
+
+
+@app.command("monitor")
+def monitor(
+    once: bool = typer.Option(False, "--once", help="单次检测"),
+    rules: str | None = typer.Option(None, "--rules", "-r", help="告警规则文件路径"),
+    interval: int = typer.Option(300, "--interval", "-i", help="检测间隔（秒）"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w"),
+) -> None:
+    """关键词监控与告警."""
+    asyncio.run(_monitor_async(once, rules, interval, workspace))
+
+
+async def _monitor_async(
+    once: bool, rules_path: str | None, interval: int, workspace: str | None
+) -> None:
+    from spide.monitor.alert_engine import AlertEngine
+    from spide.monitor.notifier import NotifierDispatcher
+
+    rules = AlertEngine.load_rules(rules_path)
+    if not rules:
+        console.print("[yellow]无告警规则，请配置 --rules 或 configs/alert_rules.yaml[/yellow]")
+        return
+
+    engine_alert = AlertEngine(rules=rules)
+    console.print(f"[green]已加载 {len(rules)} 条告警规则[/green]")
+    for r in rules:
+        console.print(f"  • {r.name}: {', '.join(r.keywords[:5])}")
+
+    dispatcher = NotifierDispatcher()
+
+    async with _engine_session(workspace) as (engine, bundle, settings):
+        async def _check_once() -> None:
+            sources = list(set(s.value for r in rules for s in r.sources)) or ["weibo", "baidu", "zhihu"]
+            results = await engine.crawl(sources=sources)
+
+            all_topics = []
+            for src_topics in results.values():
+                all_topics.extend(src_topics)
+
+            alerts = engine_alert.evaluate(all_topics)
+            if alerts:
+                console.print(f"\n[bold red]触发 {len(alerts)} 条告警[/bold red]")
+                for a in alerts:
+                    console.print(f"  [{a.rule_name}] {a.topic_title} ({a.topic_source.value}) — {a.alert_type}")
+                for a in alerts:
+                    await dispatcher.dispatch(a, settings.alert.notification.channels)
+
+        if once:
+            await _check_once()
+            return
+
+        console.print(f"[dim]持续监控中，间隔 {interval}s，Ctrl+C 退出[/dim]")
+        try:
+            while True:
+                await _check_once()
+                await asyncio.sleep(interval)
+        except KeyboardInterrupt:
+            console.print("[dim]监控已停止[/dim]")
+
+
+@app.command("track")
+def track(
+    source: str = typer.Option("weibo", "--source", "-s", help="数据源平台"),
+    top: int = typer.Option(10, "--top", "-n", help="追踪 Top N"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w"),
+) -> None:
+    """热搜话题深度追踪（搜索 + 摘要 + 情感分析）."""
+    asyncio.run(_track_async(source, top, workspace))
+
+
+async def _track_async(source: str, top: int, workspace: str | None) -> None:
+    async with _engine_session(workspace) as (engine, bundle, settings):
+        results = await engine.crawl(sources=[source])
+        topics = results.get(source, [])
+
+        if not topics:
+            console.print(f"[yellow]{source} 无热搜数据[/yellow]")
+            return
+
+        console.print(f"[cyan]追踪 {source} Top {top} 热搜...[/cyan]")
+        tracks = await engine.track_deep(topics, top_n=top)
+
+        table = Table(title=f"深度追踪 — {source} Top {top}")
+        table.add_column("标题", style="cyan", max_width=30)
+        table.add_column("状态", justify="center")
+        table.add_column("情感", justify="center")
+        table.add_column("摘要", max_width=50)
+        table.add_column("关键词")
+
+        for t in tracks:
+            status_color = "green" if t.analysis_status == "completed" else "red"
+            sentiment_color = {"positive": "green", "negative": "red", "neutral": "yellow", "mixed": "blue"}.get(t.sentiment, "dim")
+            table.add_row(
+                t.topic_title[:30],
+                f"[{status_color}]{t.analysis_status}[/{status_color}]",
+                f"[{sentiment_color}]{t.sentiment or '-'}[/{sentiment_color}]",
+                t.summary[:50] if t.summary else "-",
+                ", ".join(t.keywords[:3]),
+            )
+        console.print(table)
+
+
+@app.command("cross-analyze")
+def cross_analyze(
+    report: bool = typer.Option(False, "--report", help="生成分析报告文件"),
+    save: bool = typer.Option(False, "--save", help="结果持久化到 SQLite"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w"),
+) -> None:
+    """跨平台关联分析 — 语义聚类识别跨平台热点."""
+    asyncio.run(_cross_analyze_async(report, save, workspace))
+
+
+async def _cross_analyze_async(
+    report: bool, save: bool, workspace: str | None
+) -> None:
+    async with _engine_session(workspace) as (engine, bundle, settings):
+        sources = ["weibo", "baidu", "douyin", "zhihu", "bilibili"]
+        console.print(f"[cyan]采集全平台热搜...[/cyan]")
+        results = await engine.crawl(sources=sources)
+
+        available = {k: v for k, v in results.items() if v}
+        if not available:
+            console.print("[yellow]无平台返回数据[/yellow]")
+            return
+
+        console.print(f"[cyan]分析 {len(available)} 个平台数据...[/cyan]")
+        clusters = await engine.cross_analyze(available)
+
+        table = Table(title="跨平台关联分析")
+        table.add_column("聚类", style="cyan")
+        table.add_column("平台", style="yellow")
+        table.add_column("话题数", justify="right")
+        table.add_column("跨平台", justify="center")
+        table.add_column("分析", max_width=40)
+
+        for c in clusters:
+            cross = "[green]是[/green]" if c.cross_platform else "[dim]否[/dim]"
+            table.add_row(
+                c.cluster_name,
+                ", ".join(c.platform_sources),
+                str(len(c.topic_titles)),
+                cross,
+                c.analysis[:40],
+            )
+        console.print(table)
+
+        if save:
+            from spide.storage.sqlite_repo import SqliteRepository
+            from spide.storage.models import TopicCluster
+
+            repo = SqliteRepository(TopicCluster, db_path=settings.storage.sqlite_path)
+            await repo.start()
+            try:
+                for c in clusters:
+                    await repo.save(c)
+            finally:
+                await repo.stop()
+            console.print(f"[green]已保存 {len(clusters)} 条聚类到 SQLite[/green]")
+
+        if report:
+            import json
+            from pathlib import Path
+            from datetime import datetime
+
+            output_dir = Path("data/reports")
+            output_dir.mkdir(parents=True, exist_ok=True)
+            report_path = output_dir / f"cross_analyze_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            report_path.write_text(
+                json.dumps([c.model_dump(mode="json") for c in clusters], ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            console.print(f"[green]报告已保存: {report_path}[/green]")
 
 
 def _check_configs() -> bool:

@@ -1,0 +1,24 @@
+# SpideHarness 告警规则配置
+# 使用方法: spide monitor --rules configs/alert_rules.yaml
+
+rules:
+  - name: "AI/科技热点"
+    keywords: ["AI", "人工智能", "GPT", "大模型", "芯片", "半导体", "DeepSeek"]
+    sources: [weibo, zhihu, baidu]
+    hot_value_threshold: 10000
+    status_trigger: [new, rising]
+    enabled: true
+
+  - name: "重大社会事件"
+    keywords: ["地震", "洪灾", "疫情", "事故", "突发"]
+    sources: [weibo, baidu]
+    hot_value_threshold: 50000
+    status_trigger: [new]
+    enabled: true
+
+  - name: "财经热点"
+    keywords: ["股市", "A股", "港股", "美股", "降息", "加息"]
+    sources: [baidu, zhihu]
+    hot_value_threshold: 20000
+    status_trigger: [new, rising]
+    enabled: true

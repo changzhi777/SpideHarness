@@ -221,6 +221,121 @@ class Engine:
         }
 
     # -----------------------------------------------------------------------
+    # 增量采集管道
+    # -----------------------------------------------------------------------
+
+    async def crawl_diff(
+        self,
+        sources: list[str] | None = None,
+    ) -> dict[str, dict]:
+        """采集并对比差异.
+
+        Args:
+            sources: 平台列表
+
+        Returns:
+            {平台: {"topics": [...], "changes": [...], "snapshot": CrawlSnapshot}}
+        """
+        from spide.spider.incremental import IncrementalDetector
+        from spide.storage.sqlite_repo import SqliteRepository
+
+        bundle = self.bundle
+        results_raw = await self.crawl(sources)
+        detector = IncrementalDetector()
+
+        output: dict[str, dict] = {}
+        for source, topics in results_raw.items():
+            source_enum = None
+            for s in (sources or []):
+                if s == source:
+                    from spide.storage.models import TopicSource
+                    try:
+                        source_enum = TopicSource(source)
+                    except ValueError:
+                        source_enum = None
+                    break
+
+            if source_enum is None:
+                from spide.storage.models import TopicSource
+                try:
+                    source_enum = TopicSource(source)
+                except ValueError:
+                    continue
+
+            # 查询上一轮数据
+            repo = SqliteRepository(HotTopic, db_path=self._settings.storage.sqlite_path)
+            await repo.start()
+            try:
+                previous = await repo.query(source=source_enum.value, limit=100)
+            finally:
+                await repo.stop()
+
+            changes = detector.detect_changes(topics, previous, source_enum)
+            snapshot = detector.build_snapshot(topics, source_enum, changes)
+            report = detector.generate_diff_report(changes)
+
+            output[source] = {
+                "topics": topics,
+                "changes": changes,
+                "snapshot": snapshot,
+                "report": report,
+            }
+
+        return output
+
+    # -----------------------------------------------------------------------
+    # 深度追踪管道
+    # -----------------------------------------------------------------------
+
+    async def track_deep(
+        self,
+        topics: list[HotTopic],
+        top_n: int = 10,
+    ) -> list:
+        """对 Top N 热搜执行深度追踪（搜索 + 摘要 + 情感）.
+
+        Args:
+            topics: 热搜话题列表
+            top_n: 追踪数量
+
+        Returns:
+            TopicDeepTrack 列表
+        """
+        from spide.spider.deep_tracker import DeepTopicTracker
+
+        bundle = self.bundle
+        if bundle.llm is None:
+            raise SpideError("LLM 客户端未初始化")
+
+        tracker = DeepTopicTracker(llm=bundle.llm, max_concurrent=3)
+        return await tracker.track_topics(topics, top_n=top_n)
+
+    # -----------------------------------------------------------------------
+    # 跨平台关联分析管道
+    # -----------------------------------------------------------------------
+
+    async def cross_analyze(
+        self,
+        topics_by_source: dict[str, list[HotTopic]],
+    ) -> list:
+        """跨平台关联分析.
+
+        Args:
+            topics_by_source: 平台 → 热搜列表
+
+        Returns:
+            TopicCluster 列表
+        """
+        from spide.analysis.cross_platform import CrossPlatformAnalyzer
+
+        bundle = self.bundle
+        if bundle.llm is None:
+            raise SpideError("LLM 客户端未初始化")
+
+        analyzer = CrossPlatformAnalyzer(llm=bundle.llm)
+        return await analyzer.analyze(topics_by_source)
+
+    # -----------------------------------------------------------------------
     # LLM 对话
     # -----------------------------------------------------------------------
 

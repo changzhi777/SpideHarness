@@ -128,7 +128,6 @@ class TestCLIE2E:
 class TestCrawlE2E:
     """爬取端到端流程（mock HTTP + 真实 SQLite）."""
 
-    @pytest.mark.asyncio
     async def test_crawl_save_flow(self, cli_workspace: Path, tmp_db):
         """完整流程: init → crawl → save to SQLite → verify."""
         from spide.config import LLMCommonConfig, LLMConfig, Settings, UAPIConfig
@@ -176,7 +175,6 @@ class TestCrawlE2E:
             await repo.stop()
             await engine.stop()
 
-    @pytest.mark.asyncio
     async def test_full_session_flow(self, cli_workspace: Path):
         """完整 Agent 会话: start → chat → crawl → stop."""
         from spide.config import LLMCommonConfig, LLMConfig, Settings, UAPIConfig

@@ -62,7 +62,6 @@ class TestLLMErrors:
         with pytest.raises(LLMError, match="未初始化"):
             client.chat(messages=[])
 
-    @pytest.mark.asyncio
     async def test_no_api_key(self):
         client = LLMClient(LLMConfig())
         with pytest.raises(LLMError, match="未配置"):

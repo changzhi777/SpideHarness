@@ -12,7 +12,6 @@ from spide.queue.broker import MessageBroker
 class TestBroker:
     """消息总线."""
 
-    @pytest.mark.asyncio
     async def test_pub_sub(self):
         broker = MessageBroker()
         received = []
@@ -32,7 +31,6 @@ class TestBroker:
 
         assert received == ["msg1", "msg2"]
 
-    @pytest.mark.asyncio
     async def test_wildcard(self):
         broker = MessageBroker()
         received = []
@@ -50,13 +48,11 @@ class TestBroker:
 
         assert received == ["events.click"]
 
-    @pytest.mark.asyncio
     async def test_no_match(self):
         broker = MessageBroker()
         count = await broker.publish("no.match", "data")
         assert count == 0
 
-    @pytest.mark.asyncio
     async def test_multi_subscribers(self):
         broker = MessageBroker()
         r1, r2 = [], []

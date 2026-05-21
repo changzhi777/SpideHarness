@@ -220,3 +220,107 @@ class DeepCreator(BaseModel):
     interaction: int | None = None  # 获赞/互动总数
     fetched_at: datetime = Field(default_factory=datetime.now)
     extra: dict = Field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
+# 增量采集 & 告警 & 追踪 & 聚类
+# ---------------------------------------------------------------------------
+
+
+class TopicStatus(str, Enum):
+    """话题状态变化."""
+
+    NEW = "new"
+    RISING = "rising"
+    FALLING = "falling"
+    STABLE = "stable"
+    DROPPED = "dropped"
+
+
+class HotTopicChange(BaseModel):
+    """话题变化记录."""
+
+    id: int | None = None
+    title: str
+    source: TopicSource
+    status: TopicStatus
+    previous_rank: int | None = None
+    current_rank: int | None = None
+    previous_hot_value: int | None = None
+    current_hot_value: int | None = None
+    hot_value_change: int | None = None
+    detected_at: datetime = Field(default_factory=datetime.now)
+
+
+class CrawlSnapshot(BaseModel):
+    """采集快照 — 记录一轮采集的完整结果."""
+
+    id: int | None = None
+    snapshot_key: str
+    source: TopicSource
+    total_topics: int = 0
+    new_count: int = 0
+    rising_count: int = 0
+    falling_count: int = 0
+    dropped_count: int = 0
+    changes: list[HotTopicChange] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class AlertRule(BaseModel):
+    """告警规则."""
+
+    id: int | None = None
+    name: str
+    keywords: list[str] = Field(default_factory=list)
+    sources: list[TopicSource] = Field(default_factory=list)
+    hot_value_threshold: int = 0
+    status_trigger: list[TopicStatus] = Field(default_factory=lambda: [TopicStatus.NEW])
+    enabled: bool = True
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class AlertRecord(BaseModel):
+    """告警记录."""
+
+    id: int | None = None
+    rule_id: int
+    rule_name: str
+    topic_title: str
+    topic_source: TopicSource
+    topic_hot_value: int | None = None
+    alert_type: str = ""
+    notification_sent: bool = False
+    notification_channels: list[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class TopicDeepTrack(BaseModel):
+    """话题深度追踪."""
+
+    id: int | None = None
+    topic_title: str
+    topic_source: TopicSource
+    topic_hot_value: int | None = None
+    summary: str = ""
+    keywords: list[str] = Field(default_factory=list)
+    sentiment: str = ""
+    related_articles: list[dict] = Field(default_factory=list)
+    deep_content_ids: list[int] = Field(default_factory=list)
+    analysis_status: str = "pending"
+    analyzed_at: datetime | None = None
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class TopicCluster(BaseModel):
+    """话题聚类."""
+
+    id: int | None = None
+    cluster_name: str
+    cluster_keywords: list[str] = Field(default_factory=list)
+    platform_sources: list[str] = Field(default_factory=list)
+    topic_titles: list[str] = Field(default_factory=list)
+    total_hot_value: int = 0
+    cross_platform: bool = False
+    analysis: str = ""
+    created_at: datetime = Field(default_factory=datetime.now)

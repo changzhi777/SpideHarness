@@ -26,7 +26,6 @@ class TestRuntimeBundle:
 class TestEngineLifecycle:
     """引擎生命周期."""
 
-    @pytest.mark.asyncio
     async def test_start_stop(self, tmp_workspace: Path):
         settings = Settings(
             llm=LLMConfig(common=LLMCommonConfig(api_key="test")),
@@ -46,13 +45,11 @@ class TestEngineLifecycle:
             await engine.stop()
             assert engine._bundle is None
 
-    @pytest.mark.asyncio
     async def test_not_started_error(self):
         engine = Engine(Settings())
         with pytest.raises(SpideError, match="未启动"):
             _ = engine.bundle
 
-    @pytest.mark.asyncio
     async def test_crawl_no_uapi(self, tmp_workspace: Path):
         settings = Settings(
             llm=LLMConfig(common=LLMCommonConfig(api_key="test")),
@@ -67,7 +64,6 @@ class TestEngineLifecycle:
                 await engine.crawl(sources=["weibo"])
             await engine.stop()
 
-    @pytest.mark.asyncio
     async def test_chat_mock(self, tmp_workspace: Path):
         settings = Settings(llm=LLMConfig(common=LLMCommonConfig(api_key="test")))
         engine = Engine(settings)

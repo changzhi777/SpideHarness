@@ -1,34 +1,49 @@
-# a_Spide_agent - 项目 AI 上下文文档
+# SpideHarness Agent — 项目 AI 上下文文档
 
-## 变更记录 (Changelog)
+> 📍 [根目录](./) | 当前版本: V3.1.1 (DEV) | 最后更新: 2026-05-21
+
+## 变更记录
 
 | 日期 | 操作 | 说明 |
 |------|------|------|
 | 2026-04-08 | 初始化 | 首次扫描，项目空白阶段 |
 | 2026-04-08 | 重建 | 基于详细项目描述重建文档，明确技术栈与架构设计 |
-| 2026-04-08 | 补充 | 确认存储方案 SQLite+Redis，MQTT 云服务配置，创建 .gitignore |
-| 2026-04-08 | 补充 | 增加 GLM-5.1 文本模型 + GLM-5V-Turbo 多模态视觉模型配置 |
-| 2026-04-08 | 补充 | 增加联网搜索工具（智谱 Web Search API），增加 UAPI 数据源 |
-| 2026-04-10 | 集成 | 集成 OpenCLI Skills（6 个），新增浏览器自动化/适配器开发/智能搜索能力 |
-| 2026-04-10 | 新增 | 新增 spide-search-fallback skill（智谱 Web Search API 错误恢复搜索） |
+| 2026-04-08 | 补充 | SQLite+Redis，MQTT，GLM 双模型，UAPI 数据源 |
+| 2026-04-10 | 集成 | OpenCLI Skills（6→7 个），浏览器自动化 |
+| 2026-05-20 | 重建 | 全仓扫描，从"规划阶段"升级为"已实现"状态，生成模块级文档 |
+| 2026-05-21 | 优化 | 测试审查优化（3 轮），新增 logging 测试 |
+| 2026-05-21 | 深化 | 数据采集 5 方向深化：增量采集/关键词告警/深度追踪/跨平台分析/反爬稳定 |
 
 ---
 
-## 项目愿景
+## 项目概述
 
-**a_Spide_agent** 是一个**热点新闻信息抓取与智能整理 Agent CLI 工具**，具备以下核心能力：
+**SpideHarness Agent** 是一个热点新闻信息抓取与智能整理 Agent CLI 工具，基于 Harness Engineering 架构。
 
-- **热点信息抓取**：自动化采集热点新闻及相关资讯
-- **Agent CLI**：命令行交互式智能代理
-- **MCP 协议支持**：兼容 Model Context Protocol，支持与 AI 模型的标准化通讯
-- **Harness Engineering 架构**：模块化、可插拔的工程架构
-- **多线程 + 异步执行**：高性能并发任务处理
-- **消息队列管理**：同步消息的队列化调度模式
-- **MQTT 通讯**：轻量级消息传输协议支持
-- **多数据源聚合**：UApiPro 热搜榜 + 智谱联网搜索双通道
-- **浏览器自动化**：基于 OpenCLI 的 Chrome 浏览器控制，复用已有登录会话
-- **智能搜索路由**：AI + 多源（60+ 网站）的智能搜索调度
-- **适配器生态**：OpenCLI 适配器开发与自动修复能力
+核心能力：热搜采集（UAPI）→ 增量检测 → 关键词告警 → 深度追踪（搜索+LLM） → 跨平台关联分析 → 数据看板 → 多通道输出（SQLite/Excel/MQTT）。
+
+## 当前状态：**已实现 (Stage 2)**
+
+- ✅ CLI 完整实现（21 个命令）
+- ✅ Harness 调度引擎（RuntimeBundle + 管道编排）
+- ✅ 热搜采集（UAPI 5 大平台）+ 限流熔断
+- ✅ 深度采集（MediaCrawler 7 平台适配器）+ 断点恢复
+- ✅ LLM 集成（GLM-5.1 + Web Search）
+- ✅ MCP Server/Client（5 个工具）
+- ✅ MQTT 通讯（TLS + EMQX Cloud）
+- ✅ 消息总线（asyncio.Queue pub/sub）
+- ✅ SQLite 持久化 + Redis 缓存
+- ✅ 增量采集（Diff 检测 + 状态标记 NEW/RISING/FALLING/DROPPED）
+- ✅ 关键词监控与告警（规则引擎 + 多渠道通知：Log/MQTT/Webhook/飞书）
+- ✅ 内容深度追踪（自动搜索 + LLM 摘要 + 情感分析）
+- ✅ 跨平台关联分析（LLM 语义聚类 + 标题相似度）
+- ✅ 反爬稳定性（令牌桶限流 + 熔断器 + 断点恢复）
+- ✅ AI 分析（趋势分析/内容摘要/词云/采集策略）
+- ✅ Dashboard 数据看板
+- ✅ 数据导出（JSON/JSONL/CSV/Excel）
+- ✅ 定时调度 + 批量采集
+- ✅ 工作空间管理 + Prompt 层叠系统
+- ✅ 测试：34 个测试文件，341 个测试用例
 
 ---
 
@@ -36,388 +51,279 @@
 
 ### 技术栈
 
-| 层面 | 技术选型 | 说明 |
-|------|----------|------|
-| 编程语言 | **Python 3.12+** | 主开发语言 |
-| 异步框架 | **asyncio + aiohttp** | 异步 HTTP 与协程调度 |
-| MQTT 客户端 | **aiomqtt** | MQTT 云服务接入 |
-| 消息队列 | **asyncio.Queue** | 任务队列管理 |
-| CLI 框架 | **Typer** | 命令行界面构建 |
-| MCP 协议 | **mcp-sdk (Python)** | Model Context Protocol 支持 |
-| LLM 文本模型 | **GLM-5.1 (智谱 AI)** | 文本理解/生成，Function Call，MCP 工具调用 |
-| LLM 视觉模型 | **GLM-5V-Turbo (智谱 AI)** | 多模态视觉理解，图像/视频/文档分析 |
-| LLM SDK | **zai-sdk** | 智谱 AI Python SDK |
-| 联网搜索 | **Web Search API (智谱 AI)** | 结构化搜索结果，多引擎支持 |
-| 数据源 API | **UApiPro (uapis.cn)** | 100+ 免费 API，热搜榜/社交媒体/新闻数据 |
-| 数据源 SDK | **uapi-sdk-python** | UApiPro Python SDK |
-| 浏览器自动化 | **OpenCLI (@jackwener/opencli)** | Chrome 浏览器 CLI 控制，79+ 网站适配器 |
-| 多线程 | **concurrent.futures** | CPU 密集型任务的多线程执行 |
-| 数据存储 | **SQLite + Redis** | SQLite 持久化 + Redis 缓存/队列 |
-| 测试框架 | **pytest + pytest-asyncio** | 异步测试支持 |
-| 包管理 | **uv** | 依赖管理与虚拟环境 |
+| 层面 | 选型 |
+|------|------|
+| 语言 | Python 3.12+ |
+| CLI | Typer + Rich |
+| 异步 | asyncio + aiohttp |
+| LLM | GLM-5.1 / GLM-5V-Turbo (zai-sdk) |
+| 数据源 | UApiPro (aiohttp REST) |
+| 深度采集 | MediaCrawler (Playwright) |
+| 协议 | MCP (mcp-sdk) |
+| MQTT | aiomqtt (EMQX Cloud TLS) |
+| 存储 | SQLite (aiosqlite) + Redis |
+| 测试 | pytest + pytest-asyncio |
+| Lint | Ruff (lint + format) |
+| 构建 | hatchling |
 
-### 架构模式：Harness Engineering
-
-采用 **Harness（线束）架构**，核心思想：
-
-- **中心调度器 (Harness)** 作为主控节点，协调各模块
-- **插件化模块** 独立开发，通过标准化接口接入
-- **消息总线** 连接各模块，解耦通讯
-- **可插拔设计** 支持动态加载/卸载功能模块
-
----
-
-## 模块结构图 (Mermaid)
+### 模块结构图
 
 ```mermaid
 graph TD
-    CLI["CLI 入口<br/>typer/click"]
-    CLI --> Harness["Harness 调度器<br/>核心引擎"]
+    CLI["spide/cli.py<br/>Typer CLI (21 命令)"]
+    CLI --> Engine["spide/harness/engine.py<br/>Engine + RuntimeBundle"]
 
-    Harness --> MCP["MCP 协议层<br/>模型通讯"]
-    Harness --> Spider["Spider 引擎<br/>爬虫调度"]
-    Harness --> MQ["消息队列<br/>任务管理"]
-    Harness --> MQTT_Mod["MQTT 模块<br/>消息通讯"]
+    Engine --> LLM["spide/llm.py<br/>LLMClient (zai-sdk)"]
+    Engine --> Spider["spide/spider/<br/>采集引擎"]
+    Engine --> MCP["spide/mcp/<br/>MCP 协议"]
+    Engine --> Monitor["spide/monitor/<br/>告警监控"]
 
-    Spider --> Fetcher["Fetcher<br/>页面抓取"]
-    Spider --> Parser["Parser<br/>内容解析"]
-    Spider --> Pipeline["Pipeline<br/>数据清洗"]
-    Spider --> WebSearch["Web Search<br/>智谱联网搜索"]
-    Spider --> UAPI["UAPI 数据源<br/>热搜榜/社交媒体"]
+    Spider --> UAPI["uapi_client.py<br/>UAPI 热搜"]
+    Spider --> MCAdapter["media_crawler_adapter.py<br/>深度采集"]
+    Spider --> BatchSched["batch_scheduler.py<br/>批量调度"]
+    Spider --> TaskSched["task_scheduler.py<br/>定时调度"]
+    Spider --> Pipeline["pipeline.py<br/>清洗去重"]
+    Spider --> Fetcher["fetcher.py<br/>HTTP 抓取"]
+    Spider --> RateLimiter["rate_limiter.py<br/>限流/熔断/断点"]
+    Spider --> Incremental["incremental.py<br/>增量检测"]
+    Spider --> DeepTracker["deep_tracker.py<br/>深度追踪"]
 
-    MQ --> AsyncWorker["异步 Worker<br/>asyncio"]
-    MQ --> ThreadWorker["多线程 Worker<br/>ThreadPool"]
+    Monitor --> AlertEngine["alert_engine.py<br/>规则引擎"]
+    Monitor --> Notifier["notifier.py<br/>多渠道通知"]
 
-    MCP --> MCPServer["MCP Server<br/>工具注册"]
-    MCP --> MCPClient["MCP Client<br/>模型调用"]
-    MCP --> LLM["LLM 双模型<br/>GLM-5.1 文本 + GLM-5V-Turbo 视觉"]
+    MCP --> MCPServer["server.py<br/>5 个工具"]
+    MCP --> MCPClient["client.py<br/>模型调用"]
 
-    MQTT_Mod --> Publisher["MQTT Publisher"]
-    MQTT_Mod --> Subscriber["MQTT Subscriber"]
+    Engine --> MQTT["spide/mqtt/client.py<br/>MQTT Client"]
+    Engine --> Broker["spide/queue/broker.py<br/>MessageBroker"]
+    Engine --> Storage["spide/storage/<br/>持久化"]
+    Engine --> Analysis["spide/analysis/<br/>AI 分析"]
+    Engine --> Dashboard["spide/dashboard/<br/>数据看板"]
 
-    Pipeline --> Storage["数据存储层<br/>SQLite 持久化 + Redis 缓存"]
+    Storage --> SQLite["sqlite_repo.py<br/>SQLite"]
+    Storage --> Redis["redis_cache.py<br/>Redis"]
+    Storage --> Exporter["exporter.py<br/>导出"]
+    Storage --> Models["models.py<br/>Pydantic 模型"]
 
-    click MCP "./src/mcp/CLAUDE.md" "查看 MCP 模块文档"
-    click Spider "./src/spider/CLAUDE.md" "查看 Spider 模块文档"
-    click MQ "./src/queue/CLAUDE.md" "查看消息队列模块文档"
-    click MQTT_Mod "./src/mqtt/CLAUDE.md" "查看 MQTT 模块文档"
-    click Storage "./src/storage/CLAUDE.md" "查看存储模块文档"
+    Analysis --> Summarizer["summarizer.py<br/>摘要/趋势/策略"]
+    Analysis --> WC["wordcloud_generator.py<br/>词云"]
+    Analysis --> CrossPlatform["cross_platform.py<br/>跨平台聚类"]
+    Analysis --> Similarity["title_similarity.py<br/>相似度"]
+
+    Dashboard --> Collector["collector.py<br/>数据聚合"]
+    Dashboard --> Template["template.py<br/>HTML 模板"]
+
+    CLI --> Config["spide/config.py<br/>Pydantic Settings"]
+    CLI --> Memory["spide/memory.py<br/>记忆管理"]
+    CLI --> Workspace["spide/workspace.py<br/>工作空间"]
+    CLI --> Prompts["spide/prompts.py<br/>Prompt 层叠"]
+
+    click Spider "./spide/spider/CLAUDE.md" "Spider 模块"
+    click Engine "./spide/harness/CLAUDE.md" "Harness 模块"
+    click MCP "./spide/mcp/CLAUDE.md" "MCP 模块"
+    click MQTT "./spide/mqtt/CLAUDE.md" "MQTT 模块"
+    click Broker "./spide/queue/CLAUDE.md" "Queue 模块"
+    click Storage "./spide/storage/CLAUDE.md" "Storage 模块"
+    click Analysis "./spide/analysis/CLAUDE.md" "Analysis 模块"
+    click Dashboard "./spide/dashboard/CLAUDE.md" "Dashboard 模块"
 ```
 
 ---
 
-## 推荐目录结构
+## 实际目录结构
 
 ```
-a_Spide_agent/
-├── src/
-│   ├── __init__.py
-│   ├── main.py                    # CLI 入口 (Typer app)
-│   ├── harness/                   # Harness 核心调度引擎
-│   │   ├── __init__.py
-│   │   ├── engine.py              # 主调度器
-│   │   ├── config.py              # 全局配置
-│   │   └── loader.py              # 插件加载器
-│   ├── spider/                    # 爬虫引擎模块
-│   │   ├── __init__.py
-│   │   ├── fetcher.py             # 异步页面抓取器
-│   │   ├── parser.py              # HTML/JSON 内容解析器
-│   │   ├── pipeline.py            # 数据清洗与结构化管道
-│   │   ├── scheduler.py           # 爬取调度策略
-│   │   ├── web_search.py          # 智谱联网搜索接口
-│   │   └── uapi_client.py         # UAPI 数据源客户端
-│   ├── mcp/                       # MCP 协议层
-│   │   ├── __init__.py
-│   │   ├── server.py              # MCP Server（工具注册）
-│   │   ├── client.py              # MCP Client（模型调用）
-│   │   └── tools.py               # MCP 工具定义
-│   ├── queue/                     # 消息队列管理
-│   │   ├── __init__.py
-│   │   ├── broker.py              # 队列代理（asyncio.Queue 封装）
-│   │   ├── async_worker.py        # 异步 Worker
-│   │   └── thread_worker.py       # 多线程 Worker
-│   ├── mqtt/                      # MQTT 通讯模块
-│   │   ├── __init__.py
-│   │   ├── client.py              # MQTT 客户端封装
-│   │   ├── publisher.py           # 消息发布
-│   │   └── subscriber.py          # 消息订阅
-│   └── storage/                   # 数据存储层 (SQLite + Redis)
-│       ├── __init__.py
-│       ├── models.py              # 数据模型定义 (SQLAlchemy / dataclass)
-│       ├── sqlite_repo.py         # SQLite 持久化仓库
-│       ├── redis_cache.py         # Redis 缓存与去重
-│       └── repository.py          # 统一存储接口 (抽象层)
-├── tests/                         # 测试目录
-│   ├── conftest.py                # pytest 共享 fixtures
-│   ├── test_harness/
-│   ├── test_spider/
-│   ├── test_mcp/
-│   ├── test_queue/
-│   └── test_mqtt/
-├── configs/                       # 配置文件目录
-│   ├── llm.yaml                   # GLM-5.1 + GLM-5V-Turbo API 配置（敏感，不入 Git）
-│   ├── mqtt.yaml                  # MQTT 云服务连接配置（敏感，不入 Git）
-│   ├── uapi.yaml                  # UAPI 数据源配置（敏感，不入 Git）
-│   └── default.yaml               # 默认配置
-├── CA/                            # TLS 证书目录（不入 Git）
-│   └── emqxsl-ca.crt              # EMQX Cloud CA 证书
-├── pyproject.toml                 # 项目依赖与元数据
-├── .python-version                # Python 版本锁定
-├── .gitignore                     # 忽略敏感文件（configs/mqtt.yaml, CA/）
-├── CLAUDE.md                      # 本文件
-└── .spec-workflow/                # 规范文档工作流模板（已有）
+Spide_agent/
+├── spide/                          # 主源码包
+│   ├── __init__.py                 # __version__ = "1.1.1"
+│   ├── __main__.py                 # python -m spide 入口
+│   ├── cli.py                      # Typer CLI — 21 个命令
+│   ├── config.py                   # Pydantic Settings + YAML 加载
+│   ├── exceptions.py               # 统一异常层级 (8 个异常类)
+│   ├── llm.py                      # LLMClient (zai-sdk 封装)
+│   ├── logging.py                  # structlog 配置
+│   ├── memory.py                   # 文件系统记忆 CRUD
+│   ├── prompts.py                  # Prompt 层叠组装系统
+│   ├── session_storage.py          # 会话快照持久化
+│   ├── workspace.py                # ~/.spide_agent/ 工作空间管理
+│   ├── spider/                     # 爬虫引擎
+│   │   ├── fetcher.py              # AsyncFetcher (aiohttp + BeautifulSoup)
+│   │   ├── pipeline.py             # 数据清洗/去重/解析
+│   │   ├── uapi_client.py          # UAPI 热搜 REST 客户端（限流+熔断）
+│   │   ├── media_crawler_adapter.py # MediaCrawler 深度采集适配器
+│   │   ├── batch_scheduler.py      # 批量多平台并行调度（熔断+断点）
+│   │   ├── task_scheduler.py       # 定时采集调度器
+│   │   ├── rate_limiter.py         # 令牌桶限流 + 熔断器 + 断点管理
+│   │   ├── incremental.py          # 增量检测器（Diff + 状态标记）
+│   │   └── deep_tracker.py         # 话题深度追踪（搜索+摘要+情感）
+│   ├── monitor/                    # 告警监控
+│   │   ├── alert_engine.py         # 告警规则引擎（关键词/热度/状态）
+│   │   └── notifier.py             # 多渠道通知（Log/MQTT/Webhook/飞书）
+│   ├── harness/                    # 核心调度引擎
+│   │   └── engine.py               # Engine + RuntimeBundle
+│   ├── mcp/                        # MCP 协议层
+│   │   ├── server.py               # MCP Server (stdio, 5 个工具)
+│   │   ├── client.py               # MCP Client
+│   │   └── tools.py                # 工具定义 (JSON Schema)
+│   ├── mqtt/                       # MQTT 通讯
+│   │   └── client.py               # MQTTClient (TLS + aiomqtt)
+│   ├── queue/                      # 消息总线
+│   │   └── broker.py               # MessageBroker (pub/sub)
+│   ├── storage/                    # 数据存储
+│   │   ├── models.py               # Pydantic 数据模型 (15 个实体 + 8 个枚举)
+│   │   ├── sqlite_repo.py          # SQLite 异步仓库 (12 个表)
+│   │   ├── redis_cache.py          # Redis 缓存
+│   │   ├── repository.py           # 抽象仓库接口
+│   │   └── exporter.py             # JSON/JSONL/CSV/Excel 导出
+│   ├── analysis/                   # AI 分析
+│   │   ├── summarizer.py           # 趋势分析/内容摘要/采集策略
+│   │   ├── wordcloud_generator.py  # 词云生成 (jieba + wordcloud)
+│   │   ├── cross_platform.py       # 跨平台关联分析 (LLM 语义聚类)
+│   │   └── title_similarity.py     # 标题相似度 (Jaccard + 编辑距离)
+│   ├── dashboard/                  # 数据看板
+│   │   ├── collector.py            # 数据聚合
+│   │   ├── template.py             # HTML 模板
+│   │   └── renderer.py             # 渲染 + 输出
+│   └── gateway/                    # 网关（预留）
+│       └── __init__.py
+├── tests/                          # 测试
+│   ├── conftest.py
+│   ├── unit/                       # 单元测试 (29 个)
+│   ├── integration/                # 集成测试 (5 个)
+│   └── e2e/                        # E2E 测试 (4 个)
+├── configs/                        # 配置文件 (不入 Git)
+│   ├── default.yaml
+│   ├── llm.yaml
+│   ├── mqtt.yaml
+│   ├── uapi.yaml
+│   └── alert_rules.yaml            # 告警规则模板
+├── CA/                             # TLS 证书 (不入 Git)
+├── Mcaclaw/                        # macOS 安装引导脚本
+├── MediaCrawler/                   # MediaCrawler 子项目 (git submodule/拷贝)
+├── OpenHarness/                    # OpenHarness 参考实现
+├── docs/                           # 文档
+├── scripts/                        # 工具脚本
+├── skills/                         # Skill 定义
+├── pyproject.toml                  # 项目元数据 + 依赖
+└── CLAUDE.md                       # 本文件
 ```
 
 ---
 
 ## 模块索引
 
-| 模块路径 | 语言 | 职责 | 入口文件 | 核心依赖 |
-|----------|------|------|----------|----------|
-| `src/harness/` | Python | Harness 核心调度引擎，插件加载与全局配置 | `engine.py` | - |
-| `src/spider/` | Python | 爬虫引擎，页面抓取/解析/清洗 | `fetcher.py` | aiohttp, beautifulsoup4 |
-| `src/mcp/` | Python | MCP 协议层，Server/Client 双向通讯 | `server.py` | mcp-sdk, zai-sdk |
-| `src/spider/` (搜索) | Python | 联网搜索（智谱 Web Search API） | `web_search.py` | zai-sdk |
-| `src/spider/` (数据源) | Python | UAPI 热搜榜/社交媒体数据采集 | `uapi_client.py` | uapi-sdk-python |
-| `src/queue/` | Python | 消息队列管理，异步/多线程 Worker | `broker.py` | asyncio |
-| `src/mqtt/` | Python | MQTT 云服务通讯，发布/订阅 | `client.py` | aiomqtt |
-| `src/storage/` | Python | SQLite 持久化 + Redis 缓存/去重 | `repository.py` | aiosqlite, redis/aioredis |
-| `.spec-workflow/` | Markdown | 规范文档工作流模板系统 | N/A | - |
+| 模块 | 文件数 | 行数 | 职责 | 模块文档 |
+|------|--------|------|------|----------|
+| `spide/` (根级) | 11 | ~2700 | CLI、配置、LLM、记忆、工作空间 | — |
+| `spide/spider/` | 10 | ~3100 | 采集引擎（UAPI/深度/调度/限流/增量/追踪） | [CLAUDE.md](./spide/spider/CLAUDE.md) |
+| `spide/monitor/` | 3 | ~400 | 告警监控（规则引擎/多渠道通知） | — |
+| `spide/harness/` | 2 | ~420 | 核心调度引擎 | [CLAUDE.md](./spide/harness/CLAUDE.md) |
+| `spide/mcp/` | 4 | ~500 | MCP 协议（Server/Client/工具） | [CLAUDE.md](./spide/mcp/CLAUDE.md) |
+| `spide/mqtt/` | 2 | ~210 | MQTT 通讯（TLS + aiomqtt） | [CLAUDE.md](./spide/mqtt/CLAUDE.md) |
+| `spide/queue/` | 2 | ~145 | 消息总线（pub/sub） | [CLAUDE.md](./spide/queue/CLAUDE.md) |
+| `spide/storage/` | 6 | ~1550 | SQLite/Redis/导出/模型 | [CLAUDE.md](./spide/storage/CLAUDE.md) |
+| `spide/analysis/` | 5 | ~910 | AI 分析（摘要/趋势/词云/聚类/相似度） | [CLAUDE.md](./spide/analysis/CLAUDE.md) |
+| `spide/dashboard/` | 4 | ~700 | 数据看板（HTML 生成） | [CLAUDE.md](./spide/dashboard/CLAUDE.md) |
+| `tests/` | 34 | ~5000 | 测试（单元/集成/E2E） | [CLAUDE.md](./tests/CLAUDE.md) |
+| **总计** | **59** | **~9635** | | |
 
 ---
 
-## 运行与开发
+## CLI 命令速查
 
-### 环境要求
+| 命令 | 用途 |
+|------|------|
+| `spide` | 欢迎信息 |
+| `spide init` | 初始化工作空间 |
+| `spide config` | 配置检查 |
+| `spide doctor` | 环境健康检查 |
+| `spide crawl -s weibo` | 热搜采集 |
+| `spide crawl-diff -s weibo` | 采集 + 增量差异对比 |
+| `spide deep-crawl -p xhs` | 深度采集 |
+| `spide batch-crawl -p xhs,dy` | 批量多平台采集（支持 --resume 断点续采） |
+| `spide run "分析热搜"` | Agent 任务 |
+| `spide analyze -s weibo` | AI 分析 |
+| `spide monitor` | 关键词监控与告警（--once 单次 / --rules 自定义规则） |
+| `spide track -s weibo --top 10` | 热搜深度追踪（搜索+摘要+情感） |
+| `spide cross-analyze` | 跨平台关联分析（--save 持久化 / --report 生成报告） |
+| `spide export -s weibo -f excel` | 数据导出 |
+| `spide wordcloud -s weibo` | 词云生成 |
+| `spide dedup` | 数据去重 |
+| `spide dashboard` | 数据看板 |
+| `spide schedule start` | 定时调度 |
+| `spide mcp-serve` | 启动 MCP Server |
+| `spide mqtt pub` / `sub` | MQTT 消息 |
+| `spide memory list` / `add` | 记忆管理 |
 
-- Python 3.12+
-- uv（推荐）或 pip 包管理器
-- Redis 服务端（>= 7.0）用于缓存与去重
-- MQTT 云服务：**EMQX Cloud（阿里云杭州）**
-- LLM 文本模型：**GLM-5.1（智谱 AI）**，200K 上下文，128K 最大输出
-- LLM 视觉模型：**GLM-5V-Turbo（智谱 AI）**，图像/视频/文档多模态理解
+---
 
-### LLM 模型配置
+## 数据流
 
-项目使用智谱 AI 双模型策略，共用同一 API Key：
-
-| 项 | 文本模型 | 视觉模型 |
-|---|---|---|
-| 模型 ID | `glm-5.1` | `glm-5v-turbo` |
-| 定位 | 旗舰文本基座 | 多模态 Coding 基座 |
-| 输入模态 | 文本 | 图像(URL/Base64)、视频(URL)、文件(PDF/TXT)、文本 |
-| 输出模态 | 文本 | 文本 |
-| 上下文窗口 | 200K | 200K |
-| 最大输出 | 128K | 128K |
-| SDK | `zai-sdk` | `zai-sdk` |
-| API 地址 | `https://open.bigmodel.cn/api/paas/v4` | 同左 |
-| 深度思考 | 默认启用 | 默认启用 |
-| 流式输出 | 默认启用 | 默认启用 |
-| 特有能力 | Function Call, 结构化输出, MCP | 视觉理解, 视觉 Grounding, 文档理解 |
-
-**使用场景分配：**
-- **GLM-5.1**：新闻文本分析、内容摘要、指令理解、Function Call 工具调用、MCP 通讯
-- **GLM-5V-Turbo**：新闻配图分析、网页截图理解、视频新闻内容提取、文档解析
-
-> API Key 存储于 `configs/llm.yaml`，已被 `.gitignore` 排除。
-
-### 联网搜索工具
-
-智谱 AI 提供三大搜索服务，统一 API 接口，整合自研引擎及第三方（搜狗/夸克）：
-
-| 服务 | 用途 | 说明 |
-|------|------|------|
-| **Web Search API** | 直接获取结构化搜索结果 | 标题/摘要/URL/网站名/图标/发布日期 |
-| **Web Search in Chat** | 搜索 + LLM 融合回答 | 实时检索结果与模型生成无缝衔接 |
-| **Search Agent** | 智能搜索体 | 意图拆解多轮搜索，综合生成全面回答 |
-
-**搜索引擎选项：**
-
-| 引擎 | 特性 | 价格 |
-|------|------|------|
-| `search_std` | 基础版（智谱自研），日常查询 | 0.01元/次 |
-| `search_pro` | 高级版（智谱自研），多引擎协作 | 0.03元/次 |
-| `search_pro_sogou` | 搜狗，覆盖腾讯生态/知乎 | 0.05元/次 |
-| `search_pro_quark` | 夸克，垂直内容精准 | 0.05元/次 |
-
-**项目默认配置：** `search_pro`，返回 15 条，高摘要字数，不限时效。
-
-> 搜索配置存储于 `configs/llm.yaml` 的 `web_search` 节。
-
-### UAPI 数据源
-
-[UApiPro](https://uapis.cn) 提供 100+ 免费 API，本项目主要使用热搜榜和社交媒体数据：
-
-| 数据源 | 说明 | 刷新间隔 |
-|--------|------|----------|
-| 微博热搜 | 实时热搜话题 | 5 分钟 |
-| 百度热搜 | 热门搜索词 | 5 分钟 |
-| 抖音热点 | 热门视频话题 | 3 分钟 |
-| 知乎热榜 | 热门问答 | 5 分钟 |
-| B站热搜 | 热门视频 | 5 分钟 |
-
-| 项 | 值 |
-|---|---|
-| API 平台 | UApiPro (uapis.cn) |
-| SDK | `uapi-sdk-python` |
-| 认证 | API Key |
-| 并发限制 | 5 并发 / 30 RPM |
-| 重试策略 | 3 次，指数退避 |
-
-> API Key 存储于 `configs/uapi.yaml`，已被 `.gitignore` 排除。
-
-### MQTT 云服务配置
-
-| 项 | 值 |
-|---|---|
-| 云服务商 | EMQX Cloud（阿里云杭州） |
-| 连接地址 | `rd133da1.ala.cn-hangzhou.emqxsl.cn` |
-| TLS/SSL 端口 | `8883` |
-| WSS 端口 | `8084` |
-| 认证方式 | 用户名/密码（见 `configs/mqtt.yaml`） |
-| CA 证书 | `CA/emqxsl-ca.crt` |
-
-> 凭证详情存储于 `configs/mqtt.yaml`，该文件及 `CA/` 目录已被 `.gitignore` 排除，不进入版本控制。
-
-### 常用命令（待创建后生效）
-
-```bash
-# 安装依赖
-uv sync
-
-# 运行 CLI
-python -m src.main --help
-
-# 运行测试
-uv run pytest
-
-# 代码格式化
-uv run ruff format .
-uv run ruff check .
-
-# 类型检查
-uv run mypy src/
+```
+UAPI/MediaCrawler → Pipeline(清洗去重) → IncrementalDetector(增量检测)
+                                        → SQLite 持久化
+                                        → Redis 缓存
+                                        → AlertEngine(关键词告警) → Notifier(多渠道通知)
+                                        → DeepTracker(深度追踪) → LLM 摘要/情感
+                                        → CrossPlatformAnalyzer(跨平台聚类)
+                                        → Dashboard 看板
+                                        → Exporter (JSON/CSV/Excel)
+                                        → MQTT 广播
+                                        → LLM 分析 (趋势/摘要/策略)
 ```
 
-### OpenCLI 浏览器自动化集成
+## 配置加载
 
-项目通过 [OpenCLI](https://github.com/jackwener/opencli) 集成了浏览器自动化和智能搜索能力，以 Claude Code Skills 形式提供。
+`spide/config.py` — Pydantic Settings，按优先级合并：
 
-**安装前提：**
+1. `configs/default.yaml` → `configs/llm.yaml` → `configs/mqtt.yaml` → `configs/uapi.yaml` → `configs/alert_rules.yaml`
+2. 环境变量覆盖：`SPIDE_LLM__COMMON__API_KEY=xxx`（双下划线分隔层级）
+
+## LLM 模型
+
+| 模型 | ID | 用途 |
+|------|----|------|
+| GLM-5.1 | `glm-5.1` | 文本对话、摘要、趋势分析、聚类、Function Call |
+| GLM-5V-Turbo | `glm-5v-turbo` | 图像/视频/文档多模态理解 |
+
+共用 API Key，SDK: `zai-sdk`，API: `https://open.bigmodel.cn/api/paas/v4`
+
+---
+
+## 常用命令
 
 ```bash
-npm install -g @jackwener/opencli
-opencli doctor    # 验证 Chrome + Browser Bridge 扩展
+uv sync                              # 安装依赖
+spide --help                         # CLI 帮助
+spide doctor                         # 环境检查
+uv run pytest                        # 运行全部测试（333 passed）
+uv run pytest tests/unit/            # 仅单元测试
+uv run pytest -m integration         # 集成测试（需网络）
+uv run ruff format . && ruff check . # 格式化 + lint
 ```
-
-**集成的 6 个 Skills：**
-
-| Skill | 说明 | 触发场景 |
-|-------|------|---------|
-| `spide-browser` | 浏览器自动化控制（导航/点击/输入/提取） | 需要浏览网页、提取网页数据 |
-| `spide-explorer` | 适配器探索式开发（API 发现/认证/编写/测试） | 为网站生成 CLI、探索 API |
-| `spide-oneshot` | 快速单命令生成（URL → CLI，4 步完成） | 快速为某网页生成采集命令 |
-| `spide-autofix` | 适配器自动修复（诊断/修复/验证） | opencli 命令失败时 |
-| `spide-search` | 智能搜索路由（AI + 60+ 网站多源） | 搜索、查询、查找信息 |
-| `spide-usage` | OpenCLI 使用参考（79+ 适配器命令手册） | 查询命令用法、查看支持网站 |
-| `spide-search-fallback` | 错误恢复搜索（智谱 Web Search API → GitHub 搜错） | 采集失败且常规修复无效时 |
-
-**能力范围：**
-- 79+ 网站适配器（Bilibili, Twitter, Reddit, 小红书, 知乎等）
-- 8 桌面应用（Cursor, ChatGPT, Notion, Discord 等）
-- 公开 API 命令无需浏览器（HackerNews, arXiv, V2EX 等）
-- 浏览器命令复用 Chrome 已有登录会话
-
-### 开发流程
-
-1. **Spec Workflow 驱动**：使用 `.spec-workflow/` 模板先文档后代码
-2. **模块化开发**：每个模块独立开发，通过 Harness 接口集成
-3. **异步优先**：I/O 密集型操作使用 asyncio，CPU 密集型使用多线程
-4. **消息解耦**：模块间通过消息队列通讯，降低耦合
 
 ---
 
 ## 编码规范
 
-### Python 规范
-
-- **风格指南**：PEP 8，使用 Ruff 作为 linter/formatter
-- **类型注解**：全面使用 type hints，mypy 严格模式
-- **异步规范**：`async/await` 优先，避免回调地狱
-- **命名约定**：
-  - 模块/包：`snake_case`
-  - 类：`PascalCase`
-  - 常量：`UPPER_SNAKE_CASE`
-  - 私有成员：`_leading_underscore`
-
-### 架构规范
-
-- **依赖注入**：模块通过接口依赖，不直接引用具体实现
-- **配置外置**：所有配置项从 `configs/` 加载，不硬编码
-- **错误处理**：统一异常层级，自定义业务异常
-- **日志规范**：使用 `structlog` 结构化日志
+- **风格**: PEP 8, Ruff (lint + format), line-length=100
+- **类型**: 全面 type hints, mypy 检查
+- **异步**: `async/await` 优先, `asyncio.to_thread` 包装同步调用
+- **命名**: `snake_case` 模块/函数, `PascalCase` 类, `UPPER_SNAKE` 常量
+- **配置外置**: 所有配置从 `configs/` 加载
+- **异常体系**: `SpideError` → 8 个子类 (Config/Storage/Spider/MCP/MQTT/LLM/Workspace/Analysis)
+- **日志**: structlog 结构化日志, `get_logger(__name__)`
+- **测试**: pytest + pytest-asyncio, `asyncio_mode = "auto"`
+- **稳定性**: RateLimiter(令牌桶) + CircuitBreaker(熔断) + CheckpointManager(断点)
 
 ---
 
-## 测试策略
+## 版权与版本
 
-- **单元测试**：pytest + pytest-asyncio 覆盖核心逻辑
-- **集成测试**：模块间交互测试
-- **E2E 测试**：CLI 完整流程测试
-- **覆盖率目标**：>= 80%
-- **Mock 策略**：HTTP 请求使用 `aioresponses`，MQTT 使用 mock
-
----
-
-## AI 使用指引
-
-### 项目状态
-
-本项目处于 **规划阶段 (Stage 0)**，AI 辅助开发时应：
-
-1. **优先创建项目骨架** -- 按推荐目录结构生成 `pyproject.toml`、各模块 `__init__.py`、入口文件
-2. **遵循 Harness 架构** -- 所有新模块必须通过标准化接口接入 Harness 调度器
-3. **异步优先** — 抓取/通讯等 I/O 操作必须使用 asyncio
-4. **遵循 MCP 协议规范** — 工具注册和模型调用需符合 MCP 标准
-
-### 关键设计决策
-
-| 决策 | 选择 | 理由 |
-|------|------|------|
-| CLI 框架 | Typer | 类型安全的 CLI 构建，自动生成帮助文档 |
-| 异步模型 | asyncio | Python 原生异步，与 aiohttp 生态完美集成 |
-| LLM 文本模型 | GLM-5.1 (智谱 AI) | 200K 上下文，Function Call，MCP 支持，长程任务能力强 |
-| LLM 视觉模型 | GLM-5V-Turbo (智谱 AI) | 多模态视觉理解，图像/视频/文档分析，与文本模型共用 API Key |
-| 联网搜索 | 智谱 Web Search API (search_pro) | 结构化搜索结果，多引擎协作，与 LLM 同生态集成 |
-| 数据源 | UApiPro (uapis.cn) | 100+ 免费 API，微博/百度/抖音/知乎/B站热搜榜数据 |
-| LLM SDK | zai-sdk | 智谱 AI 官方新版 Python SDK，接口简洁 |
-| MQTT 库 | aiomqtt | 基于 asyncio 的 MQTT 客户端，对接 EMQX Cloud |
-| 持久化存储 | SQLite + aiosqlite | 轻量级关系数据库，异步驱动，适合嵌入式单机部署 |
-| 缓存/去重 | Redis + aioredis | 高性能 KV 缓存，用于 URL 去重、热数据缓存、任务状态管理 |
-| 消息队列 | asyncio.Queue | 轻量级，无需额外依赖，适合单进程场景 |
-| Linter | Ruff | 速度快，功能全（lint + format），替代 flake8 + black |
-| 浏览器自动化 | OpenCLI (@jackwener/opencli) | Chrome CLI 控制，79+ 适配器，复用登录会话 |
-
----
-
-## 版权与版本管理
-
-- **作者：** 外星动物（常智） / IoTchange / 14455975@qq.com
-- **版权：** Copyright (C) 2026 IoTchange - All Rights Reserved
-- **本软件为专有软件，未经授权不得复制、修改或分发。**
-
-### Git 版本号规则 (V3.1.1)
-
-版本号格式：`V{主版本}.{次版本}.{小修改}`
-
-| 位 | 规则 | 说明 |
-|----|------|------|
-| 主版本 | 起始为 `3` | 重大架构变更时递增 |
-| 次版本 | **奇数 = DEV（开发测试版）** | 功能不稳定，持续迭代中 |
-| 次版本 | **偶数 = 正式/生产版** | 功能稳定，可用于生产环境 |
-| 小修改 | 递增 | Bug 修复、小功能改进 |
-
-**当前版本：V3.1.1（DEV 开发测试版）**
+- **作者**: 外星动物（常智）/ IoTchange / 14455975@qq.com
+- **版权**: Copyright (C) 2026 IoTchange - All Rights Reserved
+- **版本**: V3.1.1 (DEV) — 奇数次版本 = 开发测试版
+- **包版本**: 1.1.1 (pyproject.toml)
 
 ---
 
@@ -425,8 +331,13 @@ opencli doctor    # 验证 Chrome + Browser Bridge 扩展
 
 | 指标 | 数量 |
 |------|------|
-| 总文件数 | 7 |
-| Markdown 文件 | 7 |
-| 源代码文件 | 0 |
-| 配置文件 | 0 |
-| 测试文件 | 0 |
+| 源码文件 | 50 (.py) |
+| 源码行数 | 9,548 |
+| 测试文件 | 34 (.py) |
+| 测试行数 | 4,971 |
+| 测试用例 | 341 |
+| 配置文件 | 5 (.yaml) |
+| CLI 命令 | 21 |
+| MCP 工具 | 5 |
+| 数据模型 | 15 (Pydantic) |
+| 异常类 | 8 |

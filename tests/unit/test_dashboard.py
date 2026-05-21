@@ -104,8 +104,8 @@ class TestAggregate:
         from spide.dashboard.collector import _aggregate
 
         topics = [
-            _make_topic(hot_value=1000),
-            _make_topic(hot_value=3000),
+            _make_topic(title="话题A", hot_value=1000),
+            _make_topic(title="话题B", hot_value=3000),
         ]
         data = _aggregate(topics, 2)
 

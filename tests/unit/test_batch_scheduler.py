@@ -60,13 +60,11 @@ class TestBatchResult:
 class TestBatchCrawlScheduler:
     """批量采集调度器."""
 
-    @pytest.mark.asyncio
     async def test_empty_tasks_raises(self):
         scheduler = BatchCrawlScheduler()
         with pytest.raises(Exception, match="任务列表为空"):
             await scheduler.run([])
 
-    @pytest.mark.asyncio
     async def test_run_with_mock_adapter(self):
         """使用 mock 测试批量调度逻辑."""
         mock_result = MagicMock()
@@ -101,7 +99,6 @@ class TestBatchCrawlScheduler:
         assert len(result.failed) == 0
         assert len(progress_log) > 0
 
-    @pytest.mark.asyncio
     async def test_run_partial_failure(self):
         """部分平台失败."""
         mock_result = MagicMock()
@@ -130,7 +127,6 @@ class TestBatchCrawlScheduler:
         assert "ks" in result.failed
         assert result.total_contents == 1
 
-    @pytest.mark.asyncio
     async def test_concurrency_limit(self):
         """验证并发限制通过 Semaphore 控制."""
         call_times = []

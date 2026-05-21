@@ -2,7 +2,6 @@
 # Author: 外星动物（常智） / IoTchange / 14455975@qq.com
 """测试基础设施."""
 
-import asyncio
 from pathlib import Path
 
 import pytest
@@ -26,14 +25,6 @@ def tmp_workspace(tmp_path: Path, monkeypatch) -> Path:
 
     initialize_workspace(str(tmp_path))
     return tmp_path
-
-
-@pytest.fixture
-def event_loop():
-    """事件循环."""
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
 
 
 # ---------------------------------------------------------------------------

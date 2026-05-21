@@ -135,6 +135,22 @@ class StorageConfig(BaseModel):
     redis_prefix: str = "spide:"
 
 
+class AlertNotificationConfig(BaseModel):
+    """告警通知配置."""
+
+    channels: list[str] = ["log"]
+    webhook_url: str = ""
+    feishu_url: str = ""
+
+
+class AlertConfig(BaseModel):
+    """告警监控配置."""
+
+    rules_path: str = "configs/alert_rules.yaml"
+    check_interval: int = 300
+    notification: AlertNotificationConfig = AlertNotificationConfig()
+
+
 class Settings(BaseModel):
     """全局配置根模型."""
 
@@ -142,6 +158,7 @@ class Settings(BaseModel):
     mqtt: MQTTConfig = MQTTConfig()
     uapi: UAPIConfig = UAPIConfig()
     storage: StorageConfig = StorageConfig()
+    alert: AlertConfig = AlertConfig()
 
 
 # ---------------------------------------------------------------------------

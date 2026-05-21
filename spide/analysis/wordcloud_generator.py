@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import asyncio
+import platform
 import time
 from collections import Counter
 from pathlib import Path
@@ -22,6 +23,34 @@ from spide.exceptions import AnalysisError
 from spide.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def _find_chinese_font() -> str | None:
+    """检测系统中可用的中文字体路径."""
+    system = platform.system()
+
+    if system == "Darwin":
+        candidates = [
+            "/System/Library/Fonts/PingFang.ttc",
+            "/System/Library/Fonts/STHeiti Light.ttc",
+            "/Library/Fonts/Arial Unicode.ttf",
+        ]
+    elif system == "Windows":
+        candidates = [
+            "C:/Windows/Fonts/msyh.ttc",
+            "C:/Windows/Fonts/simhei.ttf",
+        ]
+    else:
+        candidates = [
+            "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+        ]
+
+    for path in candidates:
+        if Path(path).exists():
+            return path
+    return None
 
 # 中文停用词（常见虚词/助词/代词）
 _STOP_WORDS: frozenset[str] = frozenset({
@@ -52,7 +81,7 @@ class WordCloudGenerator:
         background_color: str = "white",
     ) -> None:
         self._output_dir = Path(output_dir)
-        self._font_path = font_path
+        self._font_path = font_path or _find_chinese_font()
         self._width = width
         self._height = height
         self._max_words = max_words
@@ -207,7 +236,11 @@ class WordCloudGenerator:
 
             fig, ax = plt.subplots(figsize=(self._width / 100, self._height / 100), dpi=100)
             ax.imshow(wc, interpolation="bilinear")
-            ax.set_title(title, fontsize=16, fontproperties=self._font_path)
+            if self._font_path:
+                from matplotlib.font_manager import FontProperties
+                ax.set_title(title, fontsize=16, fontproperties=FontProperties(fname=self._font_path))
+            else:
+                ax.set_title(title, fontsize=16)
             ax.axis("off")
             fig.savefig(filepath, bbox_inches="tight", dpi=100)
             plt.close(fig)

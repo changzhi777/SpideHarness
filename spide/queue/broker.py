@@ -9,7 +9,7 @@
 
     # 订阅
     async for event in broker.subscribe("crawl.completed"):
-        print(event)
+        process(event)  # 处理事件
 
     # 发布
     await broker.publish("crawl.completed", {"source": "weibo", "count": 50})

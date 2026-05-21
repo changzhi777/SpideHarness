@@ -37,7 +37,6 @@ async def uapi_client(uapi_config: UAPIConfig) -> UAPIClient:
 class TestUAPIRealCall:
     """UAPI 真实接口调用."""
 
-    @pytest.mark.asyncio
     async def test_fetch_weibo_hotboard(self, uapi_client: UAPIClient):
         """微博热搜真实采集."""
         topics = await uapi_client.fetch_hotboard("weibo")
@@ -50,7 +49,6 @@ class TestUAPIRealCall:
         assert first.source.value == "weibo"
         assert first.url is not None, "热搜应包含 URL"
 
-    @pytest.mark.asyncio
     async def test_fetch_baidu_hotboard(self, uapi_client: UAPIClient):
         """百度热搜真实采集."""
         topics = await uapi_client.fetch_hotboard("baidu")
@@ -62,7 +60,6 @@ class TestUAPIRealCall:
         assert first.title
         assert first.source.value == "baidu"
 
-    @pytest.mark.asyncio
     async def test_fetch_multiple_sources(self, uapi_client: UAPIClient):
         """多源并发采集."""
         import asyncio
@@ -78,7 +75,6 @@ class TestUAPIRealCall:
             assert isinstance(result, list)
             assert len(result) > 0
 
-    @pytest.mark.asyncio
     async def test_fetch_sources_list(self, uapi_client: UAPIClient):
         """获取平台列表（API 可能不支持此端点）."""
         try:
@@ -88,7 +84,6 @@ class TestUAPIRealCall:
             # API 可能不支持 sources 参数，跳过
             pytest.skip("UAPI 不支持 sources 端点")
 
-    @pytest.mark.asyncio
     async def test_fetch_with_invalid_platform(self, uapi_client: UAPIClient):
         """无效平台应返回错误."""
         from spide.exceptions import SpiderError

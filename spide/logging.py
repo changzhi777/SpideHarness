@@ -40,6 +40,7 @@ def configure_logging(
         format="%(message)s",
         level=log_level,
         handlers=handlers,
+        force=True,
     )
 
     # structlog 处理器管道

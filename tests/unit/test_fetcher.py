@@ -13,7 +13,6 @@ from spide.spider.fetcher import AsyncFetcher
 class TestFetcherMock:
     """Fetcher mock 测试."""
 
-    @pytest.mark.asyncio
     async def test_get_html(self):
         fetcher = AsyncFetcher()
         await fetcher.start()
@@ -32,7 +31,6 @@ class TestFetcherMock:
 
         await fetcher.stop()
 
-    @pytest.mark.asyncio
     async def test_get_text_strips_tags(self):
         fetcher = AsyncFetcher()
         await fetcher.start()
@@ -52,7 +50,6 @@ class TestFetcherMock:
 
         await fetcher.stop()
 
-    @pytest.mark.asyncio
     async def test_get_json(self):
         fetcher = AsyncFetcher()
         await fetcher.start()
@@ -71,7 +68,6 @@ class TestFetcherMock:
 
         await fetcher.stop()
 
-    @pytest.mark.asyncio
     async def test_http_error(self):
         fetcher = AsyncFetcher()
         await fetcher.start()
@@ -88,7 +84,6 @@ class TestFetcherMock:
 
         await fetcher.stop()
 
-    @pytest.mark.asyncio
     async def test_not_started(self):
         fetcher = AsyncFetcher()
         with pytest.raises(SpiderError, match="未初始化"):

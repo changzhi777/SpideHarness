@@ -35,7 +35,6 @@ class TestMCPServer:
 class TestMCPClient:
     """MCP Client 错误处理."""
 
-    @pytest.mark.asyncio
     async def test_not_connected(self):
         from spide.mcp.client import MCPClient
 
@@ -43,7 +42,6 @@ class TestMCPClient:
         with pytest.raises(MCPError, match="未连接"):
             await client.list_tools()
 
-    @pytest.mark.asyncio
     async def test_not_connected_call_tool(self):
         from spide.mcp.client import MCPClient
 

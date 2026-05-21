@@ -15,7 +15,7 @@
 
     # 订阅
     async for message in client.subscribe("spide/crawl/request"):
-        print(message.topic, message.payload)
+        handle(message.topic, message.payload)
 
     await client.stop()
 """

@@ -14,19 +14,16 @@ from spide.mqtt.client import MQTTClient
 class TestMQTTClient:
     """MQTT 客户端."""
 
-    @pytest.mark.asyncio
     async def test_no_host(self):
         client = MQTTClient(MQTTConfig())
         with pytest.raises(MQTTError, match="未配置"):
             await client.start()
 
-    @pytest.mark.asyncio
     async def test_not_connected(self):
         client = MQTTClient(MQTTConfig(host="test"))
         with pytest.raises(MQTTError, match="未连接"):
             await client.publish("topic")
 
-    @pytest.mark.asyncio
     async def test_publish_json_payload(self):
         client = MQTTClient(MQTTConfig(host="test.local", port=8883))
 
@@ -46,7 +43,6 @@ class TestMQTTClient:
 
             await client.stop()
 
-    @pytest.mark.asyncio
     async def test_tls_context_build(self, tmp_path):
         """验证 TLS 上下文构建逻辑（mock ssl）."""
         client = MQTTClient(

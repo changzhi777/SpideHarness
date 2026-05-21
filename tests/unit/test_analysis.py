@@ -25,7 +25,6 @@ def _mock_llm_response(json_str: str) -> MagicMock:
 class TestContentSummarizer:
     """内容智能摘要."""
 
-    @pytest.mark.asyncio
     async def test_summarize(self):
         llm = MagicMock()
         llm.chat = MagicMock(
@@ -47,7 +46,6 @@ class TestContentSummarizer:
         assert "AI" in result["keywords"]
         assert result["category"] == "tech"
 
-    @pytest.mark.asyncio
     async def test_extract_keywords(self):
         llm = MagicMock()
         llm.chat = MagicMock(
@@ -66,7 +64,6 @@ class TestContentSummarizer:
         assert len(keywords) == 3
         assert "新能源" in keywords
 
-    @pytest.mark.asyncio
     async def test_analyze_sentiment(self):
         llm = MagicMock()
         llm.chat = MagicMock(
@@ -89,7 +86,6 @@ class TestContentSummarizer:
         assert result["overall"] == "positive"
         assert result["positive_ratio"] == 0.6
 
-    @pytest.mark.asyncio
     async def test_summarize_json_with_markdown(self):
         """LLM 返回带 markdown 代码块的 JSON."""
         llm = MagicMock()
@@ -104,7 +100,6 @@ class TestContentSummarizer:
 
         assert result["summary"] == "测试"
 
-    @pytest.mark.asyncio
     async def test_summarize_llm_error(self):
         """LLM 调用失败."""
         llm = MagicMock()
@@ -119,7 +114,6 @@ class TestContentSummarizer:
 class TestSmartCrawlStrategy:
     """智能采集策略."""
 
-    @pytest.mark.asyncio
     async def test_recommend(self):
         llm = MagicMock()
         llm.chat = MagicMock(
@@ -143,7 +137,6 @@ class TestSmartCrawlStrategy:
         assert "AI" in result["search_keywords"]
         assert len(result["recommended_sources"]) == 2
 
-    @pytest.mark.asyncio
     async def test_recommend_error(self):
         llm = MagicMock()
         llm.chat = MagicMock(side_effect=Exception("Error"))
@@ -157,7 +150,6 @@ class TestSmartCrawlStrategy:
 class TestTrendAnalyzer:
     """热点趋势分析."""
 
-    @pytest.mark.asyncio
     async def test_single_analysis(self):
         llm = MagicMock()
         llm.chat = MagicMock(
@@ -180,7 +172,6 @@ class TestTrendAnalyzer:
 
         assert "科技" in result["top_categories"]
 
-    @pytest.mark.asyncio
     async def test_compare_analysis(self):
         """对比分析 — 纯本地计算，不需要 LLM."""
         llm = MagicMock()  # 不应该被调用
@@ -209,7 +200,6 @@ class TestTrendAnalyzer:
         falling_titles = [f["title"] for f in result["falling"]]
         assert "话题B" in falling_titles
 
-    @pytest.mark.asyncio
     async def test_compare_empty_previous(self):
         """空历史数据回退到单次分析."""
         llm = MagicMock()

@@ -30,7 +30,6 @@ class TestPlatformMapping:
 class TestUAPIClientMock:
     """UAPI 客户端 mock 测试."""
 
-    @pytest.mark.asyncio
     async def test_fetch_hotboard(self):
         config = UAPIConfig(api_key="test")
         client = UAPIClient(config)
@@ -58,7 +57,6 @@ class TestUAPIClientMock:
 
         await client.stop()
 
-    @pytest.mark.asyncio
     async def test_http_error(self):
         config = UAPIConfig(api_key="test")
         client = UAPIClient(config)
@@ -77,14 +75,12 @@ class TestUAPIClientMock:
 
         await client.stop()
 
-    @pytest.mark.asyncio
     async def test_not_started(self):
         client = UAPIClient(UAPIConfig())
         with pytest.raises(SpiderError, match="未初始化"):
             await client.fetch_hotboard("weibo")
 
-    @pytest.mark.asyncio
     async def test_concurrency_limit(self):
         config = UAPIConfig(api_key="test", rate_limit={"max_concurrent": 2})
         client = UAPIClient(config)
-        assert client._semaphore._value == 2
+        assert client._rate_limiter._semaphore._value == 2

@@ -25,6 +25,7 @@ from typing import Any
 
 from spide.exceptions import SpiderError
 from spide.logging import get_logger
+from spide.spider.rate_limiter import CircuitBreaker, CheckpointManager
 from spide.storage.models import (
     CrawlMode,
     DeepComment,
@@ -82,12 +83,19 @@ class BatchCrawlScheduler:
 
     def __init__(self, *, max_concurrent: int = 3) -> None:
         self._max_concurrent = max_concurrent
+        self._breaker = CircuitBreaker(failure_threshold=3, recovery_timeout=60.0, name="batch_crawl")
+        self._checkpoint: CheckpointManager | None = None
+
+    def enable_checkpoint(self, db_path: str = "spide_data.db") -> None:
+        """启用断点恢复."""
+        self._checkpoint = CheckpointManager(db_path=db_path)
 
     async def run(
         self,
         tasks: list[BatchTask],
         *,
         on_progress: ProgressCallback | None = None,
+        resume_task_id: str | None = None,
     ) -> BatchResult:
         """执行批量采集任务.
 
@@ -101,70 +109,113 @@ class BatchCrawlScheduler:
         if not tasks:
             raise SpiderError("批量采集任务列表为空")
 
-        start = time.monotonic()
-        result = BatchResult()
-        total = len(tasks)
-        semaphore = asyncio.Semaphore(self._max_concurrent)
-        completed = 0
+        # 启动 CheckpointManager（如有）
+        ckpt_active = self._checkpoint and resume_task_id
+        if ckpt_active:
+            await self._checkpoint.start()
 
-        async def _run_one(task: BatchTask) -> None:
-            nonlocal completed
-            platform_name = task.platform.value if isinstance(task.platform, Platform) else str(task.platform)
-
-            async with semaphore:
-                try:
-                    if on_progress:
-                        await on_progress(completed, total, platform_name, "running")
-
-                    single = await self._crawl_single(task)
-
-                    result.contents.extend(single.get("contents", []))
-                    result.comments.extend(single.get("comments", []))
-                    result.creators.extend(single.get("creators", []))
-                    result.succeeded.append(platform_name)
-
-                    completed += 1
-                    if on_progress:
-                        await on_progress(completed, total, platform_name, "done")
-
-                    logger.debug(
-                        "batch_task_done",
-                        platform=platform_name,
-                        contents=len(single.get("contents", [])),
+        try:
+            # 断点恢复：过滤已完成的平台
+            pending_tasks = tasks
+            if ckpt_active:
+                ckpt = await self._checkpoint.load_checkpoint(resume_task_id)
+                if ckpt:
+                    completed_list = ckpt.get("completed_platforms", [])
+                    pending_tasks = [
+                        t for t in tasks
+                        if (t.platform.value if isinstance(t.platform, Platform) else str(t.platform))
+                        not in completed_list
+                    ]
+                    logger.info(
+                        "batch_resuming",
+                        task_id=resume_task_id,
+                        skipped=len(tasks) - len(pending_tasks),
+                        remaining=len(pending_tasks),
                     )
 
-                except Exception as e:
-                    completed += 1
-                    platform_name_str = task.platform.value if isinstance(task.platform, Platform) else str(task.platform)
-                    result.failed[platform_name_str] = str(e)
+            start = time.monotonic()
+            result = BatchResult()
+            total = len(tasks)
+            semaphore = asyncio.Semaphore(self._max_concurrent)
+            completed = 0
 
-                    if on_progress:
-                        await on_progress(completed, total, platform_name_str, "failed")
+            async def _run_one(task: BatchTask) -> None:
+                nonlocal completed
+                platform_name = task.platform.value if isinstance(task.platform, Platform) else str(task.platform)
 
-                    logger.warning(
-                        "batch_task_failed",
-                        platform=platform_name_str,
-                        error=str(e),
-                    )
+                async with semaphore:
+                    try:
+                        if on_progress:
+                            await on_progress(completed, total, platform_name, "running")
 
-        # 并行执行所有任务
-        await asyncio.gather(*[_run_one(t) for t in tasks])
+                        single = await self._crawl_single_with_breaker(task)
 
-        result.total_contents = len(result.contents)
-        result.total_comments = len(result.comments)
-        result.total_creators = len(result.creators)
+                        result.contents.extend(single.get("contents", []))
+                        result.comments.extend(single.get("comments", []))
+                        result.creators.extend(single.get("creators", []))
+                        result.succeeded.append(platform_name)
 
-        duration_ms = (time.monotonic() - start) * 1000
-        logger.debug("batch_run_duration", duration_ms=round(duration_ms, 1), total_tasks=total, total_contents=result.total_contents)
+                        # 断点保存
+                        if ckpt_active:
+                            await self._checkpoint.save_checkpoint(resume_task_id, {
+                                "completed_platforms": result.succeeded,
+                                "pending_platforms": [
+                                    t.platform.value if isinstance(t.platform, Platform) else str(t.platform)
+                                    for t in pending_tasks
+                                    if (t.platform.value if isinstance(t.platform, Platform) else str(t.platform))
+                                    not in result.succeeded
+                                ],
+                            })
 
-        logger.debug(
-            "batch_completed",
-            succeeded=len(result.succeeded),
-            failed=len(result.failed),
-            contents=result.total_contents,
-        )
+                        completed += 1
+                        if on_progress:
+                            await on_progress(completed, total, platform_name, "done")
 
-        return result
+                        logger.debug(
+                            "batch_task_done",
+                            platform=platform_name,
+                            contents=len(single.get("contents", [])),
+                        )
+
+                    except Exception as e:
+                        completed += 1
+                        platform_name_str = task.platform.value if isinstance(task.platform, Platform) else str(task.platform)
+                        result.failed[platform_name_str] = str(e)
+
+                        if on_progress:
+                            await on_progress(completed, total, platform_name_str, "failed")
+
+                        logger.warning(
+                            "batch_task_failed",
+                            platform=platform_name_str,
+                            error=str(e),
+                        )
+
+            # 并行执行所有任务
+            await asyncio.gather(*[_run_one(t) for t in pending_tasks])
+
+            result.total_contents = len(result.contents)
+            result.total_comments = len(result.comments)
+            result.total_creators = len(result.creators)
+
+            duration_ms = (time.monotonic() - start) * 1000
+            logger.debug("batch_run_duration", duration_ms=round(duration_ms, 1), total_tasks=total, total_contents=result.total_contents)
+
+            logger.debug(
+                "batch_completed",
+                succeeded=len(result.succeeded),
+                failed=len(result.failed),
+                contents=result.total_contents,
+            )
+
+            return result
+        finally:
+            if ckpt_active:
+                await self._checkpoint.stop()
+
+    async def _crawl_single_with_breaker(self, task: BatchTask) -> dict[str, list]:
+        """通过熔断器执行单个采集任务."""
+        return await self._breaker.call(self._crawl_single, task)
 
     @staticmethod
     async def _crawl_single(task: BatchTask) -> dict[str, list]:

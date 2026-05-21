@@ -13,7 +13,6 @@ from spide.storage.sqlite_repo import SqliteRepository
 class TestSqliteCRUD:
     """SQLite 增删改查完整测试."""
 
-    @pytest.mark.asyncio
     async def test_save_and_get(self, tmp_db: Path):
         repo = SqliteRepository(HotTopic, db_path=str(tmp_db))
         await repo.start()
@@ -28,7 +27,6 @@ class TestSqliteCRUD:
         assert loaded.source == TopicSource.WEIBO
         await repo.stop()
 
-    @pytest.mark.asyncio
     async def test_save_many_batch(self, tmp_db: Path):
         repo = SqliteRepository(HotTopic, db_path=str(tmp_db))
         await repo.start()
@@ -39,7 +37,6 @@ class TestSqliteCRUD:
         assert all(i > 0 for i in ids)
         await repo.stop()
 
-    @pytest.mark.asyncio
     async def test_update(self, tmp_db: Path):
         repo = SqliteRepository(HotTopic, db_path=str(tmp_db))
         await repo.start()
@@ -57,7 +54,6 @@ class TestSqliteCRUD:
         assert loaded.hot_value == 99999
         await repo.stop()
 
-    @pytest.mark.asyncio
     async def test_query_with_filter(self, tmp_db: Path):
         repo = SqliteRepository(HotTopic, db_path=str(tmp_db))
         await repo.start()
@@ -73,7 +69,6 @@ class TestSqliteCRUD:
         assert len(baidu) == 2
         await repo.stop()
 
-    @pytest.mark.asyncio
     async def test_query_offset(self, tmp_db: Path):
         repo = SqliteRepository(HotTopic, db_path=str(tmp_db))
         await repo.start()
@@ -91,7 +86,6 @@ class TestSqliteCRUD:
         assert ids1.isdisjoint(ids2)
         await repo.stop()
 
-    @pytest.mark.asyncio
     async def test_count_and_exists(self, tmp_db: Path):
         repo = SqliteRepository(HotTopic, db_path=str(tmp_db))
         await repo.start()
@@ -105,7 +99,6 @@ class TestSqliteCRUD:
         assert await repo.exists(source="zhihu") is False
         await repo.stop()
 
-    @pytest.mark.asyncio
     async def test_delete(self, tmp_db: Path):
         repo = SqliteRepository(HotTopic, db_path=str(tmp_db))
         await repo.start()
@@ -116,7 +109,6 @@ class TestSqliteCRUD:
         assert await repo.delete(9999) is False
         await repo.stop()
 
-    @pytest.mark.asyncio
     async def test_ensure_db_error(self):
         from spide.exceptions import StorageError
 
@@ -124,7 +116,6 @@ class TestSqliteCRUD:
         with pytest.raises(StorageError, match="未初始化"):
             await repo.save(HotTopic(title="test", source=TopicSource.WEIBO))
 
-    @pytest.mark.asyncio
     async def test_crawl_task_repo(self, tmp_db: Path):
         repo = SqliteRepository(CrawlTask, db_path=str(tmp_db))
         await repo.start()

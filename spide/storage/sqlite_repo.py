@@ -41,6 +41,12 @@ _TABLE_MAP: dict[str, str] = {
     "DeepContent": "deep_contents",
     "DeepComment": "deep_comments",
     "DeepCreator": "deep_creators",
+    "HotTopicChange": "hot_topic_changes",
+    "CrawlSnapshot": "crawl_snapshots",
+    "AlertRule": "alert_rules",
+    "AlertRecord": "alert_records",
+    "TopicDeepTrack": "topic_deep_tracks",
+    "TopicCluster": "topic_clusters",
 }
 
 

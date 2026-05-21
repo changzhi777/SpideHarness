@@ -12,7 +12,6 @@ from spide.session_storage import SessionStorage
 class TestSessionStorage:
     """会话快照完整覆盖."""
 
-    @pytest.mark.asyncio
     async def test_save_and_load(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("SPIDE_WORKSPACE", str(tmp_path))
 
@@ -31,7 +30,6 @@ class TestSessionStorage:
         assert latest["session_id"] == "test-001"
         assert latest["progress"] == 0.5
 
-    @pytest.mark.asyncio
     async def test_load_by_session_key(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("SPIDE_WORKSPACE", str(tmp_path))
 
@@ -45,7 +43,6 @@ class TestSessionStorage:
         baidu = await storage.load_latest_for_session_key("baidu:hot")
         assert baidu["session_id"] == "s2"
 
-    @pytest.mark.asyncio
     async def test_load_by_id(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("SPIDE_WORKSPACE", str(tmp_path))
 
@@ -58,7 +55,6 @@ class TestSessionStorage:
 
         assert await storage.load_by_id("not-exist") is None
 
-    @pytest.mark.asyncio
     async def test_list_snapshots(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("SPIDE_WORKSPACE", str(tmp_path))
 
@@ -69,7 +65,6 @@ class TestSessionStorage:
         snapshots = await storage.list_snapshots(limit=3)
         assert len(snapshots) == 3
 
-    @pytest.mark.asyncio
     async def test_no_latest(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("SPIDE_WORKSPACE", str(tmp_path))
         storage = SessionStorage()

@@ -62,7 +62,6 @@ class TestWordCloudGenerator:
         assert isinstance(freq, dict)
         assert len(freq) > 0
 
-    @pytest.mark.asyncio
     async def test_generate_from_texts(self, tmp_path: Path):
         gen = WordCloudGenerator(output_dir=str(tmp_path / "wc"))
         texts = [
@@ -76,7 +75,6 @@ class TestWordCloudGenerator:
         assert filepath.suffix == ".png"
         assert filepath.stat().st_size > 0
 
-    @pytest.mark.asyncio
     async def test_generate_from_texts_with_title(self, tmp_path: Path):
         gen = WordCloudGenerator(output_dir=str(tmp_path / "wc"))
         texts = ["人工智能技术突破", "深度学习应用广泛", "AI发展迅速"]
@@ -84,13 +82,11 @@ class TestWordCloudGenerator:
         filepath = await gen.generate_from_texts(texts, filename="titled", title="测试词云")
         assert filepath.exists()
 
-    @pytest.mark.asyncio
     async def test_generate_from_texts_empty(self, tmp_path: Path):
         gen = WordCloudGenerator(output_dir=str(tmp_path / "wc"))
         with pytest.raises(Exception, match="文本列表为空"):
             await gen.generate_from_texts([], filename="test")
 
-    @pytest.mark.asyncio
     async def test_generate_from_dicts(self, tmp_path: Path):
         gen = WordCloudGenerator(output_dir=str(tmp_path / "wc"))
         items = [
@@ -100,13 +96,11 @@ class TestWordCloudGenerator:
         filepath = await gen.generate(items, filename="dict_test")
         assert filepath.exists()
 
-    @pytest.mark.asyncio
     async def test_generate_empty_items(self, tmp_path: Path):
         gen = WordCloudGenerator(output_dir=str(tmp_path / "wc"))
         with pytest.raises(Exception, match="没有可用的文本数据"):
             await gen.generate([], filename="test")
 
-    @pytest.mark.asyncio
     async def test_get_top_keywords(self):
         gen = WordCloudGenerator()
         items = [
@@ -122,7 +116,6 @@ class TestWordCloudGenerator:
             assert isinstance(count, int)
             assert count > 0
 
-    @pytest.mark.asyncio
     async def test_get_top_keywords_empty(self):
         gen = WordCloudGenerator()
         keywords = await gen.get_top_keywords([], top_n=10)

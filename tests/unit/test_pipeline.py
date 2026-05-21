@@ -52,7 +52,7 @@ class TestDeduplicate:
 
         items = [
             HotTopic(title="重复", source=TopicSource.WEIBO, hot_value=100),
-            HotTopic(title="重复", source=TopicSource.BAIDU, hot_value=200),
+            HotTopic(title="重复", source=TopicSource.WEIBO, hot_value=200),
         ]
         result = deduplicate_items(items)
         assert len(result) == 1

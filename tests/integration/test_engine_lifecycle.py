@@ -15,7 +15,6 @@ from spide.storage.models import HotTopic, TopicSource
 class TestEngineIntegration:
     """Engine 真实生命周期."""
 
-    @pytest.mark.asyncio
     async def test_start_creates_session_files(self, tmp_workspace: Path):
         """start() 应创建会话存储目录."""
         settings = Settings(
@@ -38,7 +37,6 @@ class TestEngineIntegration:
 
             await engine.stop()
 
-    @pytest.mark.asyncio
     async def test_stop_saves_session_snapshot(self, tmp_workspace: Path):
         """stop() 应保存会话快照."""
         settings = Settings(
@@ -68,7 +66,6 @@ class TestEngineIntegration:
             assert latest is not None
             assert latest["session_id"] == bundle.session_id
 
-    @pytest.mark.asyncio
     async def test_crawl_and_store(self, tmp_workspace: Path, tmp_db):
         """采集 → 存储完整流程."""
         from spide.storage.sqlite_repo import SqliteRepository
@@ -109,7 +106,6 @@ class TestEngineIntegration:
 
             await engine.stop()
 
-    @pytest.mark.asyncio
     async def test_chat_maintains_history(self, tmp_workspace: Path):
         """多轮对话消息历史维护."""
         settings = Settings(

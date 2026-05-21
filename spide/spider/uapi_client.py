@@ -29,6 +29,7 @@ import aiohttp
 from spide.config import UAPIConfig
 from spide.exceptions import SpiderError
 from spide.logging import get_logger
+from spide.spider.rate_limiter import CircuitBreaker, RateLimiter
 from spide.storage.models import HotTopic, TopicSource
 
 logger = get_logger(__name__)
@@ -54,7 +55,14 @@ class UAPIClient:
     def __init__(self, config: UAPIConfig) -> None:
         self._config = config
         self._session: aiohttp.ClientSession | None = None
-        self._semaphore = asyncio.Semaphore(config.rate_limit.max_concurrent)
+        self._rate_limiter = RateLimiter(
+            max_rpm=config.rate_limit.requests_per_minute,
+            max_concurrent=config.rate_limit.max_concurrent,
+        )
+        self._breaker = CircuitBreaker(
+            failure_threshold=config.retry.max_retries,
+            name="uapi",
+        )
 
     async def start(self) -> None:
         """初始化 HTTP 会话."""
@@ -114,7 +122,7 @@ class UAPIClient:
         if limit:
             params["limit"] = limit
 
-        async with self._semaphore:
+        async with self._rate_limiter:
             try:
                 async with session.get(_HOTBOARD_PATH, params=params) as resp:
                     if resp.status != 200:
@@ -156,7 +164,7 @@ class UAPIClient:
         """获取支持的历史热搜平台列表."""
         session = self._ensure_session()
 
-        async with self._semaphore:
+        async with self._rate_limiter:
             try:
                 async with session.get(
                     _HOTBOARD_PATH, params={"sources": "true"}
@@ -201,14 +209,14 @@ class UAPIClient:
     async def _fetch_with_retry(
         self, platform: str, name: str, max_retries: int | None = None
     ) -> list[HotTopic]:
-        """带重试的单平台采集."""
+        """带重试和熔断保护的单平台采集."""
         retries = max_retries or self._config.retry.max_retries
         base_delay = self._config.retry.backoff_base
 
         last_error: Exception | None = None
         for attempt in range(retries):
             try:
-                return await self.fetch_hotboard(platform)
+                return await self._breaker.call(self.fetch_hotboard, platform)
             except SpiderError as e:
                 last_error = e
                 if attempt < retries - 1:

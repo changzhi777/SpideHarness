@@ -60,7 +60,6 @@ class TestTaskScheduler:
         with pytest.raises(Exception, match="不存在"):
             scheduler.remove_job("nonexistent")
 
-    @pytest.mark.asyncio
     async def test_start_stop(self):
         scheduler = TaskScheduler()
         job = ScheduledJob(
@@ -81,7 +80,6 @@ class TestTaskScheduler:
         await scheduler.stop()
         assert not scheduler.is_running
 
-    @pytest.mark.asyncio
     async def test_max_runs_respected(self):
         """验证 max_runs 限制."""
         results_log = []
@@ -114,7 +112,6 @@ class TestTaskScheduler:
 
         assert job.run_count <= 2
 
-    @pytest.mark.asyncio
     async def test_disabled_job_not_started(self):
         scheduler = TaskScheduler()
         job = ScheduledJob(

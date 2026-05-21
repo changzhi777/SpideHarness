@@ -11,7 +11,6 @@ from spide.storage.sqlite_repo import SqliteRepository
 class TestSqliteRealDB:
     """SQLite 真实数据库操作."""
 
-    @pytest.mark.asyncio
     async def test_full_crud_lifecycle(self, tmp_db):
         """完整的 CRUD 生命周期."""
         repo = SqliteRepository(HotTopic, db_path=str(tmp_db))
@@ -50,7 +49,6 @@ class TestSqliteRealDB:
 
         await repo.stop()
 
-    @pytest.mark.asyncio
     async def test_batch_save_and_query(self, tmp_db):
         """批量保存 + 条件查询."""
         repo = SqliteRepository(HotTopic, db_path=str(tmp_db))
@@ -85,7 +83,6 @@ class TestSqliteRealDB:
 
         await repo.stop()
 
-    @pytest.mark.asyncio
     async def test_concurrent_access(self, tmp_db):
         """并发数据库访问（同一连接）."""
         import asyncio
@@ -108,7 +105,6 @@ class TestSqliteRealDB:
 
         await repo.stop()
 
-    @pytest.mark.asyncio
     async def test_persistence_across_sessions(self, tmp_db):
         """跨会话持久化验证."""
         # 会话 1：写入
@@ -131,7 +127,6 @@ class TestSqliteRealDB:
 class TestCrawlPipelineIntegration:
     """爬取管道集成测试（mock HTTP + 真实 SQLite）."""
 
-    @pytest.mark.asyncio
     async def test_fetch_parse_store(self, tmp_db):
         """完整流程: 抓取 → 解析 → 去重 → 存储."""
 

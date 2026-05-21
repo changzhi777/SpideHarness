@@ -14,8 +14,9 @@
     response = await client.chat(messages=[{"role": "user", "content": "你好"}])
 
     # 流式对话
-    async for chunk in client.chat_stream(messages=[...]):
-        print(chunk, end="")
+    stream = client.chat_stream(messages=[...])
+    for chunk in stream:
+        ...  # 处理 chunk
 
     # 联网搜索
     results = await client.web_search(query="今日微博热搜")
