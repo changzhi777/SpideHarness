@@ -87,6 +87,12 @@ async def _dispatch_tool(
         return await _tool_crawl(arguments, project_root)
     elif name == "web_search":
         return await _tool_search(arguments, project_root)
+    elif name == "web_search_enhanced":
+        return await _tool_search_enhanced(arguments, project_root)
+    elif name == "fetch_web_page":
+        return await _tool_fetch_page(arguments, project_root)
+    elif name == "fetch_repo_info":
+        return await _tool_repo_info(arguments, project_root)
     elif name == "manage_memory":
         return _tool_memory(arguments, project_root)
     elif name == "health_check":
@@ -137,6 +143,76 @@ async def _tool_search(arguments: dict[str, Any], project_root: Path | None) -> 
         count=arguments.get("count"),
     )
     return {"query": arguments["query"], "result": str(result)[:2000]}
+
+
+async def _tool_search_enhanced(arguments: dict[str, Any], project_root: Path | None) -> Any:
+    """增强联网搜索 — 多引擎."""
+    from spide.mcp.search_provider import WebSearchProvider
+
+    query = arguments["query"]
+    engine = arguments.get("engine", "duckduckgo")
+    limit = min(arguments.get("limit", 10), 50)
+
+    if engine == "zhipu":
+        return await _tool_search(
+            {"query": query, "engine": arguments.get("engine"), "count": limit},
+            project_root,
+        )
+
+    provider = WebSearchProvider()
+    results = await provider.search(query, engine=engine, limit=limit)
+
+    return {
+        "query": query,
+        "engine": engine,
+        "count": len(results),
+        "items": [
+            {"title": r.title, "url": r.url, "description": r.description}
+            for r in results
+        ],
+    }
+
+
+async def _tool_fetch_page(arguments: dict[str, Any], project_root: Path | None) -> Any:
+    """网页内容抓取工具."""
+    from spide.mcp.search_provider import WebContentProvider
+
+    url = arguments["url"]
+    extract_links = arguments.get("extract_links", False)
+
+    page = await WebContentProvider.fetch_page(url, extract_links=extract_links)
+
+    result: dict[str, Any] = {
+        "url": page.url,
+        "title": page.title,
+        "content": page.text[:5000],
+    }
+    if extract_links:
+        result["links"] = page.links[:50]
+    return result
+
+
+async def _tool_repo_info(arguments: dict[str, Any], project_root: Path | None) -> Any:
+    """开源仓库信息工具."""
+    from spide.mcp.search_provider import RepoInfoProvider, WebContentProvider
+
+    repo = arguments["repo"]
+    info_type = arguments.get("info_type", "summary")
+
+    if info_type == "readme":
+        readme = await WebContentProvider.fetch_github_readme(repo)
+        return {"repo": repo, "readme": readme[:5000]}
+    elif info_type == "full":
+        info = await RepoInfoProvider.fetch_repo_info(repo)
+        return {
+            "repo": info.repo,
+            "description": info.description,
+            "stars": info.stars,
+            "language": info.language,
+            "readme": info.readme[:5000],
+        }
+    else:
+        return await RepoInfoProvider.fetch_repo_summary(repo)
 
 
 def _tool_memory(arguments: dict[str, Any], project_root: Path | None) -> Any:

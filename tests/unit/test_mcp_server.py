@@ -18,7 +18,7 @@ class TestMCPServer:
         assert server.name == "spide-agent"
 
     def test_tool_count(self):
-        assert len(ALL_TOOLS) == 5
+        assert len(ALL_TOOLS) == 8
 
     def test_crawl_tool_schema(self):
         props = CRAWL_TOOL["inputSchema"]["properties"]

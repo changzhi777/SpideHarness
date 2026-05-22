@@ -139,47 +139,17 @@ class DeepTopicTracker:
             return track
 
     async def _web_search(self, query: str) -> list[dict[str, Any]]:
-        """调用 LLM 联网搜索获取相关文章."""
+        """通过 WebSearchProvider 搜索获取相关文章."""
         try:
-            from spide.config import load_settings
+            from spide.mcp.search_provider import WebSearchProvider
 
-            settings = load_settings()
-            web_search_config = settings.llm.web_search
+            provider = WebSearchProvider()
+            results = await provider.search(query, limit=5)
 
-            response = await asyncio.to_thread(
-                self._llm.chat,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "你是一个搜索助手。请用 JSON 数组格式返回搜索结果，"
-                        "每项包含 title、url、snippet 字段。只返回 JSON。",
-                    },
-                    {
-                        "role": "user",
-                        "content": f"搜索关于「{query}」的最新新闻和报道，返回 5 条相关结果。",
-                    },
-                ],
-                temperature=0.3,
-                max_tokens=1024,
-                tools=[{
-                    "type": "web_search",
-                    "web_search": {
-                        "enable": True,
-                        "search_engine": web_search_config.engine,
-                        "search_result_count": web_search_config.default_count,
-                    },
-                }],
-            )
-
-            import json
-
-            raw = response.choices[0].message.content.strip()
-            if raw.startswith("```"):
-                raw = raw.split("\n", 1)[-1]
-            if raw.endswith("```"):
-                raw = raw.rsplit("```", 1)[0]
-
-            return json.loads(raw)
+            return [
+                {"title": r.title, "url": r.url, "snippet": r.description}
+                for r in results
+            ]
 
         except Exception as e:
             logger.debug("web_search_fallback", query=query[:30], error=str(e))

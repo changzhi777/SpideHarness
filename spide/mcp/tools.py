@@ -132,5 +132,91 @@ DEEP_CRAWL_TOOL = {
     },
 }
 
+WEB_SEARCH_ENHANCED_TOOL = {
+    "name": "web_search_enhanced",
+    "description": (
+        "增强联网搜索 — 多引擎搜索（DuckDuckGo/智谱），返回结构化结果（标题/URL/摘要）。"
+        "适用于实时信息查询、新闻搜索、技术文档查找。"
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "搜索关键词",
+            },
+            "engine": {
+                "type": "string",
+                "description": "搜索引擎：duckduckgo（免费，无需 Key）、zhipu（需 API Key）",
+                "enum": ["duckduckgo", "zhipu"],
+                "default": "duckduckgo",
+            },
+            "limit": {
+                "type": "integer",
+                "description": "返回结果数量 (1-50)",
+                "default": 10,
+            },
+        },
+        "required": ["query"],
+    },
+}
+
+FETCH_WEB_PAGE_TOOL = {
+    "name": "fetch_web_page",
+    "description": (
+        "抓取网页内容 — 获取指定 URL 的结构化文本内容。"
+        "支持提取标题、正文、链接。适用于读取文章、文档、API 响应页面。"
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "url": {
+                "type": "string",
+                "description": "目标网页 URL",
+            },
+            "extract_links": {
+                "type": "boolean",
+                "description": "是否提取页面中的链接",
+                "default": False,
+            },
+        },
+        "required": ["url"],
+    },
+}
+
+FETCH_REPO_INFO_TOOL = {
+    "name": "fetch_repo_info",
+    "description": (
+        "获取开源仓库信息 — GitHub 仓库元数据 + README 内容。"
+        "支持获取仓库描述、Stars、语言、README 全文。"
+        "适用于了解开源项目、技术选型调研。"
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "repo": {
+                "type": "string",
+                "description": "仓库路径（owner/repo），如 zhipu/zai-sdk-python",
+            },
+            "info_type": {
+                "type": "string",
+                "description": "信息类型",
+                "enum": ["readme", "summary", "full"],
+                "default": "summary",
+            },
+        },
+        "required": ["repo"],
+    },
+}
+
 # 所有工具集合
-ALL_TOOLS = [CRAWL_TOOL, SEARCH_TOOL, MEMORY_TOOL, HEALTH_TOOL, DEEP_CRAWL_TOOL]
+ALL_TOOLS = [
+    CRAWL_TOOL,
+    SEARCH_TOOL,
+    WEB_SEARCH_ENHANCED_TOOL,
+    FETCH_WEB_PAGE_TOOL,
+    FETCH_REPO_INFO_TOOL,
+    MEMORY_TOOL,
+    HEALTH_TOOL,
+    DEEP_CRAWL_TOOL,
+]
