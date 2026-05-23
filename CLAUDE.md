@@ -29,7 +29,7 @@
 - ✅ 热搜采集（UAPI 5 大平台）+ 限流熔断
 - ✅ 深度采集（MediaCrawler 7 平台适配器）+ 断点恢复
 - ✅ LLM 集成（GLM-5.1 + Web Search）
-- ✅ MCP Server/Client（5 个工具）
+- ✅ MCP Server/Client（8 个工具）
 - ✅ MQTT 通讯（TLS + EMQX Cloud）
 - ✅ 消息总线（asyncio.Queue pub/sub）
 - ✅ SQLite 持久化 + Redis 缓存
@@ -43,7 +43,7 @@
 - ✅ 数据导出（JSON/JSONL/CSV/Excel）
 - ✅ 定时调度 + 批量采集
 - ✅ 工作空间管理 + Prompt 层叠系统
-- ✅ 测试：34 个测试文件，341 个测试用例
+- ✅ 测试：36 个测试文件，360 个测试用例
 
 ---
 
@@ -162,9 +162,10 @@ Spide_agent/
 │   ├── harness/                    # 核心调度引擎
 │   │   └── engine.py               # Engine + RuntimeBundle
 │   ├── mcp/                        # MCP 协议层
-│   │   ├── server.py               # MCP Server (stdio, 5 个工具)
+│   │   ├── server.py               # MCP Server (stdio, 8 个工具)
 │   │   ├── client.py               # MCP Client
-│   │   └── tools.py                # 工具定义 (JSON Schema)
+│   │   ├── tools.py                # 工具定义 (JSON Schema)
+│   │   └── search_provider.py      # 搜索适配器（DuckDuckGo/网页抓取/GitHub）
 │   ├── mqtt/                       # MQTT 通讯
 │   │   └── client.py               # MQTTClient (TLS + aiomqtt)
 │   ├── queue/                      # 消息总线
@@ -218,7 +219,7 @@ Spide_agent/
 | `spide/spider/` | 10 | ~3100 | 采集引擎（UAPI/深度/调度/限流/增量/追踪） | [CLAUDE.md](./spide/spider/CLAUDE.md) |
 | `spide/monitor/` | 3 | ~400 | 告警监控（规则引擎/多渠道通知） | — |
 | `spide/harness/` | 2 | ~420 | 核心调度引擎 | [CLAUDE.md](./spide/harness/CLAUDE.md) |
-| `spide/mcp/` | 4 | ~500 | MCP 协议（Server/Client/工具） | [CLAUDE.md](./spide/mcp/CLAUDE.md) |
+| `spide/mcp/` | 5 | ~960 | MCP 协议（Server/Client/工具/搜索适配器） | [CLAUDE.md](./spide/mcp/CLAUDE.md) |
 | `spide/mqtt/` | 2 | ~210 | MQTT 通讯（TLS + aiomqtt） | [CLAUDE.md](./spide/mqtt/CLAUDE.md) |
 | `spide/queue/` | 2 | ~145 | 消息总线（pub/sub） | [CLAUDE.md](./spide/queue/CLAUDE.md) |
 | `spide/storage/` | 6 | ~1550 | SQLite/Redis/导出/模型 | [CLAUDE.md](./spide/storage/CLAUDE.md) |
@@ -331,13 +332,13 @@ uv run ruff format . && ruff check . # 格式化 + lint
 
 | 指标 | 数量 |
 |------|------|
-| 源码文件 | 50 (.py) |
-| 源码行数 | 9,548 |
-| 测试文件 | 34 (.py) |
-| 测试行数 | 4,971 |
-| 测试用例 | 341 |
+| 源码文件 | 51 (.py) |
+| 源码行数 | ~10,000 |
+| 测试文件 | 47 (.py) |
+| 测试行数 | ~5,200 |
+| 测试用例 | 360 |
 | 配置文件 | 5 (.yaml) |
 | CLI 命令 | 21 |
-| MCP 工具 | 5 |
+| MCP 工具 | 8 |
 | 数据模型 | 15 (Pydantic) |
 | 异常类 | 8 |
