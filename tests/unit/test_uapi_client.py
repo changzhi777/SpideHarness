@@ -2,13 +2,24 @@
 # Author: 外星动物（常智） / IoTchange / 14455975@qq.com
 """单元测试 — UAPI 热搜客户端."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from spide.config import UAPIConfig
 from spide.exceptions import SpiderError
 from spide.spider.uapi_client import _PLATFORM_MAP, UAPIClient, _extract_platform
+
+
+def _mock_aiohttp_get(resp):
+    """构建 aiohttp ClientSession.get mock."""
+    get_cm = MagicMock()
+    get_cm.__aenter__ = AsyncMock(return_value=resp)
+    get_cm.__aexit__ = AsyncMock(return_value=False)
+
+    session = MagicMock()
+    session.get.return_value = get_cm
+    return session
 
 
 class TestPlatformMapping:
@@ -43,14 +54,11 @@ class TestUAPIClientMock:
             ],
         }
 
-        with patch("aiohttp.ClientSession.get") as mock_get:
-            mock_resp = AsyncMock()
-            mock_resp.status = 200
-            mock_resp.json = AsyncMock(return_value=mock_resp_data)
-            mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
-            mock_resp.__aexit__ = AsyncMock(return_value=False)
-            mock_get.return_value = mock_resp
+        mock_resp = MagicMock()
+        mock_resp.status = 200
+        mock_resp.json = AsyncMock(return_value=mock_resp_data)
 
+        with patch("aiohttp.ClientSession.get", new=_mock_aiohttp_get(mock_resp).get):
             topics = await client.fetch_hotboard("weibo")
             assert len(topics) == 2
             assert topics[0].title == "热搜1"
@@ -62,14 +70,11 @@ class TestUAPIClientMock:
         client = UAPIClient(config)
         await client.start()
 
-        with patch("aiohttp.ClientSession.get") as mock_get:
-            mock_resp = AsyncMock()
-            mock_resp.status = 500
-            mock_resp.text = AsyncMock(return_value="Server Error")
-            mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
-            mock_resp.__aexit__ = AsyncMock(return_value=False)
-            mock_get.return_value = mock_resp
+        mock_resp = MagicMock()
+        mock_resp.status = 500
+        mock_resp.text = AsyncMock(return_value="Server Error")
 
+        with patch("aiohttp.ClientSession.get", new=_mock_aiohttp_get(mock_resp).get):
             with pytest.raises(SpiderError, match="500"):
                 await client.fetch_hotboard("weibo")
 

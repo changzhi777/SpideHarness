@@ -2,12 +2,23 @@
 # Author: 外星动物（常智） / IoTchange / 14455975@qq.com
 """单元测试 — 异步页面抓取器."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from spide.exceptions import SpiderError
 from spide.spider.fetcher import AsyncFetcher
+
+
+def _mock_aiohttp_get(resp):
+    """构建 aiohttp ClientSession.get mock."""
+    get_cm = MagicMock()
+    get_cm.__aenter__ = AsyncMock(return_value=resp)
+    get_cm.__aexit__ = AsyncMock(return_value=False)
+
+    session = MagicMock()
+    session.get.return_value = get_cm
+    return session
 
 
 class TestFetcherMock:
@@ -17,15 +28,11 @@ class TestFetcherMock:
         fetcher = AsyncFetcher()
         await fetcher.start()
 
-        html = "<html><body><h1>标题</h1><p>正文</p></body></html>"
-        with patch("aiohttp.ClientSession.get") as mock_get:
-            mock_resp = AsyncMock()
-            mock_resp.status = 200
-            mock_resp.text = AsyncMock(return_value=html)
-            mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
-            mock_resp.__aexit__ = AsyncMock(return_value=False)
-            mock_get.return_value = mock_resp
+        mock_resp = MagicMock()
+        mock_resp.status = 200
+        mock_resp.text = AsyncMock(return_value="<html><body><h1>标题</h1><p>正文</p></body></html>")
 
+        with patch("aiohttp.ClientSession.get", new=_mock_aiohttp_get(mock_resp).get):
             result = await fetcher.get("https://example.com")
             assert "<h1>标题</h1>" in result
 
@@ -35,15 +42,11 @@ class TestFetcherMock:
         fetcher = AsyncFetcher()
         await fetcher.start()
 
-        html = "<html><body><script>alert('xss')</script><p>内容</p></body></html>"
-        with patch("aiohttp.ClientSession.get") as mock_get:
-            mock_resp = AsyncMock()
-            mock_resp.status = 200
-            mock_resp.text = AsyncMock(return_value=html)
-            mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
-            mock_resp.__aexit__ = AsyncMock(return_value=False)
-            mock_get.return_value = mock_resp
+        mock_resp = MagicMock()
+        mock_resp.status = 200
+        mock_resp.text = AsyncMock(return_value="<html><body><script>alert('xss')</script><p>内容</p></body></html>")
 
+        with patch("aiohttp.ClientSession.get", new=_mock_aiohttp_get(mock_resp).get):
             text = await fetcher.get_text("https://example.com")
             assert "内容" in text
             assert "alert" not in text
@@ -55,14 +58,11 @@ class TestFetcherMock:
         await fetcher.start()
 
         data = {"key": "value", "count": 42}
-        with patch("aiohttp.ClientSession.get") as mock_get:
-            mock_resp = AsyncMock()
-            mock_resp.status = 200
-            mock_resp.json = AsyncMock(return_value=data)
-            mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
-            mock_resp.__aexit__ = AsyncMock(return_value=False)
-            mock_get.return_value = mock_resp
+        mock_resp = MagicMock()
+        mock_resp.status = 200
+        mock_resp.json = AsyncMock(return_value=data)
 
+        with patch("aiohttp.ClientSession.get", new=_mock_aiohttp_get(mock_resp).get):
             result = await fetcher.get_json("https://api.example.com/data")
             assert result["count"] == 42
 
@@ -72,13 +72,10 @@ class TestFetcherMock:
         fetcher = AsyncFetcher()
         await fetcher.start()
 
-        with patch("aiohttp.ClientSession.get") as mock_get:
-            mock_resp = AsyncMock()
-            mock_resp.status = 404
-            mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
-            mock_resp.__aexit__ = AsyncMock(return_value=False)
-            mock_get.return_value = mock_resp
+        mock_resp = MagicMock()
+        mock_resp.status = 404
 
+        with patch("aiohttp.ClientSession.get", new=_mock_aiohttp_get(mock_resp).get):
             with pytest.raises(SpiderError, match="404"):
                 await fetcher.get("https://example.com/notfound")
 

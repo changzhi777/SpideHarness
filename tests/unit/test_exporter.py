@@ -113,19 +113,18 @@ class TestDataExporter:
         assert nested.exists()
         assert filepath.exists()
 
-    async def test_export_json_with_complex_fields(self, tmp_path: Path):
-        """导出包含复杂类型（list/dict）字段的数据."""
+    async def test_export_json_with_extra_field(self, tmp_path: Path):
+        """导出包含 extra dict 字段的数据."""
         topic = HotTopic(
             title="测试",
             hot_value=999,
             source="weibo",
-            extra_tags=["AI", "大模型"],
-            extra={"note": "complex"},
+            extra={"note": "complex", "tags": ["AI"]},
         )
-        # HotTopic 没有 extra_tags/extra，但 model_dump 会序列化所有字段
         exporter = DataExporter(output_dir=str(tmp_path / "out"))
         filepath = await exporter.export_json([topic], filename="test")
 
         data = json.loads(filepath.read_text(encoding="utf-8"))
         assert len(data) == 1
         assert data[0]["title"] == "测试"
+        assert data[0]["extra"]["note"] == "complex"

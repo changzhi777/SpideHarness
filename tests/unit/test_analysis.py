@@ -5,8 +5,6 @@
 import json
 from unittest.mock import MagicMock
 
-import pytest
-
 from spide.analysis.summarizer import (
     ContentSummarizer,
     SmartCrawlStrategy,

@@ -2,8 +2,6 @@
 # Author: 外星动物（常智） / IoTchange / 14455975@qq.com
 """单元测试 — 配置加载模块."""
 
-
-
 from spide.config import (
     Settings,
     UAPIConfig,

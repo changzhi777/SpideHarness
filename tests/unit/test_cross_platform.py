@@ -4,8 +4,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from spide.analysis.cross_platform import CrossPlatformAnalyzer
 from spide.storage.models import HotTopic, TopicCluster, TopicSource
 
@@ -69,3 +67,27 @@ class TestParseClusters:
         assert len(clusters) == 1
         assert clusters[0].cluster_name == "AI"
         assert clusters[0].cross_platform is True
+
+
+class TestAnalyzeWithMock:
+    """analyze 异步方法 mock 测试."""
+
+    async def test_analyze_with_llm_clusters(self):
+        from unittest.mock import MagicMock
+
+        llm = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.choices = [MagicMock()]
+        mock_resp.choices[0].message.content = '''```json
+[{"name": "科技", "keywords": ["AI"], "platforms": ["weibo"], "topic_titles": ["AI突破"], "cross_platform": true, "analysis": "AI话题热度高"}]
+```'''
+        llm.chat.return_value = mock_resp
+
+        analyzer = CrossPlatformAnalyzer(llm=llm)
+        topics_by_source = {
+            "weibo": [_make_topic("AI突破", TopicSource.WEIBO, 5000)],
+        }
+
+        result = await analyzer.analyze(topics_by_source)
+        assert len(result) >= 1
+        assert result[0].cluster_name == "科技"

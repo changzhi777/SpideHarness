@@ -81,6 +81,7 @@ class TestLLMErrors:
     def test_web_search_mock(self):
         client = LLMClient(LLMConfig(common=LLMCommonConfig(api_key="test")))
         client._client = MagicMock()
-        client._client.web_search.web_search.return_value = {"results": []}
+        expected = {"results": [{"title": "测试结果", "url": "https://example.com"}]}
+        client._client.web_search.web_search.return_value = expected
         result = client.web_search(query="测试")
-        assert result is not None
+        assert result["results"][0]["title"] == "测试结果"

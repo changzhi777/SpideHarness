@@ -2,13 +2,9 @@
 # Author: 外星动物（常智） / IoTchange / 14455975@qq.com
 """Dashboard 看板模块单元测试."""
 
-from __future__ import annotations
-
 import json
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
-
-import pytest
 
 from spide.storage.models import HotTopic, TopicSource
 
