@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from mcp import types
-from mcp.server import Server
+from mcp.server import InitializationOptions, Server
 from mcp.server.stdio import stdio_server
 
 from spide.config import load_settings
@@ -321,8 +321,11 @@ async def serve_mcp(project_root: Path | None = None) -> None:
         await server.run(
             read_stream,
             write_stream,
-            types.InitializationOptions(  # type: ignore[attr-defined]
+            InitializationOptions(
                 server_name=_SERVER_NAME,
                 server_version=_SERVER_VERSION,
+                capabilities=types.ServerCapabilities(
+                    tools=types.ToolsCapability(),
+                ),
             ),
         )
