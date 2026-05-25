@@ -44,6 +44,7 @@ class ScheduledJob:
     platforms: list[str] = field(default_factory=list)
     sources: list[str] = field(default_factory=list)  # UAPI 热搜源
     interval_seconds: int = 300  # 默认 5 分钟
+    cron_times: list[str] = field(default_factory=list)  # cron 定时 ["09:00", "18:00"]
     save_to_db: bool = False
     export_format: str = ""  # 空=不导出, json/csv/excel
     max_runs: int = 0  # 0=无限
@@ -52,6 +53,29 @@ class ScheduledJob:
     # 运行时状态
     _run_count: int = field(default=0, init=False, repr=False)
     _last_run: datetime | None = field(default=None, init=False, repr=False)
+
+    def next_wait_seconds(self) -> float:
+        """计算距离下次执行的等待秒数.
+
+        - cron_times 模式: 计算到下一个 cron 时刻的秒数
+        - interval 模式: 返回 interval_seconds
+        """
+        if not self.cron_times:
+            return float(self.interval_seconds)
+
+        now = datetime.now()
+        now_minutes = now.hour * 60 + now.minute
+        candidates: list[float] = []
+
+        for time_str in self.cron_times:
+            h, m = (int(x) for x in time_str.split(":"))
+            target_minutes = h * 60 + m
+            diff = (target_minutes - now_minutes) * 60 - now.second
+            if diff <= 0:
+                diff += 86400  # 明天同一时刻
+            candidates.append(diff)
+
+        return min(candidates)
 
     @property
     def run_count(self) -> int:
@@ -160,8 +184,9 @@ class TaskScheduler:
                 logger.error("job_error", name=job.name, error=str(e))
 
             # 等待下次执行
+            wait_seconds = job.next_wait_seconds()
             try:
-                await asyncio.sleep(job.interval_seconds)
+                await asyncio.sleep(wait_seconds)
             except asyncio.CancelledError:
                 break
 

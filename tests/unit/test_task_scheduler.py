@@ -132,3 +132,55 @@ class TestTaskScheduler:
         jobs = scheduler.jobs
         jobs["another"] = ScheduledJob(name="another")
         assert "another" not in scheduler.jobs
+
+
+class TestCronTimes:
+    """cron 定时测试."""
+
+    def test_cron_times_field(self):
+        job = ScheduledJob(name="cron_job", cron_times=["09:00", "18:00"])
+        assert job.cron_times == ["09:00", "18:00"]
+
+    def test_interval_mode_no_cron(self):
+        job = ScheduledJob(name="interval", interval_seconds=300)
+        assert job.next_wait_seconds() == 300.0
+
+    def test_cron_next_wait_future(self):
+        """当前时间在 cron 时间之前."""
+        from unittest.mock import patch
+        from datetime import datetime
+
+        job = ScheduledJob(name="cron", cron_times=["23:59"])
+        # mock 当前时间为 08:00
+        mock_now = datetime(2026, 5, 25, 8, 0, 0)
+        with patch("spide.spider.task_scheduler.datetime") as mock_dt:
+            mock_dt.now.return_value = mock_now
+            wait = job.next_wait_seconds()
+            # 08:00 → 23:59 = 15h59m = 57540s
+            assert 57500 <= wait <= 57540
+
+    def test_cron_next_wait_past_today(self):
+        """当前时间已过所有 cron 时间，应等到明天."""
+        from unittest.mock import patch
+        from datetime import datetime
+
+        job = ScheduledJob(name="cron", cron_times=["06:00"])
+        mock_now = datetime(2026, 5, 25, 20, 0, 0)
+        with patch("spide.spider.task_scheduler.datetime") as mock_dt:
+            mock_dt.now.return_value = mock_now
+            wait = job.next_wait_seconds()
+            # 20:00 → 明天 06:00 = 10h = 36000s
+            assert 35900 <= wait <= 36000
+
+    def test_cron_picks_nearest(self):
+        """多个 cron 时间，选最近的."""
+        from unittest.mock import patch
+        from datetime import datetime
+
+        job = ScheduledJob(name="cron", cron_times=["09:00", "18:00"])
+        mock_now = datetime(2026, 5, 25, 8, 30, 0)
+        with patch("spide.spider.task_scheduler.datetime") as mock_dt:
+            mock_dt.now.return_value = mock_now
+            wait = job.next_wait_seconds()
+            # 08:30 → 09:00 = 30m = 1800s
+            assert 1700 <= wait <= 1800

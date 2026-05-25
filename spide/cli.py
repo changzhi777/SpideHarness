@@ -47,7 +47,9 @@ app = typer.Typer(
 
 # 子命令组
 memory_app = typer.Typer(help="记忆管理")
+timed_search_app = typer.Typer(help="定时搜索")
 app.add_typer(memory_app, name="memory")
+app.add_typer(timed_search_app, name="timed-search")
 
 
 # ---------------------------------------------------------------------------
@@ -1217,6 +1219,173 @@ async def _schedule_async(
     else:
         console.print(f"[red]未知操作: {action}，可选: start / status / stop[/red]")
         raise typer.Exit(1) from None
+
+
+# ---------------------------------------------------------------------------
+# timed-search 命令组
+# ---------------------------------------------------------------------------
+
+
+@timed_search_app.command("start")
+def timed_search_start(
+    times: str = typer.Option("09:00,18:00", "--times", "-t", help="执行时间（逗号分隔），如 09:00,18:00"),
+    sources: str = typer.Option("weibo,baidu,zhihu", "--sources", "-s", help="热搜源（逗号分隔）"),
+    top_n: int = typer.Option(5, "--top", "-n", help="每个平台取 Top N 热搜"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="工作空间路径"),
+) -> None:
+    """启动定时搜索 — 每日定时采集热搜并搜索关联新闻."""
+    asyncio.run(_timed_search_start_async(times, sources, top_n, workspace))
+
+
+async def _timed_search_start_async(
+    times_str: str,
+    sources_str: str,
+    top_n: int,
+    workspace: str | None,
+) -> None:
+    from spide.spider.task_scheduler import ScheduledJob, TaskScheduler
+    from spide.spider.timed_search import TimedSearchService
+
+    cron_times = [t.strip() for t in times_str.split(",") if t.strip()]
+    source_list = [s.strip() for s in sources_str.split(",") if s.strip()]
+
+    ws_root = _resolve_workspace(workspace)
+    db_path = str(ws_root / "spide_data.db")
+
+    service = TimedSearchService(db_path=db_path)
+    await service.start()
+
+    console.print(f"[cyan]定时搜索服务[/cyan]")
+    console.print(f"  执行时间: [green]{', '.join(cron_times)}[/green]")
+    console.print(f"  热搜源: [green]{', '.join(source_list)}[/green]")
+    console.print(f"  每平台取 Top {top_n}")
+    console.print(f"  数据库: {db_path}\n")
+
+    # 用 TaskScheduler 的 cron 模式驱动
+    scheduler = TaskScheduler()
+    job = ScheduledJob(
+        name="timed_search",
+        sources=source_list,
+        cron_times=cron_times,
+    )
+
+    async def on_timed_search(data: dict) -> None:
+        result = await service.run_once(
+            schedule_time=_current_schedule_time(cron_times),
+            sources=source_list,
+            top_n=top_n,
+        )
+        console.print(
+            f"\n[green]✓ 搜索完成[/green] 批次={result['batch_key']} "
+            f"热搜={result['total_topics']} 关联={result['search_count']}"
+        )
+
+    scheduler.add_job(job)
+    scheduler.on_result(on_timed_search)
+    await scheduler.start()
+
+    console.print(f"[dim]调度器已启动，等待 {', '.join(cron_times)} 执行... (Ctrl+C 停止)[/dim]")
+
+    try:
+        while True:
+            await asyncio.sleep(3600)
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        pass
+    finally:
+        await scheduler.stop()
+        await service.stop()
+        console.print("\n[yellow]定时搜索服务已停止[/yellow]")
+
+
+@timed_search_app.command("query")
+def timed_search_query(
+    schedule_time: str | None = typer.Option(None, "--time", "-t", help="按调度时间筛选，如 09:00"),
+    limit: int = typer.Option(20, "--limit", "-n", help="返回条数"),
+    workspace: str | None = typer.Option(None, "--workspace", "-w", help="工作空间路径"),
+) -> None:
+    """查询定时搜索记录."""
+    asyncio.run(_timed_search_query_async(schedule_time, limit, workspace))
+
+
+async def _timed_search_query_async(
+    schedule_time: str | None,
+    limit: int,
+    workspace: str | None,
+) -> None:
+    from spide.spider.timed_search import TimedSearchService
+
+    ws_root = _resolve_workspace(workspace)
+    db_path = str(ws_root / "spide_data.db")
+
+    if not (ws_root / "spide_data.db").exists():
+        console.print("[yellow]数据库不存在，请先运行 timed-search start[/yellow]")
+        raise typer.Exit(0) from None
+
+    service = TimedSearchService(db_path=db_path)
+    await service.start()
+    try:
+        # 显示批次列表
+        batches = await service.query_batches(limit=5)
+        if batches:
+            table = Table(title="搜索批次")
+            table.add_column("批次", style="cyan")
+            table.add_column("时间", style="green")
+            table.add_column("热搜数", justify="right")
+            table.add_column("搜索数", justify="right")
+            table.add_column("状态")
+            for b in batches:
+                table.add_row(
+                    b.get("batch_key", ""),
+                    b.get("schedule_time", ""),
+                    str(b.get("total_topics", 0)),
+                    str(b.get("search_count", 0)),
+                    b.get("status", ""),
+                )
+            console.print(table)
+        else:
+            console.print("[dim]暂无搜索批次记录[/dim]")
+
+        # 显示搜索记录
+        filters = {}
+        if schedule_time:
+            filters["schedule_time"] = schedule_time
+
+        records = await service.query_records(limit=limit, **filters)
+        if records:
+            console.print(f"\n最近 {len(records)} 条搜索记录:")
+            for r in records:
+                console.print(
+                    f"  [{r.get('schedule_time', '')}] "
+                    f"[cyan]{r.get('topic_title', '')[:30]}[/cyan] → "
+                    f"{r.get('search_title', '')[:40]}"
+                )
+                if r.get("search_snippet"):
+                    console.print(f"    [dim]{r['search_snippet'][:60]}[/dim]")
+    finally:
+        await service.stop()
+
+
+def _resolve_workspace(workspace: str | None) -> Path:
+    """解析工作空间路径."""
+    if workspace:
+        return Path(workspace)
+    from spide.workspace import get_workspace_root
+    return get_workspace_root()
+
+
+def _current_schedule_time(cron_times: list[str]) -> str:
+    """根据当前时间匹配最近的 cron 时间."""
+    now = datetime.now()
+    now_minutes = now.hour * 60 + now.minute
+    best = cron_times[0]
+    best_diff = abs(now_minutes - int(best.split(":")[0]) * 60 - int(best.split(":")[1]))
+    for t in cron_times[1:]:
+        h, m = int(t.split(":")[0]), int(t.split(":")[1])
+        diff = abs(now_minutes - h * 60 - m)
+        if diff < best_diff:
+            best = t
+            best_diff = diff
+    return best
 
 
 @app.command("crawl-diff")

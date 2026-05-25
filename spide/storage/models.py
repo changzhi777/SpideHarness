@@ -324,3 +324,40 @@ class TopicCluster(BaseModel):
     cross_platform: bool = False
     analysis: str = ""
     created_at: datetime = Field(default_factory=datetime.now)
+
+
+# ---------------------------------------------------------------------------
+# 定时搜索
+# ---------------------------------------------------------------------------
+
+
+class TimedSearchBatch(BaseModel):
+    """定时搜索批次 — 记录一次定时执行的完整结果."""
+
+    id: int | None = None
+    batch_key: str  # 如 "2026-05-25_0900"
+    schedule_time: str  # "09:00" 或 "18:00"
+    platforms: list[str] = Field(default_factory=list)  # 采集的平台
+    total_topics: int = 0  # 采集到的热搜总数
+    search_count: int = 0  # 搜索关联新闻的条目数
+    status: str = "pending"  # pending / running / completed / failed
+    error_message: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class TimedSearchRecord(BaseModel):
+    """定时搜索记录 — 每条热搜及其关联搜索结果."""
+
+    id: int | None = None
+    batch_id: int | None = None  # 关联 TimedSearchBatch
+    topic_title: str  # 热搜话题标题
+    topic_source: TopicSource  # 来源平台
+    topic_hot_value: int | None = None
+    topic_rank: int | None = None
+    search_title: str = ""  # 搜索结果标题
+    search_url: str = ""  # 搜索结果 URL
+    search_snippet: str = ""  # 搜索结果摘要
+    schedule_time: str = ""  # "09:00" 或 "18:00"
+    fetched_at: datetime = Field(default_factory=datetime.now)

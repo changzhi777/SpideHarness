@@ -47,6 +47,8 @@ _TABLE_MAP: dict[str, str] = {
     "AlertRecord": "alert_records",
     "TopicDeepTrack": "topic_deep_tracks",
     "TopicCluster": "topic_clusters",
+    "TimedSearchBatch": "timed_search_batches",
+    "TimedSearchRecord": "timed_search_records",
 }
 
 
