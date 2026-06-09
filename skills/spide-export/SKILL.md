@@ -3,6 +3,7 @@ name: spide-export
 description: >
   数据导出 — 将采集数据导出为 JSON / CSV / Excel 格式。
   当用户要求导出数据、下载报告、生成文件时使用。
+category: data_export
 ---
 
 # Spide Export — 数据导出

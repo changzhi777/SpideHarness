@@ -4,6 +4,7 @@ description: >
   错误恢复搜索 — 当采集数据目标反复失败时，调用智谱 Web Search API 搜索 GitHub 
   寻找类似功能的代码进行学习，然后基于学习结果生成新的采集技能或适配器。
   当爬虫/采集任务失败且常规修复无效时使用此 skill。
+category: search
 ---
 
 # Spide Search Fallback — 错误恢复搜索
@@ -286,3 +287,58 @@ python -m src.spider.custom.<platform>_<feature>
 - 生成的适配器/脚本应标注来源和参考项目
 - 不要直接复制粘贴大段代码，应理解核心逻辑后重新实现
 - 如果搜索结果不足以解决问题，明确告知用户并建议替代方案
+
+## 通过 MCP 调用
+
+错误恢复搜索在 MCP 层使用 `web_search_enhanced` 工具（DuckDuckGo 免费版），结合 `fetch_repo_info` 读取 GitHub 仓库：
+
+```python
+# Step 1: 搜索 GitHub 上的类似项目
+from spide.mcp.client import MCPClient
+
+async with MCPClient(server_command="spide", args=["mcp-serve"]) as client:
+    search = await client.call_tool("web_search_enhanced", {
+        "query": "xiaohongshu crawler python site:github.com",
+        "engine": "duckduckgo",
+        "limit": 10,
+    })
+    results = json.loads(search[0].text)["items"]
+
+    # Step 2: 读取排名最高的仓库 README
+    if results:
+        repo_full_name = "user/repo-name"  # 从搜索结果中提取
+        readme = await client.call_tool("fetch_repo_info", {
+            "repo": repo_full_name,
+            "info_type": "readme",
+        })
+        print(json.loads(readme[0].text)["readme"][:2000])
+
+        # Step 3: 获取仓库元数据（stars / language / description）
+        summary = await client.call_tool("fetch_repo_info", {
+            "repo": repo_full_name,
+            "info_type": "summary",
+        })
+        meta = json.loads(summary[0].text)
+        print(f"⭐ {meta['stars']} | {meta['language']}")
+```
+
+```javascript
+// Claude Desktop 自然语言
+// 用户: "我的小红书采集任务连续失败 3 次，spide-autofix 修不好，
+//        请用 spide-search-fallback 帮我搜索 GitHub 找到解决方案"
+// Claude 自动执行:
+//   1. web_search_enhanced(query="xiaohongshu crawler python site:github.com")
+//   2. fetch_repo_info(repo="top-result", info_type="readme")
+//   3. 综合分析并生成新适配器建议
+```
+
+**MCP 工具映射**：
+
+| Skill 步骤 | MCP 工具 | 说明 |
+|------------|----------|------|
+| 搜索 GitHub 代码 | `web_search_enhanced` (duckduckgo) | 免认证 |
+| 读取仓库 README | `fetch_repo_info` (info_type=readme) | 限 60/h |
+| 获取仓库元数据 | `fetch_repo_info` (info_type=summary) | 限 60/h |
+| 持久化学习笔记 | `manage_memory` (action=add) | 本地文件系统 |
+
+**完整配置**：[docs/integration/claude-desktop-config.md](../../docs/integration/claude-desktop-config.md)

@@ -9,7 +9,8 @@ Dashboard Backend API - FastAPI 服务
 
 from __future__ import annotations
 
-import json
+import asyncio
+import re
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -18,12 +19,17 @@ from typing import Any
 
 from fastapi import Body, FastAPI
 from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
-import asyncio
-import logging
 
+from dashboard.capability_registry import registry
 from dashboard.feishu_handler import router as feishu_router
 from dashboard.github_trending import GitHubTrendingService
+from spide.logging import get_logger
+from spide.mcp.tools import ALL_TOOLS as _MCP_TOOLS
+
+logger = get_logger(__name__)
+
+# Skills 自动扫描
+_SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
 
 # ── 常量 ──────────────────────────────────────────────────────────
 DB_PATH = Path(__file__).resolve().parent.parent / "spide_data.db"
@@ -63,6 +69,156 @@ def _query(sql: str, params: tuple = ()) -> list[Row]:
 # ── API 路由 ──────────────────────────────────────────────────────
 app = FastAPI(title="SpideHarness Dashboard API", version="3.1.1")
 app.include_router(feishu_router)
+
+
+# ── 能力注册（MCP / HTTP / Skills） ────────────────────────────────
+
+# MCP 工具（8 个）— 仅声明非默认值（auth/category）
+_MCP_META = {
+    "crawl_hot_topics": {"auth": "uapi_key", "category": "data_collection"},
+    "web_search": {"auth": "llm_key", "category": "search"},
+    "web_search_enhanced": {"category": "search"},
+    "fetch_web_page": {"category": "web_fetch"},
+    "fetch_repo_info": {"category": "web_fetch"},
+    "manage_memory": {"category": "agent"},
+    "health_check": {"category": "agent"},
+    "deep_crawl_hot_topics": {"category": "data_collection"},
+}
+for _tool in _MCP_TOOLS:
+    _meta = _MCP_META.get(_tool["name"], {})
+    registry.register_mcp_tool(
+        name=_tool["name"],
+        description=_tool["description"],
+        input_schema=_tool["inputSchema"],
+        **_meta,
+    )
+
+# HTTP 端点（data-driven 列表）— (path, method, summary, kwargs)
+_HTTP_ENDPOINTS = [
+    (
+        "/.well-known/agent.json", "GET",
+        "AI Agent 自发现端点 — 返回所有 MCP / HTTP / Skills 能力清单",
+        {"category": "discovery"},
+    ),
+    (
+        "/api/dashboard", "GET", "获取 Dashboard 全量数据",
+        {
+            "response_schema": {"type": "object", "properties": {
+                "total_count": {"type": "integer"},
+                "platform_stats": {"type": "array"},
+                "top_topics": {"type": "array"},
+            }},
+            "category": "dashboard",
+        },
+    ),
+    (
+        "/api/topics", "GET", "获取话题列表（支持分页/筛选）",
+        {
+            "response_schema": {"type": "object", "properties": {
+                "total": {"type": "integer"},
+                "items": {"type": "array"},
+                "limit": {"type": "integer"},
+                "offset": {"type": "integer"},
+            }},
+            "category": "dashboard",
+        },
+    ),
+    ("/api/sources", "GET", "获取所有数据源平台", {"category": "dashboard"}),
+    (
+        "/api/crawl", "POST", "触发全量热搜采集（同步执行 spide crawl --all --save，超时 120s）",
+        {
+            "response_schema": {"type": "object", "properties": {
+                "status": {"type": "string"},
+                "saved": {"type": "integer"},
+                "output": {"type": "string"},
+            }},
+            "category": "data_collection",
+        },
+    ),
+    (
+        "/api/github/trending", "GET", "采集 GitHub AI/LLM/Agent/MCP/MLX 热门仓库",
+        {"category": "data_collection"},
+    ),
+    (
+        "/api/github/push", "POST", "采集 GitHub 热点并推送到飞书 Webhook",
+        {"category": "integration"},
+    ),
+    (
+        "/api/github/webhook", "POST", "动态设置飞书 Webhook URL",
+        {
+            "request_schema": {"type": "object", "required": ["url"], "properties": {
+                "url": {"type": "string"},
+            }},
+            "category": "integration",
+        },
+    ),
+    (
+        "/api/feishu/event", "POST", "飞书事件回调（URL 验证 + 消息接收）",
+        {"auth": "feishu_signature", "category": "integration"},
+    ),
+    (
+        "/api/feishu/command", "POST", "通用命令执行接口（供飞书 Agent 或其他客户端调用）",
+        {"category": "integration"},
+    ),
+]
+for _path, _method, _summary, _kwargs in _HTTP_ENDPOINTS:
+    registry.register_http_endpoint(_path, _method, _summary, **_kwargs)
+
+# Skills（自动扫描 skills/ 目录）— category 从 SKILL.md frontmatter 读取
+_FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+if _SKILLS_DIR.is_dir():
+    for _skill_dir in sorted(_SKILLS_DIR.iterdir()):
+        _skill_md = _skill_dir / "SKILL.md"
+        if not _skill_md.is_file():
+            continue
+        try:
+            _content = _skill_md.read_text(encoding="utf-8")
+            _m = _FRONTMATTER_RE.match(_content)
+            if not _m:
+                continue
+            _fm = _m.group(1)
+            # 解析 frontmatter 字段
+            _meta: dict[str, str] = {}
+            for _line in _fm.splitlines():
+                if ":" in _line and not _line.startswith((" ", "\t", "-")):
+                    _k, _v = _line.split(":", 1)
+                    _meta[_k.strip()] = _v.strip().strip(">")
+            _name = _meta.get("name", "")
+            if not _name:
+                continue
+            _desc = _meta.get("description", "")
+            # 取首段非空 markdown 文本作为描述（若 frontmatter 无 description）
+            if not _desc:
+                for _line in _content[_m.end():].splitlines():
+                    _line = _line.strip()
+                    if _line and not _line.startswith("#"):
+                        _desc = _line[:200]
+                        break
+            registry.register_skill(
+                name=_name,
+                description=_desc or f"Skill: {_name}",
+                path=f"skills/{_skill_dir.name}/SKILL.md",
+                category=_meta.get("category", "general"),
+            )
+        except Exception as exc:
+            logger.debug("skill_scan_failed", skill_dir=_skill_dir.name, error=str(exc))
+            continue
+
+
+@app.get("/.well-known/agent.json", include_in_schema=False)
+def agent_discovery() -> JSONResponse:
+    """AI Agent 自发现端点 — 单一端点返回所有能力.
+
+    符合 OpenAPI Discovery 风格扩展，AI Agent 可一次性发现：
+    - MCP 工具清单（8 个，含完整 JSON Schema）
+    - HTTP 端点清单（Dashboard / GitHub / 飞书）
+    - Skills 清单（自动扫描 skills/ 目录）
+    - 文档索引（INTEGRATION.md / mcp-api-reference.md 等）
+
+    示例:
+        curl http://localhost:8765/.well-known/agent.json
+    """
+    return JSONResponse(content=registry.to_agent_json())
 
 
 @app.get("/api/dashboard", summary="获取 Dashboard 全量数据")
@@ -250,7 +406,7 @@ async def trigger_crawl() -> JSONResponse:
     try:
         result = await asyncio.get_event_loop().run_in_executor(None, _run_crawl_sync)
         return JSONResponse(content=result)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return JSONResponse(status_code=504, content={"status": "error", "message": "crawl timeout (>120s)"})
     except Exception as e:
         import traceback

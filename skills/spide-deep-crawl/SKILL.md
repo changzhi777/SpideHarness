@@ -3,6 +3,7 @@ name: spide-deep-crawl
 description: >
   深度采集 — 通过 MediaCrawler 从小红书/抖音/快手/B站/微博/贴吧/知乎
   采集详细内容、评论和创作者信息。当用户需要深度抓取特定平台内容时使用。
+category: data_collection
 ---
 
 # Spide Deep Crawl — 深度采集
@@ -65,3 +66,69 @@ spide deep-crawl -p xhs -m search -k "AI" --max 50
 - 首次使用需要登录对应平台（Cookie）
 - 建议使用 `--headless` 模式（默认开启）
 - 采集大量数据时注意平台限制
+
+## 通过 MCP 调用
+
+深度采集在 MCP 层对应 `deep_crawl_hot_topics` 工具，支持 7 平台 × 3 模式：
+
+```python
+# 方式 1: 搜索模式（按关键词）
+from spide.mcp.client import MCPClient
+
+async with MCPClient(server_command="spide", args=["mcp-serve"]) as client:
+    result = await client.call_tool("deep_crawl_hot_topics", {
+        "platform": "xhs",           # xhs/dy/ks/bili/wb/tieba/zhihu
+        "mode": "search",            # search/detail/creator
+        "keywords": "AI编程,Python",  # 逗号分隔
+        "max_notes": 20,             # 最多采集 20 条
+        "enable_comments": True,     # 含评论
+    })
+    data = json.loads(result[0].text)
+    print(f"内容数: {data['contents_count']}, 评论数: {data['comments_count']}")
+    for c in data["contents"][:5]:
+        print(f"- {c['title']} (👍{c['like_count']}, 💬{c['comment_count']})")
+```
+
+```python
+# 方式 2: 详情模式（按内容 ID）
+result = await client.call_tool("deep_crawl_hot_topics", {
+    "platform": "bili",
+    "mode": "detail",
+    "content_ids": "video_id_1,video_id_2",
+    "max_notes": 10,
+    "enable_comments": True,
+})
+```
+
+```python
+# 方式 3: 创作者模式
+result = await client.call_tool("deep_crawl_hot_topics", {
+    "platform": "wb",
+    "mode": "creator",
+    "creator_ids": "user_id_1,user_id_2",
+    "max_notes": 30,
+})
+```
+
+```javascript
+// Claude Desktop 自然语言
+// 用户: "用 spide-agent 深度采集小红书上关于'AI编程'的 20 条笔记和评论"
+// Claude 自动调用:
+//   deep_crawl_hot_topics({
+//     platform: "xhs", mode: "search",
+//     keywords: "AI编程", max_notes: 20, enable_comments: true
+//   })
+```
+
+**MCP 工具 vs CLI 对比**：
+
+| 维度 | CLI (`spide deep-crawl`) | MCP 工具 (`deep_crawl_hot_topics`) |
+|------|--------------------------|-------------------------------------|
+| 平台参数 | `-p xhs` | `platform: "xhs"` |
+| 模式参数 | `-m search` | `mode: "search"` |
+| 关键词 | `-k "AI,Python"` | `keywords: "AI,Python"`（逗号分隔） |
+| 数量 | `--max 50` | `max_notes: 50` |
+| 评论 | `--comments` / 默认开 | `enable_comments: true`（默认 true） |
+| 超时 | CLI 进程无超时 | 60s（Claude Desktop MCP 默认） |
+
+**完整配置**：[docs/integration/claude-desktop-config.md](../../docs/integration/claude-desktop-config.md)

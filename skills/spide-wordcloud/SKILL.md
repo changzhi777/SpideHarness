@@ -3,6 +3,7 @@ name: spide-wordcloud
 description: >
   词云生成 — 基于热搜或文本数据生成可视化词云。
   当用户要求生成词云、可视化关键词、查看高频词时使用。
+category: visualization
 ---
 
 # Spide Wordcloud — 词云生成

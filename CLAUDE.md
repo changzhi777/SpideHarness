@@ -18,6 +18,7 @@
 | 2026-06-09 | 增量更新 | 全仓增量扫描：CLI 24 命令（+timed-search）、测试 471 用例，更新统计 |
 | 2026-06-09 | 审查优化 | 43 lint 清零 + analyze 缩进 bug + LLM 空响应容错 + Coding Plan 端点 + 15/15 功能测试 100% |
 | 2026-06-09 | **深度全量重扫** | 推倒重来：重写根级 + 9 个模块 CLAUDE.md，重生 Mermaid 结构图 + 9 个模块导航面包屑 |
+| 2026-06-09 | **集成层完整化** | Auto-Config API + HTTP REST 完整文档 + MCP 文档完善 + Claude Desktop 配置手册 + 3 个新 Skills (trending/monitor/feishu) + 4 核心 Skills 加 MCP 示例 + skills/README.md + INTEGRATION.md 综合文档 |
 
 ---
 
@@ -376,7 +377,7 @@ uvicorn dashboard.api:app --reload --port 8765   # 启动 Web Dashboard
 | 指标 | 数量 |
 |------|------|
 | 源码文件 (spide/) | 52 (.py) |
-| Web 后端 (dashboard/) | 3 (.py) |
+| Web 后端 (dashboard/) | 4 (.py) |
 | 源码行数 (spide) | ~10,487 |
 | 源码行数 (dashboard) | ~1,354 |
 | 源码合计 | ~11,841 |
@@ -387,5 +388,33 @@ uvicorn dashboard.api:app --reload --port 8765   # 启动 Web Dashboard
 | 配置文件 | 5 (.yaml) |
 | CLI 命令 | 24 |
 | MCP 工具 | 8 |
+| AI Skills | 17 (含 3 个 V3.1.1 新增) |
+| HTTP REST 端点 | 10 |
+| 集成文档 | 3 (.md) (http-api / mcp-api / claude-desktop) |
 | 数据模型 | 15 实体 + 6 枚举 (Pydantic v2) |
 | 异常类 | 9 (基类 + 8 子类) |
+
+---
+
+## 集成与对外接口
+
+本项目提供 **4 种集成方式**，面向 3 类受众（开发者 + 终端用户 + AI Agent）。详细集成手册见 **[docs/integration/INTEGRATION.md](./docs/integration/INTEGRATION.md)**（5 分钟快速开始 + 决策树 + 5 场景示例 + 故障排除）。
+
+| 集成方式 | 适合谁 | 入口 | 文档 |
+|----------|--------|------|------|
+| **Auto-Config API** | AI Agent | `GET /.well-known/agent.json` | [INTEGRATION.md §5](./docs/integration/INTEGRATION.md#5-ai-agent-视角) |
+| **MCP JSON-RPC** | Claude Desktop / Cursor | `spide mcp-serve` | [mcp-api-reference.md](./docs/mcp-api-reference.md) |
+| **HTTP REST** | Web / 第三方 | `http://<host>:8765/api/*` | [http-api-reference.md](./docs/http-api-reference.md) |
+| **AI Skills** | 对话式 AI | `~/.spide_agent/skills/` | [skills/README.md](./skills/README.md) |
+
+**快速验证**：
+```bash
+# Auto-Discovery
+curl http://localhost:8765/.well-known/agent.json | jq .agent
+
+# MCP
+spide mcp-serve
+
+# HTTP API
+curl http://localhost:8765/api/dashboard | jq .total_count
+```

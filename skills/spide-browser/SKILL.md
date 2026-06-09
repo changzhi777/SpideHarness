@@ -3,6 +3,7 @@ name: spide-browser
 description: >
   浏览器自动化 — 基于 OpenCLI 控制 Chrome 浏览器，支持导航、点击、输入、数据提取。
   复用已有登录会话，无需密码。当用户需要浏览网页、提取网页数据、自动化浏览器操作时使用。
+category: automation
 ---
 
 # Spide Browser — 浏览器自动化

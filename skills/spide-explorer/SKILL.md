@@ -4,6 +4,7 @@ description: >
   适配器探索式开发 — 从零创建 OpenCLI 适配器，支持新网站/平台。
   涵盖 API 发现、认证策略选择、TS 适配器编写和测试验证。
   当用户要求为网站生成 CLI、探索网站 API 时使用。
+category: meta
 ---
 
 # Spide Explorer — 适配器探索式开发完全指南

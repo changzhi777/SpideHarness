@@ -3,6 +3,7 @@ name: spide-search
 description: >
   智能搜索路由 — 基于话题和场景，将查询路由到最佳的 opencli 搜索源。
   当用户需要搜索、查询、查找或研究信息时使用此 skill。
+category: search
 ---
 
 # Spide Search — 智能搜索路由器

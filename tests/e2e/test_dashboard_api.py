@@ -119,6 +119,67 @@ class TestDashboardAPI:
 
 
 @pytest.mark.e2e
+class TestAgentDiscovery:
+    """AI Agent 自发现端点测试（/.well-known/agent.json）."""
+
+    def test_agent_json_returns_200(self, api_client):
+        """agent.json 端点返回 200."""
+        resp = api_client.get("/.well-known/agent.json")
+        assert resp.status_code == 200
+        assert "application/json" in resp.headers["content-type"]
+
+    def test_agent_json_structure(self, api_client):
+        """agent.json 包含必要字段."""
+        data = api_client.get("/.well-known/agent.json").json()
+        assert "agent" in data
+        assert "capabilities" in data
+        assert "discovery" in data
+        assert data["agent"]["name"] == "SpideHarness Agent"
+        assert data["agent"]["version"] == "3.1.1"
+
+    def test_agent_json_mcp_tools(self, api_client):
+        """agent.json 包含 8 个 MCP 工具."""
+        data = api_client.get("/.well-known/agent.json").json()
+        tools = data["capabilities"]["mcp"]["tools"]
+        assert len(tools) == 8
+        tool_names = {t["name"] for t in tools}
+        assert "crawl_hot_topics" in tool_names
+        assert "web_search" in tool_names
+        assert "deep_crawl_hot_topics" in tool_names
+        # 每个工具必须含 inputSchema
+        for t in tools:
+            assert "inputSchema" in t
+            assert "description" in t
+
+    def test_agent_json_http_endpoints(self, api_client):
+        """agent.json 包含 HTTP 端点."""
+        data = api_client.get("/.well-known/agent.json").json()
+        endpoints = data["capabilities"]["http"]["endpoints"]
+        assert len(endpoints) >= 5
+        paths = {e["path"] for e in endpoints}
+        assert "/api/dashboard" in paths
+        assert "/api/crawl" in paths
+        assert "/.well-known/agent.json" in paths
+
+    def test_agent_json_skills(self, api_client):
+        """agent.json 自动扫描 skills 目录."""
+        data = api_client.get("/.well-known/agent.json").json()
+        skills = data["capabilities"]["skills"]
+        assert len(skills) >= 5
+        skill_names = {s["name"] for s in skills}
+        assert "spide-crawl" in skill_names
+        assert "spide-analyze" in skill_names
+
+    def test_agent_json_discovery_links(self, api_client):
+        """agent.json 包含文档发现链接."""
+        data = api_client.get("/.well-known/agent.json").json()
+        discovery = data["discovery"]
+        assert "mcp_reference" in discovery
+        assert "http_reference" in discovery
+        assert "skills_index" in discovery
+
+
+@pytest.mark.e2e
 class TestFeishuHandlerParsing:
     """飞书 handler 指令解析测试."""
 

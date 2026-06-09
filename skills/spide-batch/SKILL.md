@@ -3,6 +3,7 @@ name: spide-batch
 description: >
   批量并行采集 — 多平台并发搜索采集，支持并发控制和数据导出。
   当用户要求同时采集多个平台、批量搜索关键词时使用。
+category: data_collection
 ---
 
 # Spide Batch — 批量并行采集

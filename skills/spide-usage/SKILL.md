@@ -3,6 +3,7 @@ name: spide-usage
 description: >
   OpenCLI 使用参考 — 覆盖安装、命令参考和输出格式，涵盖 79+ 网站适配器。
   当用户需要查询 OpenCLI 命令用法、查看支持的网站/桌面应用时使用。
+category: meta
 ---
 
 # Spide Usage — OpenCLI 使用参考

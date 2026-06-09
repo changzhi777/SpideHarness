@@ -3,6 +3,7 @@ name: spide-autofix
 description: >
   适配器自动修复 — 当 opencli 命令因网站 DOM/API 变更而失败时，自动诊断、修复适配器并重试。
   当 opencli 命令失败时使用此 skill。
+category: meta
 ---
 
 # Spide AutoFix — 适配器自动修复

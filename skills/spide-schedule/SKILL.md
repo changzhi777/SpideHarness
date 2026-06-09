@@ -3,6 +3,7 @@ name: spide-schedule
 description: >
   定时调度 — Cron-like 定时采集任务，支持自定义间隔和运行次数。
   当用户要求定时采集、自动刷新热搜、周期性抓取时使用。
+category: automation
 ---
 
 # Spide Schedule — 定时调度

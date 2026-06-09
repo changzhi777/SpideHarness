@@ -1,8 +1,10 @@
 # SpideHarness Agent — MCP Server API 对接文档
 
-> 版本: V3.1.1 | 更新: 2026-05-23 | 协议: MCP (Model Context Protocol)
+> 版本: V3.1.1 | 更新: 2026-06-09 | 协议: MCP (Model Context Protocol)
 
 本文档面向第三方程序/Agent，说明如何通过 MCP 协议对接 SpideHarness Agent 的工具服务。
+
+> **快速发现**：AI Agent 可通过 `GET http://<host>:8765/.well-known/agent.json` 一次性获取 MCP / HTTP / Skills 清单（见 [INTEGRATION.md](./integration/INTEGRATION.md) 第 4 节）。
 
 ---
 
@@ -15,9 +17,10 @@ SpideHarness Agent 提供 **MCP Server**，通过 stdio transport 暴露 8 个�
 | 项 | 值 |
 |---|---|
 | 协议 | MCP (Model Context Protocol) |
-| Transport | stdio（标准输入/输出） |
+| Transport | `stdio`（已实现）/ `sse`（规划中，见 §11） |
 | 服务名 | `spide-agent` |
 | 版本 | `0.1.0` |
+| Capabilities | `tools` |
 
 ---
 
@@ -79,6 +82,67 @@ async with MCPClient(
 }
 ```
 
+> **详细配置说明**（含路径、ENV、TLS、故障排除）见 [docs/integration/claude-desktop-config.md](./integration/claude-desktop-config.md)。
+
+### 3.1 Cursor 配置
+
+`~/.cursor/mcp.json`（macOS/Linux）或 `%APPDATA%\Cursor\User\mcp.json`（Windows）：
+
+```json
+{
+  "mcpServers": {
+    "spide-agent": {
+      "command": "spide",
+      "args": ["mcp-serve"],
+      "env": {
+        "PYTHONPATH": "/absolute/path/to/Spide_agent"
+      }
+    }
+  }
+}
+```
+
+> **要点**：
+> - `PYTHONPATH` 必须指向 Spide_agent 根目录，否则 `spide` 命令找不到
+> - 使用 `which spide` 验证可执行文件位置
+
+### 3.2 Cline (VS Code) 配置
+
+VS Code → Cline 扩展 → MCP Servers → 添加：
+
+```json
+{
+  "mcpServers": {
+    "spide-agent": {
+      "command": "spide",
+      "args": ["mcp-serve"],
+      "disabled": false
+    }
+  }
+}
+```
+
+### 3.3 环境变量注入
+
+如需传递 API Key（推荐通过 `configs/*.yaml` 而非环境变量）：
+
+```json
+{
+  "mcpServers": {
+    "spide-agent": {
+      "command": "spide",
+      "args": ["mcp-serve"],
+      "env": {
+        "SPIDE_LLM__COMMON__API_KEY": "your-zhipu-key",
+        "SPIDE_UAPI__COMMON__API_KEY": "your-uapi-key"
+      }
+    }
+  }
+}
+```
+
+> 环境变量优先级高于 `configs/*.yaml`，使用 `SPIDE_<SECTION>__<KEY>` 双下划线语法。
+
 ### 通用 MCP Client SDK
 
 任何支持 MCP stdio transport 的客户端均可连接：
@@ -115,6 +179,62 @@ async with stdio_client(params) as (read_stream, write_stream):
 | 8 | `deep_crawl_hot_topics` | 深度采集（需浏览器） | 免认证 |
 
 > 加粗为本次新增工具，**无需 API Key** 即可使用。
+
+---
+
+## 4.1 工具 JSON Schema 速查表
+
+> **完整定义**见 `spide/mcp/tools.py`。下表为简化版（必填项 + 关键参数）。
+
+| 工具 | 必填参数 | 可选参数 | 认证 |
+|------|----------|----------|------|
+| `crawl_hot_topics` | `source: enum[weibo\|baidu\|douyin\|zhihu\|bilibili]` | `save: bool=false` | UAPI Key |
+| `web_search` | `query: str` | `engine: str=search_pro`, `count: int=10` | 智谱 API Key |
+| `web_search_enhanced` | `query: str` | `engine: enum[duckduckgo\|zhipu]=duckduckgo`, `limit: int=10` | DuckDuckGo 免认证 |
+| `fetch_web_page` | `url: str` | `extract_links: bool=false` | 免认证 |
+| `fetch_repo_info` | `repo: str`（owner/repo） | `info_type: enum[summary\|readme\|full]=summary` | 免认证 |
+| `manage_memory` | `action: enum[add\|remove\|list\|get]` | `title: str`, `content: str` | 免认证 |
+| `health_check` | — | — | 免认证 |
+| `deep_crawl_hot_topics` | `platform: enum[xhs\|dy\|ks\|bili\|wb\|tieba\|zhihu]` | `mode: enum[search\|detail\|creator]=search`, `keywords`, `content_ids`, `creator_ids`, `max_notes: int=20`, `enable_comments: bool=true` | 免认证 |
+
+### 完整 inputSchema 示例
+
+```json
+{
+  "crawl_hot_topics": {
+    "type": "object",
+    "properties": {
+      "source": {"type": "string", "enum": ["weibo", "baidu", "douyin", "zhihu", "bilibili"]},
+      "save": {"type": "boolean", "default": false}
+    },
+    "required": ["source"]
+  },
+  "web_search_enhanced": {
+    "type": "object",
+    "properties": {
+      "query": {"type": "string"},
+      "engine": {"type": "string", "enum": ["duckduckgo", "zhipu"], "default": "duckduckgo"},
+      "limit": {"type": "integer", "default": 10, "minimum": 1, "maximum": 50}
+    },
+    "required": ["query"]
+  },
+  "deep_crawl_hot_topics": {
+    "type": "object",
+    "properties": {
+      "platform": {"type": "string", "enum": ["xhs", "dy", "ks", "bili", "wb", "tieba", "zhihu"]},
+      "mode": {"type": "string", "enum": ["search", "detail", "creator"], "default": "search"},
+      "keywords": {"type": "string", "description": "逗号分隔"},
+      "content_ids": {"type": "string"},
+      "creator_ids": {"type": "string"},
+      "max_notes": {"type": "integer", "default": 20},
+      "enable_comments": {"type": "boolean", "default": true}
+    },
+    "required": ["platform"]
+  }
+}
+```
+
+> 完整 8 工具 schema 见 [spide/mcp/tools.py](../spide/mcp/tools.py)。
 
 ---
 
@@ -531,6 +651,35 @@ class RepoInfoProvider:
 | GitHub API 限流 | 返回空结果 |
 | 缺少必填参数 | MCP 协议层报错 |
 
+### 7.1 JSON-RPC 错误码（MCP 协议层）
+
+MCP 协议标准错误码（来自 `mcp.shared.exceptions`）：
+
+| 错误码 | 名称 | 含义 | 触发场景 |
+|--------|------|------|----------|
+| `-32700` | `ParseError` | JSON 解析失败 | 客户端发送非 JSON 字符串 |
+| `-32600` | `InvalidRequest` | 请求格式错误 | 缺 `jsonrpc` 字段 / `id` 缺失 |
+| `-32601` | `MethodNotFound` | 方法不存在 | 客户端调用 `tools/call` 之外的未知方法 |
+| `-32602` | `InvalidParams` | 参数错误 | 工具必填参数缺失 / 参数类型不匹配 |
+| `-32603` | `InternalError` | 服务器内部错误 | 工具内部异常（被 `call_tool` 装饰器捕获并转为 `{"error": str(e)}`） |
+| `-32000` ~ `-32099` | `ServerError` | 服务器自定义错误 | 实现特定错误（如工具业务异常） |
+
+**Server-side 行为**：本 MCP Server 的 `call_tool` 装饰器**捕获所有 Exception** 并转为：
+
+```json
+{
+  "error": "工具执行失败的具体原因"
+}
+```
+
+返回 `TextContent(text=<上述 JSON>)`，**协议层不抛 -32603**。客户端解析 `text` 字段即可获知错误。
+
+**Client-side 验证建议**：调用 `call_tool` 前先 `validate_arguments(name, arguments)`，避免触发 `-32602 InvalidParams`。
+
+---
+
+## 8. 速率限制与注意事项
+
 ---
 
 ## 8. 速率限制与注意事项
@@ -604,6 +753,107 @@ async with MCPClient(server_command="spide", args=["mcp-serve"]) as client:
     })
     print(info[0].text)
 ```
+
+---
+
+## 10. 故障排除（FAQ）
+
+### Q1: Claude Desktop 启动后看不到 `spide-agent` 工具？
+
+**A**: 检查 4 步：
+1. **路径正确**：`spide` 命令在系统 PATH 中。运行 `which spide` 应输出绝对路径。
+2. **配置格式**：JSON 必须含 `mcpServers` 顶层键，键名拼写正确。
+3. **重启客户端**：Claude Desktop 改完配置后**必须完全退出并重新打开**（不关闭窗口，需 ⌘Q / Alt+F4）。
+4. **日志查看**：macOS `~/Library/Logs/Claude/mcp*.log`；Windows `%APPDATA%\Claude\Logs\mcp*.log`。
+
+### Q2: 调用 `crawl_hot_topics` 返回 `{"error": "UAPI Key not configured"}`？
+
+**A**: `configs/uapi.yaml` 未配置或 Key 错误。检查：
+```bash
+spide config       # 应列出 uapi.api_key
+spide doctor       # 检查 API Key 格式
+```
+
+### Q3: `web_search` 返回 `401 Unauthorized`？
+
+**A**: 智谱 API Key 错误或过期。检查 `configs/llm.yaml`：
+```yaml
+llm:
+  common:
+    api_key: "your.zhipu.api.key"
+    base_url: "https://open.bigmodel.cn/api/paas/v4"
+```
+
+### Q4: `fetch_repo_info` 返回空结果？
+
+**A**: GitHub 未认证 60 次/小时限额。解决：
+- 配置 `GITHUB_TOKEN` 环境变量（5000 次/小时）
+- 或在 MCP 配置中传入：`"env": {"GITHUB_TOKEN": "ghp_xxx"}`
+
+### Q5: `deep_crawl_hot_topics` 超时或失败？
+
+**A**: 需要浏览器环境（Playwright + Chromium）。检查：
+```bash
+playwright install chromium
+```
+且 `MediaCrawler/` 目录存在并已安装依赖。
+
+### Q6: `mcp-sdk` 版本不兼容错误 `ImportError: cannot import name 'InitializationOptions'`？
+
+**A**: 升级到 `mcp-sdk >= 1.27.0`：
+```bash
+uv add 'mcp>=1.27.0'
+```
+本项目代码已从 `mcp.types.InitializationOptions` 迁移至 `mcp.server.InitializationOptions`。
+
+### Q7: 工具返回成功但结果为空 `{"items": []}`？
+
+**A**: 可能是网络问题或 API 限流。建议：
+- 重试 1-2 次（间隔 5s+）
+- 切换引擎（`web_search_enhanced` 用 `engine: "zhipu"` 替代 `duckduckgo`）
+- 查看 `spide_data.log` 日志
+
+---
+
+## 11. Transport 扩展性 — SSE 模式（规划）
+
+**当前状态**：本 MCP Server **仅实现 stdio transport**（见 §1 概述）。`agent.json` 自发现端点声明 `["stdio", "sse"]`，其中 `sse` 为**规划中能力**。
+
+### 11.1 规划架构
+
+```
+┌──────────────┐         SSE/HTTP          ┌──────────────────┐
+│ MCP Client   │  ──────GET /sse──────►   │ SpideHarness     │
+│ (Remote)     │  ◄─────event-stream───   │ MCP SSE Server   │
+└──────────────┘         POST /msg         └──────────────────┘
+```
+
+### 11.2 启用 SSE 的前置条件
+
+1. **服务端**：实现 `sse_server.py`（基于 `mcp.server.sse.SseServerTransport`）
+2. **部署**：HTTP 服务需绑定 `0.0.0.0:<port>` + TLS 终结（nginx/Caddy）
+3. **鉴权**：Bearer Token / mTLS（stdio 模式无此问题）
+4. **CORS**：允许跨域（MCP 客户端可能从浏览器发起）
+
+### 11.3 客户端配置（待实现）
+
+```json
+{
+  "mcpServers": {
+    "spide-agent-remote": {
+      "url": "https://spide.example.com/mcp/sse",
+      "transport": "sse",
+      "headers": {
+        "Authorization": "Bearer ${SPIDE_API_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+### 11.4 进度跟踪
+
+SSE transport 实现请关注项目 README 变更日志。当前推荐使用 stdio 模式 + 远程隧道（ssh / ngrok）作为临时方案。
 
 ---
 

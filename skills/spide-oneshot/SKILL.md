@@ -3,6 +3,7 @@ name: spide-oneshot
 description: >
   快速单命令生成 — 给一个 URL + 一句话描述，4 步生成一个 CLI 命令。
   当用户需要快速为某个网页生成采集命令时使用。完整探索式开发请用 spide-explorer。
+category: automation
 ---
 
 # Spide Oneshot — 单点快速 CLI 生成
