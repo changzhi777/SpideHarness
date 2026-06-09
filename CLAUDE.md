@@ -16,6 +16,7 @@
 | 2026-05-26 | 更新 | 全仓增量扫描：新增 timed_search.py + Dashboard API，更新统计（379 测试/22 命令） |
 | 2026-05-27 | 扩展 | Dashboard Web 扩展：飞书 Bot 事件回调 + GitHub AI 热点采集，更新统计 |
 | 2026-06-09 | 增量更新 | 全仓增量扫描：CLI 24 命令（+timed-search）、测试 471 用例，更新统计 |
+| 2026-06-09 | 审查优化 | 43 lint 清零 + analyze 缩进 bug + LLM 空响应容错 + Coding Plan 端点 + 15/15 功能测试 100% |
 
 ---
 
@@ -322,7 +323,8 @@ spide doctor                         # 环境检查
 uv run pytest                        # 运行全部测试（471 passed）
 uv run pytest tests/unit/            # 仅单元测试
 uv run pytest -m integration         # 集成测试（需网络）
-uv run ruff format . && ruff check . # 格式化 + lint
+uv run ruff format . && ruff check . # 格式化 + lint（当前 0 错误）
+uv run spide analyze -s weibo      # AI 分析（需 LLM API Key）
 ```
 
 ---
