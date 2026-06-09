@@ -1,6 +1,6 @@
 # SpideHarness Agent — 项目 AI 上下文文档
 
-> 📍 [根目录](./) | 当前版本: V3.1.1 (DEV) | 最后更新: 2026-06-09
+> 📍 [根目录](./) | 当前版本: V3.1.1 (DEV) | 最后更新: 2026-06-09 15:24
 
 ## 变更记录
 
@@ -17,6 +17,7 @@
 | 2026-05-27 | 扩展 | Dashboard Web 扩展：飞书 Bot 事件回调 + GitHub AI 热点采集，更新统计 |
 | 2026-06-09 | 增量更新 | 全仓增量扫描：CLI 24 命令（+timed-search）、测试 471 用例，更新统计 |
 | 2026-06-09 | 审查优化 | 43 lint 清零 + analyze 缩进 bug + LLM 空响应容错 + Coding Plan 端点 + 15/15 功能测试 100% |
+| 2026-06-09 | **深度全量重扫** | 推倒重来：重写根级 + 9 个模块 CLAUDE.md，重生 Mermaid 结构图 + 9 个模块导航面包屑 |
 
 ---
 
@@ -24,13 +25,15 @@
 
 **SpideHarness Agent** 是一个热点新闻信息抓取与智能整理 Agent CLI 工具，基于 Harness Engineering 架构。
 
-核心能力：热搜采集（UAPI）→ 增量检测 → 关键词告警 → 深度追踪（搜索+LLM） → 跨平台关联分析 → 数据看板 → 多通道输出（SQLite/Excel/MQTT）。
+核心能力：UAPI 热搜采集（5 大平台）→ 增量检测 → 关键词告警 → 深度追踪（搜索+LLM）→ 跨平台关联分析 → Dashboard 看板 → 多通道输出（SQLite/Excel/MQTT）。
+
+CLI 24 命令、MCP 8 工具、LLM 双模型（GLM-5.1 + GLM-5V-Turbo）、471 测试用例、55 个 .py 源文件、~11,841 行源码。
 
 ## 当前状态：**已实现 (Stage 2)**
 
 - ✅ CLI 完整实现（24 个命令）
 - ✅ Harness 调度引擎（RuntimeBundle + 管道编排）
-- ✅ 热搜采集（UAPI 5 大平台）+ 限流熔断
+- ✅ 热搜采集（UAPI 5+ 平台）+ 限流熔断
 - ✅ 深度采集（MediaCrawler 7 平台适配器）+ 断点恢复
 - ✅ LLM 集成（GLM-5.1 + Web Search）
 - ✅ MCP Server/Client（8 个工具）
@@ -43,7 +46,7 @@
 - ✅ 跨平台关联分析（LLM 语义聚类 + 标题相似度）
 - ✅ 反爬稳定性（令牌桶限流 + 熔断器 + 断点恢复）
 - ✅ AI 分析（趋势分析/内容摘要/词云/采集策略）
-- ✅ Dashboard 数据看板
+- ✅ Dashboard HTML 看板
 - ✅ 数据导出（JSON/JSONL/CSV/Excel）
 - ✅ 定时调度 + 批量采集
 - ✅ 工作空间管理 + Prompt 层叠系统
@@ -68,14 +71,14 @@
 | Web API | FastAPI (Dashboard 后端) |
 | 数据源 | UApiPro (aiohttp REST) |
 | 深度采集 | MediaCrawler (Playwright) |
-| 协议 | MCP (mcp-sdk) |
+| 协议 | MCP (mcp-sdk 1.27.0) |
 | MQTT | aiomqtt (EMQX Cloud TLS) |
 | 存储 | SQLite (aiosqlite) + Redis |
 | 测试 | pytest + pytest-asyncio |
 | Lint | Ruff (lint + format) |
 | 构建 | hatchling |
 
-### 模块结构图
+### 模块结构图（Mermaid）
 
 ```mermaid
 graph TD
@@ -101,19 +104,21 @@ graph TD
     Monitor --> AlertEngine["alert_engine.py<br/>规则引擎"]
     Monitor --> Notifier["notifier.py<br/>多渠道通知"]
 
-    MCP --> MCPServer["server.py<br/>5 个工具"]
+    MCP --> MCPServer["server.py<br/>8 个工具"]
     MCP --> MCPClient["client.py<br/>模型调用"]
+    MCP --> MCPTools["tools.py<br/>JSON Schema"]
+    MCP --> SearchProvider["search_provider.py<br/>搜索适配器"]
 
     Engine --> MQTT["spide/mqtt/client.py<br/>MQTT Client"]
     Engine --> Broker["spide/queue/broker.py<br/>MessageBroker"]
     Engine --> Storage["spide/storage/<br/>持久化"]
     Engine --> Analysis["spide/analysis/<br/>AI 分析"]
-    Engine --> Dashboard["spide/dashboard/<br/>数据看板"]
+    Engine --> Dashboard["spide/dashboard/<br/>HTML 看板"]
 
     Storage --> SQLite["sqlite_repo.py<br/>SQLite"]
     Storage --> Redis["redis_cache.py<br/>Redis"]
     Storage --> Exporter["exporter.py<br/>导出"]
-    Storage --> Models["models.py<br/>Pydantic 模型"]
+    Storage --> Models["models.py<br/>15 实体 + 6 枚举"]
 
     Analysis --> Summarizer["summarizer.py<br/>摘要/趋势/策略"]
     Analysis --> WC["wordcloud_generator.py<br/>词云"]
@@ -122,6 +127,7 @@ graph TD
 
     Dashboard --> Collector["collector.py<br/>数据聚合"]
     Dashboard --> Template["template.py<br/>HTML 模板"]
+    Dashboard --> Renderer["renderer.py<br/>渲染输出"]
 
     DashboardAPI["dashboard/api.py<br/>FastAPI Web API"]
     DashboardAPI --> FeishuHandler["feishu_handler.py<br/>飞书 Bot 事件回调"]
@@ -132,14 +138,16 @@ graph TD
     CLI --> Workspace["spide/workspace.py<br/>工作空间"]
     CLI --> Prompts["spide/prompts.py<br/>Prompt 层叠"]
 
-    click Spider "./spide/spider/CLAUDE.md" "Spider 模块"
-    click Engine "./spide/harness/CLAUDE.md" "Harness 模块"
-    click MCP "./spide/mcp/CLAUDE.md" "MCP 模块"
-    click MQTT "./spide/mqtt/CLAUDE.md" "MQTT 模块"
-    click Broker "./spide/queue/CLAUDE.md" "Queue 模块"
-    click Storage "./spide/storage/CLAUDE.md" "Storage 模块"
-    click Analysis "./spide/analysis/CLAUDE.md" "Analysis 模块"
-    click Dashboard "./spide/dashboard/CLAUDE.md" "Dashboard 模块"
+    click Spider "./spide/spider/CLAUDE.md" "查看 spider 模块文档"
+    click Engine "./spide/harness/CLAUDE.md" "查看 harness 模块文档"
+    click MCP "./spide/mcp/CLAUDE.md" "查看 mcp 模块文档"
+    click Monitor "./spide/monitor/CLAUDE.md" "查看 monitor 模块文档"
+    click MQTT "./spide/mqtt/CLAUDE.md" "查看 mqtt 模块文档"
+    click Broker "./spide/queue/CLAUDE.md" "查看 queue 模块文档"
+    click Storage "./spide/storage/CLAUDE.md" "查看 storage 模块文档"
+    click Analysis "./spide/analysis/CLAUDE.md" "查看 analysis 模块文档"
+    click Dashboard "./spide/dashboard/CLAUDE.md" "查看 dashboard 模块文档"
+    click Tests "./tests/CLAUDE.md" "查看 tests 模块文档"
 ```
 
 ---
@@ -153,79 +161,89 @@ Spide_agent/
 │   ├── __main__.py                 # python -m spide 入口
 │   ├── cli.py                      # Typer CLI — 24 个命令
 │   ├── config.py                   # Pydantic Settings + YAML 加载
-│   ├── exceptions.py               # 统一异常层级 (8 个异常类)
+│   ├── exceptions.py               # 统一异常层级 (9 个异常类)
 │   ├── llm.py                      # LLMClient (zai-sdk 封装)
 │   ├── logging.py                  # structlog 配置
 │   ├── memory.py                   # 文件系统记忆 CRUD
 │   ├── prompts.py                  # Prompt 层叠组装系统
 │   ├── session_storage.py          # 会话快照持久化
 │   ├── workspace.py                # ~/.spide_agent/ 工作空间管理
-│   ├── spider/                     # 爬虫引擎
+│   ├── spider/                     # 爬虫引擎 (11 个文件)
+│   │   ├── __init__.py
 │   │   ├── fetcher.py              # AsyncFetcher (aiohttp + BeautifulSoup)
 │   │   ├── pipeline.py             # 数据清洗/去重/解析
 │   │   ├── uapi_client.py          # UAPI 热搜 REST 客户端（限流+熔断）
 │   │   ├── media_crawler_adapter.py # MediaCrawler 深度采集适配器
-│   │   ├── batch_scheduler.py      # 批量多平台并行调度（熔断+断点）
+│   │   ├── batch_scheduler.py      # 批量多平台并行调度
 │   │   ├── task_scheduler.py       # 定时采集调度器
 │   │   ├── rate_limiter.py         # 令牌桶限流 + 熔断器 + 断点管理
-│   │   ├── incremental.py          # 增量检测器（Diff + 状态标记）
-│   │   └── deep_tracker.py         # 话题深度追踪（搜索+摘要+情感）
-│   │   └── timed_search.py         # 定时搜索（热搜+关联新闻+持久化）
+│   │   ├── incremental.py          # 增量检测器
+│   │   ├── deep_tracker.py         # 话题深度追踪
+│   │   └── timed_search.py         # 定时搜索
 │   ├── monitor/                    # 告警监控
-│   │   ├── alert_engine.py         # 告警规则引擎（关键词/热度/状态）
-│   │   └── notifier.py             # 多渠道通知（Log/MQTT/Webhook/飞书）
+│   │   ├── __init__.py
+│   │   ├── alert_engine.py         # 告警规则引擎
+│   │   └── notifier.py             # 多渠道通知
 │   ├── harness/                    # 核心调度引擎
+│   │   ├── __init__.py
 │   │   └── engine.py               # Engine + RuntimeBundle
 │   ├── mcp/                        # MCP 协议层
+│   │   ├── __init__.py
 │   │   ├── server.py               # MCP Server (stdio, 8 个工具)
 │   │   ├── client.py               # MCP Client
 │   │   ├── tools.py                # 工具定义 (JSON Schema)
-│   │   └── search_provider.py      # 搜索适配器（DuckDuckGo/网页抓取/GitHub）
+│   │   └── search_provider.py      # 搜索适配器
 │   ├── mqtt/                       # MQTT 通讯
+│   │   ├── __init__.py
 │   │   └── client.py               # MQTTClient (TLS + aiomqtt)
 │   ├── queue/                      # 消息总线
+│   │   ├── __init__.py
 │   │   └── broker.py               # MessageBroker (pub/sub)
 │   ├── storage/                    # 数据存储
-│   │   ├── models.py               # Pydantic 数据模型 (15 实体 + 6 枚举)
-│   │   ├── sqlite_repo.py          # SQLite 异步仓库 (12 个表)
+│   │   ├── __init__.py
+│   │   ├── models.py               # Pydantic 数据模型
+│   │   ├── sqlite_repo.py          # SQLite 异步仓库
 │   │   ├── redis_cache.py          # Redis 缓存
 │   │   ├── repository.py           # 抽象仓库接口
-│   │   └── exporter.py             # JSON/JSONL/CSV/Excel 导出
+│   │   └── exporter.py             # 多格式导出
 │   ├── analysis/                   # AI 分析
-│   │   ├── summarizer.py           # 趋势分析/内容摘要/采集策略
-│   │   ├── wordcloud_generator.py  # 词云生成 (jieba + wordcloud)
-│   │   ├── cross_platform.py       # 跨平台关联分析 (LLM 语义聚类)
-│   │   └── title_similarity.py     # 标题相似度 (Jaccard + 编辑距离)
-│   ├── dashboard/                  # 数据看板
+│   │   ├── __init__.py
+│   │   ├── summarizer.py           # 趋势/摘要/策略
+│   │   ├── wordcloud_generator.py  # 词云生成
+│   │   ├── cross_platform.py       # 跨平台关联分析
+│   │   └── title_similarity.py     # 标题相似度
+│   ├── dashboard/                  # HTML 看板生成
+│   │   ├── __init__.py
 │   │   ├── collector.py            # 数据聚合
 │   │   ├── template.py             # HTML 模板
 │   │   └── renderer.py             # 渲染 + 输出
 │   └── gateway/                    # 网关（预留）
 │       └── __init__.py
-├── tests/                          # 测试
+├── tests/                          # 测试 (50 文件)
 │   ├── conftest.py
-│   ├── unit/                       # 单元测试 (34 个)
+│   ├── unit/                       # 单元测试 (36 个)
 │   ├── integration/                # 集成测试 (6 个)
-│   └── e2e/                        # E2E 测试 (4 个)
+│   └── e2e/                        # E2E 测试 (6 个)
 ├── configs/                        # 配置文件 (不入 Git)
 │   ├── default.yaml
 │   ├── llm.yaml
 │   ├── mqtt.yaml
 │   ├── uapi.yaml
-│   └── alert_rules.yaml            # 告警规则模板
+│   └── alert_rules.yaml
+├── dashboard/                      # Dashboard Web 应用
+│   ├── api.py                      # FastAPI 后端
+│   ├── feishu_handler.py           # 飞书 Bot 事件回调
+│   ├── github_trending.py          # GitHub AI 热点采集
+│   └── index.html                  # 前端页面
 ├── CA/                             # TLS 证书 (不入 Git)
 ├── Mcaclaw/                        # macOS 安装引导脚本
-├── MediaCrawler/                   # MediaCrawler 子项目 (git submodule/拷贝)
+├── MediaCrawler/                   # MediaCrawler 子项目
 ├── OpenHarness/                    # OpenHarness 参考实现
+├── OpenCLI/                        # OpenCLI Skills
 ├── docs/                           # 文档
 ├── scripts/                        # 工具脚本
 ├── skills/                         # Skill 定义
 ├── pyproject.toml                  # 项目元数据 + 依赖
-├── dashboard/                      # Dashboard Web 应用（独立于 spide/dashboard/）
-│   ├── api.py                      # FastAPI 后端 — Dashboard API + 采集触发 + GitHub 热点
-│   ├── feishu_handler.py           # 飞书 Bot 事件回调（指令解析 + 命令执行）
-│   ├── github_trending.py          # GitHub AI 热点采集（5 方向搜索 + 飞书卡片推送）
-│   └── index.html                  # 前端页面
 └── CLAUDE.md                       # 本文件
 ```
 
@@ -233,25 +251,25 @@ Spide_agent/
 
 ## 模块索引
 
-| 模块 | 文件数 | 行数 | 职责 | 模块文档 |
-|------|--------|------|------|----------|
-| `spide/` (根级) | 11 | ~3011 | CLI、配置、LLM、记忆、工作空间 | — |
-| `spide/spider/` | 11 | ~2574 | 采集引擎（UAPI/深度/调度/限流/增量/追踪/定时搜索） | [CLAUDE.md](./spide/spider/CLAUDE.md) |
-| `spide/monitor/` | 3 | ~395 | 告警监控（规则引擎/多渠道通知） | — |
-| `spide/harness/` | 2 | ~414 | 核心调度引擎 | [CLAUDE.md](./spide/harness/CLAUDE.md) |
-| `spide/mcp/` | 5 | ~988 | MCP 协议（Server/Client/工具/搜索适配器） | [CLAUDE.md](./spide/mcp/CLAUDE.md) |
-| `spide/mqtt/` | 2 | ~216 | MQTT 通讯（TLS + aiomqtt） | [CLAUDE.md](./spide/mqtt/CLAUDE.md) |
-| `spide/queue/` | 2 | ~149 | 消息总线（pub/sub） | [CLAUDE.md](./spide/queue/CLAUDE.md) |
-| `spide/storage/` | 6 | ~1171 | SQLite/Redis/导出/模型 | [CLAUDE.md](./spide/storage/CLAUDE.md) |
-| `spide/analysis/` | 5 | ~851 | AI 分析（摘要/趋势/词云/聚类/相似度） | [CLAUDE.md](./spide/analysis/CLAUDE.md) |
-| `spide/dashboard/` | 4 | ~709 | 数据看板（HTML 生成） | [CLAUDE.md](./spide/dashboard/CLAUDE.md) |
-| `dashboard/` (Web) | 4 | ~1,354 | FastAPI Dashboard + 飞书 Bot + GitHub 热点 | — |
-| `tests/` | 50 | ~6,484 | 测试（单元/集成/E2E） | [CLAUDE.md](./tests/CLAUDE.md) |
-| **总计** | **~100** | **~12,683** | | |
+| 模块 | 文件数 | 职责 | 模块文档 |
+|------|--------|------|----------|
+| `spide/` (根级) | 11 | CLI、配置、LLM、记忆、工作空间、异常、日志 | — |
+| `spide/spider/` | 11 | 采集引擎（UAPI/深度/调度/限流/增量/追踪/定时搜索） | [CLAUDE.md](./spide/spider/CLAUDE.md) |
+| `spide/monitor/` | 3 | 告警监控（规则引擎/多渠道通知） | [CLAUDE.md](./spide/monitor/CLAUDE.md) |
+| `spide/harness/` | 2 | 核心调度引擎 | [CLAUDE.md](./spide/harness/CLAUDE.md) |
+| `spide/mcp/` | 4 | MCP 协议（Server/Client/工具/搜索适配器） | [CLAUDE.md](./spide/mcp/CLAUDE.md) |
+| `spide/mqtt/` | 2 | MQTT 通讯（TLS + aiomqtt） | [CLAUDE.md](./spide/mqtt/CLAUDE.md) |
+| `spide/queue/` | 2 | 消息总线（pub/sub） | [CLAUDE.md](./spide/queue/CLAUDE.md) |
+| `spide/storage/` | 5 | SQLite/Redis/导出/模型 | [CLAUDE.md](./spide/storage/CLAUDE.md) |
+| `spide/analysis/` | 4 | AI 分析（摘要/趋势/词云/聚类/相似度） | [CLAUDE.md](./spide/analysis/CLAUDE.md) |
+| `spide/dashboard/` | 3 | HTML 数据看板 | [CLAUDE.md](./spide/dashboard/CLAUDE.md) |
+| `dashboard/` (Web) | 4 | FastAPI Dashboard + 飞书 Bot + GitHub 热点 | — |
+| `tests/` | 50 | 测试（单元/集成/E2E） | [CLAUDE.md](./tests/CLAUDE.md) |
+| **总计** | **~101** | 源码 55 + 测试 50 + 配置/文档 若干 | |
 
 ---
 
-## CLI 命令速查
+## CLI 命令速查（24 命令）
 
 | 命令 | 用途 |
 |------|------|
@@ -271,7 +289,7 @@ Spide_agent/
 | `spide export -s weibo -f excel` | 数据导出 |
 | `spide wordcloud -s weibo` | 词云生成 |
 | `spide dedup` | 数据去重 |
-| `spide dashboard` | 数据看板 |
+| `spide dashboard` | HTML 数据看板 |
 | `spide schedule start` | 定时调度 |
 | `spide timed-search start` | 定时搜索（每日 09:00/18:00 采集热搜 + 搜索关联新闻） |
 | `spide timed-search query` | 查询定时搜索记录 |
@@ -324,7 +342,8 @@ uv run pytest                        # 运行全部测试（471 passed）
 uv run pytest tests/unit/            # 仅单元测试
 uv run pytest -m integration         # 集成测试（需网络）
 uv run ruff format . && ruff check . # 格式化 + lint（当前 0 错误）
-uv run spide analyze -s weibo      # AI 分析（需 LLM API Key）
+uv run spide analyze -s weibo        # AI 分析（需 LLM API Key）
+uvicorn dashboard.api:app --reload --port 8765   # 启动 Web Dashboard
 ```
 
 ---
@@ -336,7 +355,7 @@ uv run spide analyze -s weibo      # AI 分析（需 LLM API Key）
 - **异步**: `async/await` 优先, `asyncio.to_thread` 包装同步调用
 - **命名**: `snake_case` 模块/函数, `PascalCase` 类, `UPPER_SNAKE` 常量
 - **配置外置**: 所有配置从 `configs/` 加载
-- **异常体系**: `SpideError` → 8 个子类 (Config/Storage/Spider/MCP/MQTT/LLM/Workspace/Analysis)
+- **异常体系**: `SpideError` → 9 个子类 (Config/Storage/Spider/MCP/MQTT/LLM/Workspace/Analysis + SpideError 基类)
 - **日志**: structlog 结构化日志, `get_logger(__name__)`
 - **测试**: pytest + pytest-asyncio, `asyncio_mode = "auto"`
 - **稳定性**: RateLimiter(令牌桶) + CircuitBreaker(熔断) + CheckpointManager(断点)
@@ -356,14 +375,17 @@ uv run spide analyze -s weibo      # AI 分析（需 LLM API Key）
 
 | 指标 | 数量 |
 |------|------|
-| 源码文件 | 55 (.py) = spide/ 52 + dashboard/ 3 |
-| 源码行数 | ~11,841 (spide ~10,487 + dashboard ~1,354) |
+| 源码文件 (spide/) | 52 (.py) |
+| Web 后端 (dashboard/) | 3 (.py) |
+| 源码行数 (spide) | ~10,487 |
+| 源码行数 (dashboard) | ~1,354 |
+| 源码合计 | ~11,841 |
 | Dashboard 前端 | 1 (.html, ~434 行) |
 | 测试文件 | 50 (.py) |
 | 测试行数 | ~6,484 |
-| 测试用例 | 471 |
+| 测试用例 | 471 (unit 350 + integration 38 + e2e 82) |
 | 配置文件 | 5 (.yaml) |
 | CLI 命令 | 24 |
 | MCP 工具 | 8 |
-| 数据模型 | 15 实体 + 6 枚举 (Pydantic) |
-| 异常类 | 8 |
+| 数据模型 | 15 实体 + 6 枚举 (Pydantic v2) |
+| 异常类 | 9 (基类 + 8 子类) |
