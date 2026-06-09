@@ -11,17 +11,6 @@ from spide.exceptions import SpiderError
 from spide.spider.uapi_client import _PLATFORM_MAP, UAPIClient, _extract_platform
 
 
-def _mock_aiohttp_get(resp):
-    """构建 aiohttp ClientSession.get mock."""
-    get_cm = MagicMock()
-    get_cm.__aenter__ = AsyncMock(return_value=resp)
-    get_cm.__aexit__ = AsyncMock(return_value=False)
-
-    session = MagicMock()
-    session.get.return_value = get_cm
-    return session
-
-
 class TestPlatformMapping:
     """平台映射."""
 
@@ -37,11 +26,14 @@ class TestPlatformMapping:
         assert _extract_platform("/social/baidu/hot") == "baidu"
         assert _extract_platform("weibo") == "weibo"
 
+    def test_extract_unknown(self):
+        assert _extract_platform("/social/unknown/hot") == "unknown"
+
 
 class TestUAPIClientMock:
     """UAPI 客户端 mock 测试."""
 
-    async def test_fetch_hotboard(self):
+    async def test_fetch_hotboard(self, mock_aiohttp_response):
         config = UAPIConfig(api_key="test")
         client = UAPIClient(config)
         await client.start()
@@ -58,14 +50,15 @@ class TestUAPIClientMock:
         mock_resp.status = 200
         mock_resp.json = AsyncMock(return_value=mock_resp_data)
 
-        with patch("aiohttp.ClientSession.get", new=_mock_aiohttp_get(mock_resp).get):
+        mock_get = mock_aiohttp_response(mock_resp)
+        with patch("aiohttp.ClientSession.get", new=mock_get):
             topics = await client.fetch_hotboard("weibo")
             assert len(topics) == 2
             assert topics[0].title == "热搜1"
 
         await client.stop()
 
-    async def test_http_error(self):
+    async def test_http_error(self, mock_aiohttp_response):
         config = UAPIConfig(api_key="test")
         client = UAPIClient(config)
         await client.start()
@@ -74,9 +67,10 @@ class TestUAPIClientMock:
         mock_resp.status = 500
         mock_resp.text = AsyncMock(return_value="Server Error")
 
-        with patch("aiohttp.ClientSession.get", new=_mock_aiohttp_get(mock_resp).get):
-            with pytest.raises(SpiderError, match="500"):
-                await client.fetch_hotboard("weibo")
+        mock_get = mock_aiohttp_response(mock_resp)
+        with patch("aiohttp.ClientSession.get", new=mock_get), \
+             pytest.raises(SpiderError, match="500"):
+            await client.fetch_hotboard("weibo")
 
         await client.stop()
 

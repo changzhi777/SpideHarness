@@ -129,8 +129,14 @@ class TestGenerateDiffReport:
     def test_report_structure(self):
         detector = IncrementalDetector()
         changes = [
-            HotTopicChange(title="a", source=TopicSource.WEIBO, status=TopicStatus.NEW, current_hot_value=5000),
-            HotTopicChange(title="b", source=TopicSource.WEIBO, status=TopicStatus.RISING, hot_value_change=1000),
+            HotTopicChange(
+                title="a", source=TopicSource.WEIBO,
+                status=TopicStatus.NEW, current_hot_value=5000,
+            ),
+            HotTopicChange(
+                title="b", source=TopicSource.WEIBO,
+                status=TopicStatus.RISING, hot_value_change=1000,
+            ),
             HotTopicChange(title="c", source=TopicSource.WEIBO, status=TopicStatus.STABLE),
         ]
         report = detector.generate_diff_report(changes)

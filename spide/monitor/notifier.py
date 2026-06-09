@@ -16,7 +16,6 @@
 
 from __future__ import annotations
 
-import json
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -96,20 +95,19 @@ class WebhookNotifier(BaseNotifier):
         }
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    self._url,
-                    json=payload,
-                    timeout=aiohttp.ClientTimeout(total=10),
-                ) as resp:
-                    if resp.status >= 400:
-                        logger.warning(
-                            "webhook_notify_failed",
-                            status=resp.status,
-                            url=self._url,
-                        )
-                        return False
-                    return True
+            async with aiohttp.ClientSession() as session, session.post(
+                self._url,
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                if resp.status >= 400:
+                    logger.warning(
+                        "webhook_notify_failed",
+                        status=resp.status,
+                        url=self._url,
+                    )
+                    return False
+                return True
         except Exception as e:
             logger.warning("webhook_notify_error", error=str(e))
             return False
@@ -153,17 +151,16 @@ class FeishuNotifier(BaseNotifier):
         }
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    self._url,
-                    json=payload,
-                    timeout=aiohttp.ClientTimeout(total=10),
-                ) as resp:
-                    if resp.status >= 400:
-                        text = await resp.text()
-                        logger.warning("feishu_notify_failed", status=resp.status, body=text[:200])
-                        return False
-                    return True
+            async with aiohttp.ClientSession() as session, session.post(
+                self._url,
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as resp:
+                if resp.status >= 400:
+                    text = await resp.text()
+                    logger.warning("feishu_notify_failed", status=resp.status, body=text[:200])
+                    return False
+                return True
         except Exception as e:
             logger.warning("feishu_notify_error", error=str(e))
             return False

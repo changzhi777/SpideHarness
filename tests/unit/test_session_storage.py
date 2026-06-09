@@ -4,8 +4,6 @@
 
 from pathlib import Path
 
-import pytest
-
 from spide.session_storage import SessionStorage
 
 

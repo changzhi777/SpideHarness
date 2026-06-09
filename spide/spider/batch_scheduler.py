@@ -25,7 +25,7 @@ from typing import Any
 
 from spide.exceptions import SpiderError
 from spide.logging import get_logger
-from spide.spider.rate_limiter import CircuitBreaker, CheckpointManager
+from spide.spider.rate_limiter import CheckpointManager, CircuitBreaker
 from spide.storage.models import (
     CrawlMode,
     DeepComment,

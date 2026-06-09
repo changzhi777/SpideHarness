@@ -16,7 +16,6 @@ import pytest
 from spide.config import load_settings
 from spide.mqtt.client import MQTTClient
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

@@ -5,14 +5,12 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from spide.mcp.search_provider import (
-    _extract_body,
-    _strip_html,
-    PageContent,
     RepoInfo,
     RepoInfoProvider,
-    SearchResult,
     WebContentProvider,
     WebSearchProvider,
+    _extract_body,
+    _strip_html,
 )
 
 

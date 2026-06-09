@@ -55,7 +55,7 @@ class TestCLIInit:
 
     def test_init_creates_template_files(self, cli_workspace):
         runner.invoke(app, ["init", "-w", str(cli_workspace)])
-        from spide.workspace import get_soul_path, get_user_path, get_identity_path
+        from spide.workspace import get_identity_path, get_soul_path, get_user_path
 
         assert get_soul_path(str(cli_workspace)).exists()
         assert get_user_path(str(cli_workspace)).exists()
@@ -114,7 +114,8 @@ class TestCLIHelp:
     def test_help_lists_all_commands(self):
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
-        for cmd in ["init", "crawl", "doctor", "analyze", "export", "wordcloud", "schedule", "memory"]:
+        cmds = ["init", "crawl", "doctor", "analyze", "export", "wordcloud", "schedule", "memory"]
+        for cmd in cmds:
             assert cmd in result.stdout
 
     def test_no_args_shows_welcome(self):

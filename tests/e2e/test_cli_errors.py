@@ -56,25 +56,16 @@ class TestCLIErrors:
         assert result.exit_code != 0 or "未知" in result.stdout or "无效" in result.stdout
 
     def test_export_unsupported_format(self, cli_workspace):
-        """不支持的导出格式应报错."""
-        from unittest.mock import AsyncMock, patch
-
-        mock_topics = [
-            type("MockTopic", (), {
-                "title": "test", "source": type("S", (), {"value": "weibo"})(),
-                "hot_value": 100, "rank": 1, "url": "http://x",
-                "model_dump": lambda self: {"title": "test"},
-            })()
-        ]
-        # 直接调用 _export_async 不太方便，改为验证 format 选项
-        result = runner.invoke(app, ["export", "-s", "weibo", "-f", "xml", "-w", str(cli_workspace)])
-        # xml 不是支持的格式，可能报错或由 StorageError 处理
-        # 不强断言 exit_code，只要不崩溃即可
+        """不支持的导出格式应报错或不崩溃."""
+        result = runner.invoke(
+            app, ["export", "-s", "weibo", "-f", "xml", "-w", str(cli_workspace)]
+        )
+        # 不崩溃即可，export --help 验证了格式选项存在
         assert result.exit_code in (0, 1)
+        assert not result.exception or isinstance(result.exception, SystemExit)
 
     def test_analyze_no_source_no_keywords(self, cli_workspace):
-        """analyze 无 source 也无 keywords 应报错."""
+        """analyze 无 source 也无 keywords 应提示错误."""
         result = runner.invoke(app, ["analyze", "-w", str(cli_workspace)])
-        # CLI 不强制但 _analyze_async 会打印错误
-        # 可能 exit_code=1 或输出包含"请指定"
-        assert result.exit_code in (0, 1)
+        # _analyze_async 应打印"请指定"错误并退出
+        assert result.exit_code == 1 or "请指定" in result.stdout

@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field
 # ---------------------------------------------------------------------------
 
 
-class TopicSource(str, Enum):
+class TopicSource(StrEnum):
     """热搜数据源平台."""
 
     WEIBO = "weibo"
@@ -38,7 +38,7 @@ class TopicSource(str, Enum):
     CUSTOM = "custom"
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(StrEnum):
     """任务状态."""
 
     PENDING = "pending"
@@ -48,7 +48,7 @@ class TaskStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class ArticleCategory(str, Enum):
+class ArticleCategory(StrEnum):
     """新闻分类."""
 
     SOCIETY = "society"
@@ -133,7 +133,7 @@ class CrawlSession(BaseModel):
     progress: float = 0.0  # 0.0 ~ 1.0
 
 
-class Platform(str, Enum):
+class Platform(StrEnum):
     """深度采集支持的平台（对应 MediaCrawler）."""
 
     XHS = "xhs"
@@ -145,7 +145,7 @@ class Platform(str, Enum):
     ZHIHU = "zhihu"
 
 
-class CrawlMode(str, Enum):
+class CrawlMode(StrEnum):
     """深度采集模式."""
 
     SEARCH = "search"
@@ -227,7 +227,7 @@ class DeepCreator(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class TopicStatus(str, Enum):
+class TopicStatus(StrEnum):
     """话题状态变化."""
 
     NEW = "new"

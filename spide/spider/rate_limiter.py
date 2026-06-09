@@ -27,7 +27,7 @@ import json
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 import aiosqlite
@@ -109,7 +109,7 @@ class RateLimiter:
 # ---------------------------------------------------------------------------
 
 
-class _BreakerState(str, Enum):
+class _BreakerState(StrEnum):
     CLOSED = "closed"
     OPEN = "open"
     HALF_OPEN = "half_open"
@@ -172,7 +172,7 @@ class CircuitBreaker:
             result = await fn(*args, **kwargs)
             self._on_success()
             return result
-        except Exception as e:
+        except Exception:
             self._on_failure()
             raise
 

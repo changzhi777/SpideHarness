@@ -2,10 +2,10 @@
 # Author: 外星动物（常智） / IoTchange / 14455975@qq.com
 """单元测试 — 跨平台关联分析."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from spide.analysis.cross_platform import CrossPlatformAnalyzer
-from spide.storage.models import HotTopic, TopicCluster, TopicSource
+from spide.storage.models import HotTopic, TopicSource
 
 
 def _make_topic(title: str, source: TopicSource, hot_value: int = 1000) -> HotTopic:
@@ -61,7 +61,10 @@ class TestParseClusters:
 
     def test_parse_valid_json(self):
         raw = [
-            {"name": "AI", "keywords": ["AI"], "platforms": ["weibo"], "topic_titles": ["AI突破"], "cross_platform": True, "analysis": "test"},
+            {
+                "name": "AI", "keywords": ["AI"], "platforms": ["weibo"],
+                "topic_titles": ["AI突破"], "cross_platform": True, "analysis": "test",
+            },
         ]
         clusters = CrossPlatformAnalyzer._parse_clusters(raw)
         assert len(clusters) == 1
@@ -79,7 +82,9 @@ class TestAnalyzeWithMock:
         mock_resp = MagicMock()
         mock_resp.choices = [MagicMock()]
         mock_resp.choices[0].message.content = '''```json
-[{"name": "科技", "keywords": ["AI"], "platforms": ["weibo"], "topic_titles": ["AI突破"], "cross_platform": true, "analysis": "AI话题热度高"}]
+[{"name": "科技", "keywords": ["AI"], "platforms": ["weibo"],
+  "topic_titles": ["AI突破"], "cross_platform": true,
+  "analysis": "AI话题热度高"}]
 ```'''
         llm.chat.return_value = mock_resp
 

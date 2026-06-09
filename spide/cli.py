@@ -15,9 +15,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncGenerator
 
 import typer
 from rich.console import Console
@@ -432,7 +432,7 @@ def run(
 async def _run_async(prompt: str, use_stream: bool, workspace: str | None) -> None:
     """Agent 运行异步实现."""
     try:
-        async with _engine_session(workspace) as (engine, bundle, settings):
+        async with _engine_session(workspace) as (engine, bundle, _settings):
             console.print(f"[cyan]会话 {bundle.session_id}[/cyan]")
             console.print(f"[dim]模型: {bundle.settings.llm.text.model}[/dim]\n")
 
@@ -516,11 +516,10 @@ async def _dashboard_async(
     """Dashboard 异步实现."""
     import webbrowser
 
-    from spide.dashboard import collect_dashboard_data, render_dashboard
-    from spide.dashboard.renderer import write_dashboard
-
     # 使用与 crawl 相同的数据库路径逻辑
     from spide.config import load_settings
+    from spide.dashboard import collect_dashboard_data, render_dashboard
+    from spide.dashboard.renderer import write_dashboard
     settings = load_settings()
     db_path = settings.storage.sqlite_path
 
@@ -538,10 +537,7 @@ async def _dashboard_async(
     html = render_dashboard(data)
 
     # 确定输出路径
-    if output:
-        out_path = Path(output)
-    else:
-        out_path = Path("dashboard") / "index.html"
+    out_path = Path(output) if output else Path("dashboard") / "index.html"
 
     filepath = write_dashboard(html, out_path)
     # 转为绝对路径，确保 as_uri() 可用
@@ -601,7 +597,7 @@ async def _dedup_async(workspace: str | None, dry_run: bool) -> None:
 
     # 找出需要删除的 ID
     ids_to_delete: list[int] = []
-    for key, items in groups.items():
+    for _key, items in groups.items():
         if len(items) <= 1:
             continue
         # 排序：hot_value 降序 → fetched_at 降序，保留第一条
@@ -618,7 +614,7 @@ async def _dedup_async(workspace: str | None, dry_run: bool) -> None:
 
     # 输出预览
     distinct = len(groups)
-    console.print(f"\n[bold]数据去重分析[/bold]")
+    console.print("\n[bold]数据去重分析[/bold]")
     console.print(f"  总记录数:   {total}")
     console.print(f"  不重复:     {distinct}")
     console.print(f"  重复待清理: [red]{len(ids_to_delete)}[/red] 条")
@@ -780,77 +776,81 @@ async def _analyze_async(
 ) -> None:
     """AI 分析异步实现."""
     try:
-        async with _engine_session(workspace) as (engine, bundle, settings):
+        async with _engine_session(workspace) as (_engine, bundle, _settings):
             console.print(f"[cyan]会话 {bundle.session_id}[/cyan]\n")
 
-        from spide.analysis.summarizer import ContentSummarizer, SmartCrawlStrategy, TrendAnalyzer
+            from spide.analysis.summarizer import (
+                ContentSummarizer,
+                SmartCrawlStrategy,
+                TrendAnalyzer,
+            )
 
-        summarizer = ContentSummarizer(bundle.llm)
-        analyzer = TrendAnalyzer(bundle.llm)
+            summarizer = ContentSummarizer(bundle.llm)
+            analyzer = TrendAnalyzer(bundle.llm)
 
-        # 采集热搜作为分析输入
-        if source and bundle.uapi:
-            console.print(f"[yellow]正在采集 {source} 热搜...[/yellow]")
-            topics = await bundle.uapi.fetch_hotboard(source)
-            console.print(f"[green]获取 {len(topics)} 条热搜[/green]\n")
+            # 采集热搜作为分析输入
+            if source and bundle.uapi:
+                console.print(f"[yellow]正在采集 {source} 热搜...[/yellow]")
+                topics = await bundle.uapi.fetch_hotboard(source)
+                console.print(f"[green]获取 {len(topics)} 条热搜[/green]\n")
 
-            # 趋势分析
-            topics_data = [
-                {"title": t.title, "hot_value": t.hot_value, "source": t.source.value}
-                for t in topics
-            ]
-            trend = await analyzer.analyze(topics_data)
-            console.print("[bold]热点趋势分析[/bold]")
-            if "analysis" in trend:
-                console.print(f"  {trend['analysis']}")
-            if "top_categories" in trend:
-                console.print(f"  热门分类: {', '.join(trend['top_categories'])}")
-            if "hot_domains" in trend:
-                console.print(f"  活跃领域: {', '.join(trend['hot_domains'])}")
-            console.print()
-
-            # 内容摘要（取 Top 3 热搜标题）
-            if keywords or len(topics) > 0:
-                console.print("[bold]热点内容摘要[/bold]")
-                target_topics = topics[:3]
-                for t in target_topics:
-                    result = await summarizer.summarize(
-                        title=t.title,
-                        content=t.title,  # 热搜仅有标题，用标题作为内容
-                        source=t.source.value,
-                    )
-                    if "error" not in result:
-                        console.print(f"  [cyan]{t.title}[/cyan]")
-                        console.print(f"  摘要: {result.get('summary', 'N/A')}")
-                        console.print(f"  关键词: {', '.join(result.get('keywords', []))}")
-                        console.print()
-
-            # 智能采集策略
-            if do_strategy:
-                strategist = SmartCrawlStrategy(bundle.llm)
-                result = await strategist.recommend(topics_data)
-                console.print("[bold]智能采集策略[/bold]")
-                if "analysis" in result:
-                    console.print(f"  趋势分析: {result['analysis']}")
-                if "search_keywords" in result:
-                    console.print(f"  推荐关键词: {', '.join(result['search_keywords'])}")
-                if "recommended_sources" in result:
-                    console.print(f"  推荐来源: {', '.join(result['recommended_sources'])}")
+                # 趋势分析
+                topics_data = [
+                    {"title": t.title, "hot_value": t.hot_value, "source": t.source.value}
+                    for t in topics
+                ]
+                trend = await analyzer.analyze(topics_data)
+                console.print("[bold]热点趋势分析[/bold]")
+                if "analysis" in trend:
+                    console.print(f"  {trend['analysis']}")
+                if "top_categories" in trend:
+                    console.print(f"  热门分类: {', '.join(trend['top_categories'])}")
+                if "hot_domains" in trend:
+                    console.print(f"  活跃领域: {', '.join(trend['hot_domains'])}")
                 console.print()
-        else:
-            # 无数据源，用关键词直接分析
-            if keywords:
-                kw_list = [k.strip() for k in keywords.split(",") if k.strip()]
-                console.print(f"[yellow]分析关键词: {', '.join(kw_list)}[/yellow]\n")
-                for kw in kw_list:
-                    result = await summarizer.summarize(title=kw, content=kw)
-                    if "error" not in result:
-                        console.print(f"  [cyan]{kw}[/cyan]")
-                        console.print(f"  分类: {result.get('category', 'N/A')}")
-                        console.print(f"  关键词: {', '.join(result.get('keywords', []))}")
-                        console.print()
+
+                # 内容摘要（取 Top 3 热搜标题）
+                if keywords or len(topics) > 0:
+                    console.print("[bold]热点内容摘要[/bold]")
+                    target_topics = topics[:3]
+                    for t in target_topics:
+                        result = await summarizer.summarize(
+                            title=t.title,
+                            content=t.title,  # 热搜仅有标题，用标题作为内容
+                            source=t.source.value,
+                        )
+                        if "error" not in result:
+                            console.print(f"  [cyan]{t.title}[/cyan]")
+                            console.print(f"  摘要: {result.get('summary', 'N/A')}")
+                            console.print(f"  关键词: {', '.join(result.get('keywords', []))}")
+                            console.print()
+
+                # 智能采集策略
+                if do_strategy:
+                    strategist = SmartCrawlStrategy(bundle.llm)
+                    result = await strategist.recommend(topics_data)
+                    console.print("[bold]智能采集策略[/bold]")
+                    if "analysis" in result:
+                        console.print(f"  趋势分析: {result['analysis']}")
+                    if "search_keywords" in result:
+                        console.print(f"  推荐关键词: {', '.join(result['search_keywords'])}")
+                    if "recommended_sources" in result:
+                        console.print(f"  推荐来源: {', '.join(result['recommended_sources'])}")
+                    console.print()
             else:
-                console.print("[red]请指定 --source 或 --keywords[/red]")
+                # 无数据源，用关键词直接分析
+                if keywords:
+                    kw_list = [k.strip() for k in keywords.split(",") if k.strip()]
+                    console.print(f"[yellow]分析关键词: {', '.join(kw_list)}[/yellow]\n")
+                    for kw in kw_list:
+                        result = await summarizer.summarize(title=kw, content=kw)
+                        if "error" not in result:
+                            console.print(f"  [cyan]{kw}[/cyan]")
+                            console.print(f"  分类: {result.get('category', 'N/A')}")
+                            console.print(f"  关键词: {', '.join(result.get('keywords', []))}")
+                            console.print()
+                else:
+                    console.print("[red]请指定 --source 或 --keywords[/red]")
 
     except typer.Exit:
         raise
@@ -887,7 +887,7 @@ async def _export_async(
 ) -> None:
     """数据导出异步实现."""
     try:
-        async with _engine_session(workspace) as (engine, bundle, settings):
+        async with _engine_session(workspace) as (engine, bundle, _settings):
             console.print(f"[cyan]会话 {bundle.session_id}[/cyan]\n")
 
             if not source:
@@ -972,7 +972,7 @@ async def _wordcloud_async(
             console.print(f"[green]词云已生成: {filepath}[/green]")
 
         elif source:
-            async with _engine_session(workspace) as (engine, bundle, settings):
+            async with _engine_session(workspace) as (engine, bundle, _settings):
                 console.print(f"[cyan]会话 {bundle.session_id}[/cyan]")
                 console.print(f"[yellow]正在采集 {source} 热搜标题...[/yellow]")
 
@@ -1255,7 +1255,7 @@ async def _timed_search_start_async(
     service = TimedSearchService(db_path=db_path)
     await service.start()
 
-    console.print(f"[cyan]定时搜索服务[/cyan]")
+    console.print("[cyan]定时搜索服务[/cyan]")
     console.print(f"  执行时间: [green]{', '.join(cron_times)}[/green]")
     console.print(f"  热搜源: [green]{', '.join(source_list)}[/green]")
     console.print(f"  每平台取 Top {top_n}")
@@ -1375,6 +1375,8 @@ def _resolve_workspace(workspace: str | None) -> Path:
 
 def _current_schedule_time(cron_times: list[str]) -> str:
     """根据当前时间匹配最近的 cron 时间."""
+    from datetime import datetime
+
     now = datetime.now()
     now_minutes = now.hour * 60 + now.minute
     best = cron_times[0]
@@ -1402,10 +1404,10 @@ def crawl_diff(
 async def _crawl_diff_async(
     source: str, last: bool, history: bool, workspace: str | None
 ) -> None:
-    async with _engine_session(workspace) as (engine, bundle, settings):
+    async with _engine_session(workspace) as (engine, _bundle, settings):
         if last or history:
-            from spide.storage.sqlite_repo import SqliteRepository
             from spide.storage.models import CrawlSnapshot
+            from spide.storage.sqlite_repo import SqliteRepository
 
             repo = SqliteRepository(CrawlSnapshot, db_path=settings.storage.sqlite_path)
             await repo.start()
@@ -1494,7 +1496,7 @@ async def _monitor_async(
 
     dispatcher = NotifierDispatcher()
 
-    async with _engine_session(workspace) as (engine, bundle, settings):
+    async with _engine_session(workspace) as (engine, _bundle, settings):
         async def _check_once() -> None:
             sources = list(set(s.value for r in rules for s in r.sources)) or ["weibo", "baidu", "zhihu"]
             results = await engine.crawl(sources=sources)
@@ -1535,7 +1537,7 @@ def track(
 
 
 async def _track_async(source: str, top: int, workspace: str | None) -> None:
-    async with _engine_session(workspace) as (engine, bundle, settings):
+    async with _engine_session(workspace) as (engine, _bundle, _settings):
         results = await engine.crawl(sources=[source])
         topics = results.get(source, [])
 
@@ -1579,9 +1581,9 @@ def cross_analyze(
 async def _cross_analyze_async(
     report: bool, save: bool, workspace: str | None
 ) -> None:
-    async with _engine_session(workspace) as (engine, bundle, settings):
+    async with _engine_session(workspace) as (engine, _bundle, settings):
         sources = ["weibo", "baidu", "douyin", "zhihu", "bilibili"]
-        console.print(f"[cyan]采集全平台热搜...[/cyan]")
+        console.print("[cyan]采集全平台热搜...[/cyan]")
         results = await engine.crawl(sources=sources)
 
         available = {k: v for k, v in results.items() if v}
@@ -1611,8 +1613,8 @@ async def _cross_analyze_async(
         console.print(table)
 
         if save:
-            from spide.storage.sqlite_repo import SqliteRepository
             from spide.storage.models import TopicCluster
+            from spide.storage.sqlite_repo import SqliteRepository
 
             repo = SqliteRepository(TopicCluster, db_path=settings.storage.sqlite_path)
             await repo.start()
@@ -1625,8 +1627,8 @@ async def _cross_analyze_async(
 
         if report:
             import json
-            from pathlib import Path
             from datetime import datetime
+            from pathlib import Path
 
             output_dir = Path("data/reports")
             output_dir.mkdir(parents=True, exist_ok=True)

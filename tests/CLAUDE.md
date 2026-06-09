@@ -6,8 +6,8 @@
 
 ```
 tests/
-├── conftest.py                    # 共享 fixtures (tmp_db, tmp_workspace, real_settings)
-├── unit/                          # 单元测试 (32 个)
+├── conftest.py                    # 共享 fixtures (tmp_db, tmp_workspace, real_settings, mock_aiohttp_response)
+├── unit/                          # 单元测试 (34 个)
 │   ├── test_analysis.py           # ContentSummarizer/TrendAnalyzer/SmartCrawlStrategy
 │   ├── test_batch_scheduler.py    # BatchCrawlScheduler + BatchTask/Result
 │   ├── test_broker.py             # MessageBroker pub/sub + 通配符匹配
@@ -34,30 +34,34 @@ tests/
 │   ├── test_rate_limiter.py       # RateLimiter + CircuitBreaker + CheckpointManager
 │   ├── test_incremental.py        # IncrementalDetector 增量检测
 │   ├── test_alert_engine.py       # AlertEngine 规则匹配 + YAML 加载
-│   ├── test_notifier.py           # LogNotifier + NotifierDispatcher
+│   ├── test_notifier.py           # Log/MQTT/Webhook/飞书通知 + Dispatcher
 │   ├── test_deep_tracker.py       # DeepTopicTracker 深度追踪
 │   ├── test_cross_platform.py     # CrossPlatformAnalyzer 跨平台聚类
 │   ├── test_title_similarity.py   # Jaccard + 编辑距离相似度
 │   ├── test_models.py             # Pydantic 模型验证
-│   └── test_config.py             # 配置加载测试
-├── integration/                   # 集成测试 (7 个, 需网络/真实服务)
+│   ├── test_search_provider.py    # WebSearchProvider / WebContentProvider
+│   ├── test_mcp_search_tools.py   # MCP 搜索工具分发
+│   └── test_timed_search.py       # TimedSearchService 定时搜索
+├── integration/                   # 集成测试 (6 个, 需网络/真实服务)
 │   ├── test_crawl_pipeline.py     # 采集管道集成
 │   ├── test_engine_lifecycle.py   # Engine 生命周期
 │   ├── test_real_crawl.py         # @integration 真实 UAPI 采集 (429 跳过)
 │   ├── test_real_llm.py           # @integration 真实 GLM-5.1 调用 (401 跳过)
 │   ├── test_real_mqtt.py          # @integration 真实 MQTT 连接
 │   └── test_uapi_real.py          # @integration 真实 UAPI API
-└── e2e/                           # 端到端测试 (5 个)
-    ├── test_cli_e2e.py            # CLI 命令端到端
-    ├── test_cli_errors.py         # CLI 错误处理
-    ├── test_env_precheck.py       # 环境预检
-    └── test_full_pipeline.py      # 全流程测试
+└── e2e/                           # 端到端测试 (6 个文件)
+    ├── test_cli_e2e.py            # CLI 命令端到端（version/init/doctor/config/memory/crawl）
+    ├── test_cli_errors.py         # CLI 错误处理（缺参数/无效输入）
+    ├── test_cli_advanced.py       # 高级 CLI（crawl-diff/dedup/monitor/track/dashboard/cross-analyze）
+    ├── test_dashboard_api.py      # Dashboard Web API（FastAPI + 飞书 Handler + GitHub Trending）
+    ├── test_env_precheck.py       # 环境预检（version/init/doctor/config/help）
+    └── test_full_pipeline.py      # 全流程测试（Mock + 真实 API）
 ```
 
 ## 运行方式
 
 ```bash
-uv run pytest                      # 全部测试 (333 passed, 8 skipped)
+uv run pytest                      # 全部测试 (471 passed)
 uv run pytest tests/unit/          # 仅单元测试
 uv run pytest tests/integration/   # 集成测试（需 API Key）
 uv run pytest tests/e2e/           # E2E 测试（需完整环境）
@@ -88,7 +92,7 @@ uv run pytest -m integration       # 按 marker 筛选
 
 ## 统计
 
-- 总文件: 44 个
-- 总行数: ~4971 行
-- 测试用例: 341 个
-- 覆盖范围: 所有 spide/ 子模块（含 gateway 空模块）
+- 总文件: 50 个
+- 总行数: ~6,484 行
+- 测试用例: 471 个 (unit 350 + integration 38 + e2e 82)
+- 覆盖范围: 所有 spide/ 子模块 + dashboard/ Web API

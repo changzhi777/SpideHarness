@@ -12,7 +12,7 @@
 |------|------|------|
 | `__init__.py` | 3 | 模块初始化 |
 | `summarizer.py` | 309 | ContentSummarizer + TrendAnalyzer + SmartCrawlStrategy |
-| `wordcloud_generator.py` | 218 | WordCloudGenerator — jieba 分词 + wordcloud 生成 |
+| `wordcloud_generator.py` | 251 | WordCloudGenerator — jieba 分词 + wordcloud 生成 |
 | `cross_platform.py` | 193 | CrossPlatformAnalyzer — LLM 语义聚类 + 跨平台去重 |
 | `title_similarity.py` | 95 | jieba Jaccard + Levenshtein 编辑距离相似度 |
 

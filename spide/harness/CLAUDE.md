@@ -10,8 +10,8 @@
 
 | 文件 | 行数 | 职责 |
 |------|------|------|
-| `__init__.py` | 3 | 导出 Engine |
-| `engine.py` | 277 | Engine + RuntimeBundle |
+| `__init__.py` | 23 | 导出 Engine + 便捷函数 |
+| `engine.py` | 391 | Engine + RuntimeBundle |
 
 ## 核心类
 

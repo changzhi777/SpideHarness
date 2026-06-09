@@ -12,6 +12,32 @@ import pytest
 
 
 @pytest.fixture
+def mock_aiohttp_response():
+    """构建 aiohttp ClientSession.get mock（共享 helper）.
+
+    用法:
+        def test_xxx(self, mock_aiohttp_response):
+            mock_resp = MagicMock()
+            mock_resp.status = 200
+            mock_resp.json = AsyncMock(return_value={"data": 1})
+            with patch("aiohttp.ClientSession.get", new=mock_aiohttp_response(mock_resp)):
+                ...
+    """
+    from unittest.mock import AsyncMock, MagicMock
+
+    def _factory(resp):
+        get_cm = MagicMock()
+        get_cm.__aenter__ = AsyncMock(return_value=resp)
+        get_cm.__aexit__ = AsyncMock(return_value=False)
+
+        session = MagicMock()
+        session.get.return_value = get_cm
+        return session.get
+
+    return _factory
+
+
+@pytest.fixture
 def tmp_db(tmp_path: Path) -> Path:
     """临时 SQLite 数据库路径."""
     return tmp_path / "test.db"

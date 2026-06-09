@@ -10,8 +10,8 @@
 
 | 文件 | 行数 | 职责 |
 |------|------|------|
-| `__init__.py` | 4 | 导出 Event, MessageBroker |
-| `broker.py` | 143 | MessageBroker + Event |
+| `__init__.py` | 7 | 导出 Event, MessageBroker |
+| `broker.py` | 142 | MessageBroker + Event |
 
 ## 核心接口
 

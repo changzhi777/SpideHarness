@@ -7,9 +7,9 @@ import asyncio
 import pytest
 
 from spide.spider.rate_limiter import (
+    CheckpointManager,
     CircuitBreaker,
     CircuitBreakerOpenError,
-    CheckpointManager,
     RateLimiter,
 )
 

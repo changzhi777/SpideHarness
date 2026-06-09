@@ -4,8 +4,6 @@
 
 import asyncio
 
-import pytest
-
 from spide.queue.broker import MessageBroker
 
 

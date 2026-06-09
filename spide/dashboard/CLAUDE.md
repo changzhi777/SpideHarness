@@ -10,7 +10,7 @@
 
 | 文件 | 行数 | 职责 |
 |------|------|------|
-| `__init__.py` | 5 | 导出 collect_dashboard_data, render_dashboard |
+| `__init__.py` | 16 | 导出 collect_dashboard_data, render_dashboard |
 | `collector.py` | 196 | DashboardCollector — SQLite 数据聚合 |
 | `template.py` | 445 | HTML 模板 — 嵌入式 CSS/JS 的单页面看板 |
 | `renderer.py` | 52 | write_dashboard — HTML 写入文件 |

@@ -4,7 +4,6 @@
 
 from pathlib import Path
 
-import pytest
 import yaml
 
 from spide.monitor.alert_engine import AlertEngine

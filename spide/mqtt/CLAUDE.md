@@ -10,8 +10,8 @@ MQTT 通讯客户端封装，支持 TLS 加密连接到 EMQX Cloud，提供发�
 
 | 文件 | 行数 | 职责 |
 |------|------|------|
-| `__init__.py` | 4 | 导出 MQTTClient |
-| `client.py` | 210 | MQTTClient — aiomqtt 封装，TLS + 发布/订阅 |
+| `__init__.py` | 7 | 导出 MQTTClient |
+| `client.py` | 209 | MQTTClient — aiomqtt 封装，TLS + 发布/订阅 |
 
 ## 核心接口
 

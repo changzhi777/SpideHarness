@@ -2,9 +2,6 @@
 # Author: 外星动物（常智） / IoTchange / 14455975@qq.com
 """Dashboard 看板模块单元测试."""
 
-import json
-from pathlib import Path
-from unittest.mock import AsyncMock, patch
 
 from spide.storage.models import HotTopic, TopicSource
 
@@ -117,8 +114,8 @@ class TestRenderer:
     """HTML 渲染逻辑."""
 
     def test_render_contains_html_structure(self):
-        from spide.dashboard.renderer import render_dashboard
         from spide.dashboard.collector import _empty_dashboard
+        from spide.dashboard.renderer import render_dashboard
 
         data = _empty_dashboard()
         html = render_dashboard(data)
@@ -167,6 +164,7 @@ class TestDashboardCLI:
 
     def test_dashboard_help(self):
         from typer.testing import CliRunner
+
         from spide.cli import app
 
         runner = CliRunner()
@@ -176,6 +174,7 @@ class TestDashboardCLI:
 
     def test_dashboard_no_database(self, tmp_path, monkeypatch):
         from typer.testing import CliRunner
+
         from spide.cli import app
 
         monkeypatch.setenv("SPIDE_WORKSPACE", str(tmp_path))

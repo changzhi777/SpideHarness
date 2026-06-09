@@ -10,7 +10,7 @@
 
 | 文件 | 行数 | 职责 |
 |------|------|------|
-| `__init__.py` | 7 | 导出 AlertEngine, Notifier 类 |
+| `__init__.py` | 8 | 导出 AlertEngine, Notifier 类 |
 | `alert_engine.py` | 175 | AlertEngine — 规则加载 + 三种匹配（关键词/热度/状态） |
 | `notifier.py` | 212 | Log/MQTT/Webhook/飞书通知 + NotifierDispatcher |
 

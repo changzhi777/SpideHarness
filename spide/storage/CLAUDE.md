@@ -10,9 +10,9 @@
 
 | 文件 | 行数 | 职责 |
 |------|------|------|
-| `__init__.py` | 14 | 导出核心模型和仓库 |
-| `models.py` | 223 | Pydantic v2 数据模型 — 9 个实体 + 6 个枚举 |
-| `sqlite_repo.py` | 331 | SqliteRepository — aiosqlite 异步 CRUD |
+| `__init__.py` | 50 | 导出核心模型和仓库 |
+| `models.py` | 363 | Pydantic v2 数据模型 — 15 个实体 + 6 个枚举 |
+| `sqlite_repo.py` | 338 | SqliteRepository — aiosqlite 异步 CRUD |
 | `redis_cache.py` | 111 | RedisCache — aioredis 缓存与去重 |
 | `repository.py` | 87 | AbstractRepository — 抽象仓库接口 |
 | `exporter.py` | 222 | DataExporter — JSON/JSONL/CSV/Excel 导出 |
@@ -34,6 +34,14 @@
 - **DeepContent** — 深度采集内容（7 平台统一，含 extra dict）
 - **DeepComment** — 深度采集评论
 - **DeepCreator** — 深度采集创作者
+- **HotTopicChange** — 话题变更记录
+- **CrawlSnapshot** — 采集快照
+- **AlertRule** — 告警规则
+- **AlertRecord** — 告警记录
+- **TopicDeepTrack** — 话题深度追踪记录
+- **TopicCluster** — 跨平台话题聚类
+- **TimedSearchBatch** — 定时搜索批次
+- **TimedSearchRecord** — 定时搜索记录
 
 ## SqliteRepository
 

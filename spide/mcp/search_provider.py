@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -106,20 +105,19 @@ class WebSearchProvider:
         """DuckDuckGo HTML 搜索."""
         results: list[SearchResult] = []
         try:
-            async with aiohttp.ClientSession(timeout=_TIMEOUT) as session:
-                async with session.post(
-                    _DDGS_URL,
-                    data={"q": query, "b": ""},
-                    headers={
-                        "User-Agent": "Mozilla/5.0 (compatible; SpideAgent/1.0)",
-                    },
-                ) as resp:
-                    if resp.status != 200:
-                        logger.warning("ddgs_search_failed", status=resp.status)
-                        return results
+            async with aiohttp.ClientSession(timeout=_TIMEOUT) as session, session.post(
+                _DDGS_URL,
+                data={"q": query, "b": ""},
+                headers={
+                    "User-Agent": "Mozilla/5.0 (compatible; SpideAgent/1.0)",
+                },
+            ) as resp:
+                if resp.status != 200:
+                    logger.warning("ddgs_search_failed", status=resp.status)
+                    return results
 
-                    html = await resp.text()
-                    results = self._parse_ddgs_html(html, limit)
+                html = await resp.text()
+                results = self._parse_ddgs_html(html, limit)
 
         except Exception as e:
             logger.warning("ddgs_search_error", error=str(e))
@@ -181,16 +179,15 @@ class WebContentProvider:
         """
         page = PageContent(url=url)
         try:
-            async with aiohttp.ClientSession(timeout=_TIMEOUT) as session:
-                async with session.get(
-                    url,
-                    headers={"User-Agent": "Mozilla/5.0 (compatible; SpideAgent/1.0)"},
-                ) as resp:
-                    if resp.status != 200:
-                        logger.warning("fetch_page_failed", url=url, status=resp.status)
-                        return page
+            async with aiohttp.ClientSession(timeout=_TIMEOUT) as session, session.get(
+                url,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; SpideAgent/1.0)"},
+            ) as resp:
+                if resp.status != 200:
+                    logger.warning("fetch_page_failed", url=url, status=resp.status)
+                    return page
 
-                    html = await resp.text()
+                html = await resp.text()
 
             # 提取 title
             title_match = re.search(r"<title[^>]*>(.*?)</title>", html, re.DOTALL | re.IGNORECASE)

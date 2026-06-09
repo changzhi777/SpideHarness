@@ -43,7 +43,6 @@ def clean_topics(topics: list[HotTopic]) -> list[HotTopic]:
     # Step 1+2: 清洗 + 过滤
     cleaned: list[HotTopic] = []
     skipped_empty = 0
-    skipped_url = 0
     skipped_dup_in_batch = 0
 
     for topic in topics:

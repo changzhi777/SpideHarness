@@ -19,7 +19,7 @@ from typing import Any
 from spide.analysis.summarizer import ContentSummarizer
 from spide.llm import LLMClient
 from spide.logging import get_logger
-from spide.storage.models import HotTopic, TopicDeepTrack, TopicSource
+from spide.storage.models import HotTopic, TopicDeepTrack
 
 logger = get_logger(__name__)
 

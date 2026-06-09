@@ -147,8 +147,8 @@ class TestCronTimes:
 
     def test_cron_next_wait_future(self):
         """当前时间在 cron 时间之前."""
-        from unittest.mock import patch
         from datetime import datetime
+        from unittest.mock import patch
 
         job = ScheduledJob(name="cron", cron_times=["23:59"])
         # mock 当前时间为 08:00
@@ -161,8 +161,8 @@ class TestCronTimes:
 
     def test_cron_next_wait_past_today(self):
         """当前时间已过所有 cron 时间，应等到明天."""
-        from unittest.mock import patch
         from datetime import datetime
+        from unittest.mock import patch
 
         job = ScheduledJob(name="cron", cron_times=["06:00"])
         mock_now = datetime(2026, 5, 25, 20, 0, 0)
@@ -174,8 +174,8 @@ class TestCronTimes:
 
     def test_cron_picks_nearest(self):
         """多个 cron 时间，选最近的."""
-        from unittest.mock import patch
         from datetime import datetime
+        from unittest.mock import patch
 
         job = ScheduledJob(name="cron", cron_times=["09:00", "18:00"])
         mock_now = datetime(2026, 5, 25, 8, 30, 0)

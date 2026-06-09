@@ -5,8 +5,6 @@
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from spide.config import LLMCommonConfig, LLMConfig, Settings, UAPIConfig
 from spide.harness.engine import Engine
 from spide.storage.models import HotTopic, TopicSource
@@ -80,11 +78,15 @@ class TestEngineIntegration:
             HotTopic(title="集成测试热搜", source=TopicSource.WEIBO, hot_value=9999, rank=1),
         ]
 
+        uapi_fetch = patch(
+            "spide.spider.uapi_client.UAPIClient.fetch_hotboard",
+            new_callable=AsyncMock, return_value=mock_topics,
+        )
         with patch("spide.llm.LLMClient.start", new_callable=AsyncMock), \
              patch("spide.llm.LLMClient.stop"), \
              patch("spide.spider.uapi_client.UAPIClient.start", new_callable=AsyncMock), \
              patch("spide.spider.uapi_client.UAPIClient.stop", new_callable=AsyncMock), \
-             patch("spide.spider.uapi_client.UAPIClient.fetch_hotboard", new_callable=AsyncMock, return_value=mock_topics):
+             uapi_fetch:
 
             await engine.start(workspace=str(tmp_workspace))
             results = await engine.crawl(sources=["weibo"])

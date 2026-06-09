@@ -13,7 +13,6 @@ import pytest
 from spide.storage.models import HotTopic
 from spide.storage.sqlite_repo import SqliteRepository
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

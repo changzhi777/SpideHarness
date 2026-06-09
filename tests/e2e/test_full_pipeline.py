@@ -8,15 +8,13 @@ Mock-based 始终可运行 + 真实 API 集成测试。
 
 import asyncio
 import json
-from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from typer.testing import CliRunner
 
 from spide.cli import app
-from spide.storage.models import HotTopic
-from spide.storage.models import TopicSource
+from spide.storage.models import HotTopic, TopicSource
 
 runner = CliRunner()
 
@@ -72,7 +70,9 @@ class TestMockE2EPipeline:
     def test_init_memory_add_list(self, cli_workspace):
         """init + memory add + memory list."""
         runner.invoke(app, ["init", "-w", str(cli_workspace)])
-        result = runner.invoke(app, ["memory", "add", "测试记忆", "这是一条测试记忆内容", "-w", str(cli_workspace)])
+        result = runner.invoke(
+            app, ["memory", "add", "测试记忆", "这是一条测试记忆内容", "-w", str(cli_workspace)]
+        )
         assert result.exit_code == 0
 
         result = runner.invoke(app, ["memory", "list", "-w", str(cli_workspace)])
@@ -108,12 +108,12 @@ class TestMockE2EPipeline:
 
     def test_crawl_all_flag_mock(self, cli_workspace):
         """crawl --all 标志 Mock 测试."""
-        mock_topics = _make_mock_topics(3)
         with patch("spide.cli._crawl_async", new_callable=AsyncMock) as mock_crawl:
             mock_crawl.return_value = None
             result = runner.invoke(app, ["crawl", "--all", "-w", str(cli_workspace)])
-            # 即使 mock 了异步函数，CLI 入口仍应正确解析参数
-            assert result.exit_code == 0 or "采集" in result.stdout or result.exit_code == 1
+            # mock 后应正常完成或输出包含相关文字
+            assert result.exit_code in (0, 1)
+            assert mock_crawl.called
 
 
 # ---------------------------------------------------------------------------
@@ -235,7 +235,10 @@ class TestRealE2EPipeline:
 
         gen = WordCloudGenerator(output_dir=str(cli_workspace / "wc"))
         filepath = await gen.generate_from_texts(
-            texts=["人工智能", "机器学习", "深度学习", "大模型", "ChatGPT", "AI芯片", "自动驾驶", "量子计算"],
+            texts=[
+                "人工智能", "机器学习", "深度学习", "大模型",
+                "ChatGPT", "AI芯片", "自动驾驶", "量子计算",
+            ],
             filename="test_wc",
         )
         assert filepath.exists()
@@ -243,9 +246,9 @@ class TestRealE2EPipeline:
 
     async def test_real_analyze_with_strategy(self, cli_workspace):
         """真实 LLM analyze --strategy."""
+        from spide.analysis.summarizer import SmartCrawlStrategy
         from spide.config import load_settings
         from spide.harness import Engine
-        from spide.analysis.summarizer import SmartCrawlStrategy
 
         settings = load_settings()
         if not settings.uapi.api_key or not settings.llm.common.api_key:

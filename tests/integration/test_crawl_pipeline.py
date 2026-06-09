@@ -2,7 +2,6 @@
 # Author: 外星动物（常智） / IoTchange / 14455975@qq.com
 """集成测试 — 爬取管道（SQLite 真实数据库 + UAPI mock）."""
 
-import pytest
 
 from spide.storage.models import HotTopic, TopicSource
 from spide.storage.sqlite_repo import SqliteRepository

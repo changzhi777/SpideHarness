@@ -11,15 +11,16 @@
 | 文件 | 行数 | 职责 |
 |------|------|------|
 | `__init__.py` | 10 | 导出 AsyncFetcher, UAPIClient, parse_hot_items, deduplicate_items |
-| `fetcher.py` | 98 | AsyncFetcher — aiohttp + BeautifulSoup 异步抓取器 |
-| `pipeline.py` | 219 | 数据清洗管道：clean_topics, deduplicate_items, parse_hot_items |
-| `uapi_client.py` | 246 | UAPIClient — UAPI 热搜 REST（令牌桶限流 + 熔断保护） |
+| `fetcher.py` | 97 | AsyncFetcher — aiohttp + BeautifulSoup 异步抓取器 |
+| `pipeline.py` | 218 | 数据清洗管道：clean_topics, deduplicate_items, parse_hot_items |
+| `uapi_client.py` | 251 | UAPIClient — UAPI 热搜 REST（令牌桶限流 + 熔断保护） |
 | `media_crawler_adapter.py` | 590 | MediaCrawler 深度采集适配器，7 平台统一接口 |
-| `batch_scheduler.py` | 238 | BatchCrawlScheduler — 多平台并行调度（熔断 + 断点恢复） |
-| `task_scheduler.py` | 208 | TaskScheduler — 定时采集调度器 |
+| `batch_scheduler.py` | 240 | BatchCrawlScheduler — 多平台并行调度（熔断 + 断点恢复） |
+| `task_scheduler.py` | 233 | TaskScheduler — 定时采集调度器 |
 | `rate_limiter.py` | 317 | RateLimiter(令牌桶) + CircuitBreaker(熔断) + CheckpointManager(断点) |
 | `incremental.py` | 201 | IncrementalDetector — 增量检测 + 状态标记 + 快照 |
-| `deep_tracker.py` | 203 | DeepTopicTracker — 搜索 + LLM 摘要 + 情感分析 |
+| `deep_tracker.py` | 173 | DeepTopicTracker — 搜索 + LLM 摘要 + 情感分析 |
+| `timed_search.py` | 245 | TimedSearchService — 定时搜索热搜 + 关联新闻 + 持久化 |
 
 ## 核心接口
 
@@ -46,6 +47,14 @@ tracker = DeepTopicTracker(llm=llm_client, max_concurrent=3)
 tracks = await tracker.track_topics(topics, top_n=10)
 ```
 
+### TimedSearchService（定时搜索）
+```python
+svc = TimedSearchService(db_path="spide_data.db")
+await svc.start()
+result = await svc.run_once(schedule_time="09:00", sources=["weibo", "baidu"])
+await svc.stop()
+```
+
 ### RateLimiter / CircuitBreaker / CheckpointManager
 ```python
 limiter = RateLimiter(max_rpm=30, max_concurrent=5)
@@ -65,6 +74,7 @@ await ckpt.save_checkpoint("batch_id", state)
 - `uapi_client.py` → aiohttp, `spide.spider.rate_limiter`, `spide.spider.pipeline`
 - `batch_scheduler.py` → `media_crawler_adapter.py`, `spide.spider.rate_limiter`
 - `deep_tracker.py` → `spide.llm`, `spide.analysis.summarizer`
+- `timed_search.py` → `spide.storage.models` (TimedSearchBatch, TimedSearchRecord), `spide.storage.sqlite_repo`
 - `incremental.py` → `spide.storage.models`
 
 ## 测试
@@ -78,5 +88,6 @@ await ckpt.save_checkpoint("batch_id", state)
 - `tests/unit/test_rate_limiter.py`
 - `tests/unit/test_incremental.py`
 - `tests/unit/test_deep_tracker.py`
+- `tests/unit/test_timed_search.py`
 - `tests/integration/test_uapi_real.py`
 - `tests/integration/test_real_crawl.py`

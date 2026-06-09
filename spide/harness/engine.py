@@ -239,7 +239,6 @@ class Engine:
         from spide.spider.incremental import IncrementalDetector
         from spide.storage.sqlite_repo import SqliteRepository
 
-        bundle = self.bundle
         results_raw = await self.crawl(sources)
         detector = IncrementalDetector()
 

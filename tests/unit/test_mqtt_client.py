@@ -11,6 +11,16 @@ from spide.exceptions import MQTTError
 from spide.mqtt.client import MQTTClient
 
 
+def _mock_aiomqtt_client():
+    """构建 aiomqtt.Client mock."""
+    mock_inst = AsyncMock()
+    mock_inst.__aenter__ = AsyncMock(return_value=mock_inst)
+    mock_inst.__aexit__ = AsyncMock(return_value=False)
+    mock_inst.publish = AsyncMock()
+    mock_inst.subscribe = AsyncMock()
+    return mock_inst
+
+
 class TestMQTTClient:
     """MQTT 客户端."""
 
@@ -28,10 +38,7 @@ class TestMQTTClient:
         client = MQTTClient(MQTTConfig(host="test.local", port=8883))
 
         with patch("spide.mqtt.client.aiomqtt.Client") as mock_cls:
-            mock_inst = AsyncMock()
-            mock_inst.__aenter__ = AsyncMock(return_value=mock_inst)
-            mock_inst.__aexit__ = AsyncMock(return_value=False)
-            mock_inst.publish = AsyncMock()
+            mock_inst = _mock_aiomqtt_client()
             mock_cls.return_value = mock_inst
 
             await client.start()
@@ -56,3 +63,35 @@ class TestMQTTClient:
             ctx = client._build_tls_context()
             assert ctx is mock_ctx
             mock_ssl.assert_called_once()
+
+    async def test_stop_when_not_started(self):
+        """stop() 在未启动时不应抛异常."""
+        client = MQTTClient(MQTTConfig(host="test"))
+        await client.stop()
+
+    async def test_publish_string_payload(self):
+        client = MQTTClient(MQTTConfig(host="test.local"))
+
+        with patch("spide.mqtt.client.aiomqtt.Client") as mock_cls:
+            mock_inst = _mock_aiomqtt_client()
+            mock_cls.return_value = mock_inst
+
+            await client.start()
+            await client.publish("test/txt", payload="plain text")
+
+            call = mock_inst.publish.call_args
+            assert call[1]["payload"] == "plain text"
+
+            await client.stop()
+
+    async def test_double_stop(self):
+        """连续调用 stop() 不应报错."""
+        client = MQTTClient(MQTTConfig(host="test.local"))
+
+        with patch("spide.mqtt.client.aiomqtt.Client") as mock_cls:
+            mock_inst = _mock_aiomqtt_client()
+            mock_cls.return_value = mock_inst
+
+            await client.start()
+            await client.stop()
+            await client.stop()

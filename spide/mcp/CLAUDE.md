@@ -10,11 +10,11 @@ Model Context Protocol 实现，提供 stdio MCP Server 和 Client，供外部 A
 
 | 文件 | 行数 | 职责 |
 |------|------|------|
-| `__init__.py` | 4 | 导出 create_mcp_server, serve_mcp |
-| `server.py` | ~315 | MCP Server — 工具注册、调用分发（8 个工具）、stdio transport |
-| `client.py` | 103 | MCP Client — 连接外部 MCP Server |
-| `tools.py` | ~220 | 工具定义 (JSON Schema) — 8 个工具 |
-| `search_provider.py` | ~327 | 搜索适配器层 — WebSearchProvider / WebContentProvider / RepoInfoProvider |
+| `__init__.py` | 7 | 导出 create_mcp_server, serve_mcp |
+| `server.py` | ~331 | MCP Server — 工具注册、调用分发（8 个工具）、stdio transport |
+| `client.py` | 102 | MCP Client — 连接外部 MCP Server |
+| `tools.py` | ~222 | 工具定义 (JSON Schema) — 8 个工具 |
+| `search_provider.py` | ~326 | 搜索适配器层 — WebSearchProvider / WebContentProvider / RepoInfoProvider |
 
 ## MCP 工具清单（8 个）
 

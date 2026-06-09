@@ -1,6 +1,6 @@
 # SpideHarness Agent — 项目 AI 上下文文档
 
-> 📍 [根目录](./) | 当前版本: V3.1.1 (DEV) | 最后更新: 2026-05-21
+> 📍 [根目录](./) | 当前版本: V3.1.1 (DEV) | 最后更新: 2026-06-09
 
 ## 变更记录
 
@@ -13,6 +13,9 @@
 | 2026-05-20 | 重建 | 全仓扫描，从"规划阶段"升级为"已实现"状态，生成模块级文档 |
 | 2026-05-21 | 优化 | 测试审查优化（3 轮），新增 logging 测试 |
 | 2026-05-21 | 深化 | 数据采集 5 方向深化：增量采集/关键词告警/深度追踪/跨平台分析/反爬稳定 |
+| 2026-05-26 | 更新 | 全仓增量扫描：新增 timed_search.py + Dashboard API，更新统计（379 测试/22 命令） |
+| 2026-05-27 | 扩展 | Dashboard Web 扩展：飞书 Bot 事件回调 + GitHub AI 热点采集，更新统计 |
+| 2026-06-09 | 增量更新 | 全仓增量扫描：CLI 24 命令（+timed-search）、测试 471 用例，更新统计 |
 
 ---
 
@@ -24,7 +27,7 @@
 
 ## 当前状态：**已实现 (Stage 2)**
 
-- ✅ CLI 完整实现（21 个命令）
+- ✅ CLI 完整实现（24 个命令）
 - ✅ Harness 调度引擎（RuntimeBundle + 管道编排）
 - ✅ 热搜采集（UAPI 5 大平台）+ 限流熔断
 - ✅ 深度采集（MediaCrawler 7 平台适配器）+ 断点恢复
@@ -43,7 +46,11 @@
 - ✅ 数据导出（JSON/JSONL/CSV/Excel）
 - ✅ 定时调度 + 批量采集
 - ✅ 工作空间管理 + Prompt 层叠系统
-- ✅ 测试：36 个测试文件，366 个测试用例
+- ✅ 定时搜索（每日 09:00/18:00 采集热搜 + 搜索关联新闻 + 持久化）
+- ✅ Dashboard Web API（FastAPI 后端 + 前端页面）
+- ✅ 飞书 Bot 事件回调（指令解析 + 命令执行 + 事件订阅）
+- ✅ GitHub AI 热点采集（5 方向 topic 搜索 + 趋势仓库 + 飞书卡片推送）
+- ✅ 测试：50 个测试文件，471 个测试用例
 
 ---
 
@@ -57,6 +64,7 @@
 | CLI | Typer + Rich |
 | 异步 | asyncio + aiohttp |
 | LLM | GLM-5.1 / GLM-5V-Turbo (zai-sdk) |
+| Web API | FastAPI (Dashboard 后端) |
 | 数据源 | UApiPro (aiohttp REST) |
 | 深度采集 | MediaCrawler (Playwright) |
 | 协议 | MCP (mcp-sdk) |
@@ -70,7 +78,7 @@
 
 ```mermaid
 graph TD
-    CLI["spide/cli.py<br/>Typer CLI (21 命令)"]
+    CLI["spide/cli.py<br/>Typer CLI (24 命令)"]
     CLI --> Engine["spide/harness/engine.py<br/>Engine + RuntimeBundle"]
 
     Engine --> LLM["spide/llm.py<br/>LLMClient (zai-sdk)"]
@@ -87,6 +95,7 @@ graph TD
     Spider --> RateLimiter["rate_limiter.py<br/>限流/熔断/断点"]
     Spider --> Incremental["incremental.py<br/>增量检测"]
     Spider --> DeepTracker["deep_tracker.py<br/>深度追踪"]
+    Spider --> TimedSearch["timed_search.py<br/>定时搜索"]
 
     Monitor --> AlertEngine["alert_engine.py<br/>规则引擎"]
     Monitor --> Notifier["notifier.py<br/>多渠道通知"]
@@ -113,6 +122,10 @@ graph TD
     Dashboard --> Collector["collector.py<br/>数据聚合"]
     Dashboard --> Template["template.py<br/>HTML 模板"]
 
+    DashboardAPI["dashboard/api.py<br/>FastAPI Web API"]
+    DashboardAPI --> FeishuHandler["feishu_handler.py<br/>飞书 Bot 事件回调"]
+    DashboardAPI --> GitHubTrending["github_trending.py<br/>GitHub AI 热点采集"]
+
     CLI --> Config["spide/config.py<br/>Pydantic Settings"]
     CLI --> Memory["spide/memory.py<br/>记忆管理"]
     CLI --> Workspace["spide/workspace.py<br/>工作空间"]
@@ -137,7 +150,7 @@ Spide_agent/
 ├── spide/                          # 主源码包
 │   ├── __init__.py                 # __version__ = "1.1.1"
 │   ├── __main__.py                 # python -m spide 入口
-│   ├── cli.py                      # Typer CLI — 21 个命令
+│   ├── cli.py                      # Typer CLI — 24 个命令
 │   ├── config.py                   # Pydantic Settings + YAML 加载
 │   ├── exceptions.py               # 统一异常层级 (8 个异常类)
 │   ├── llm.py                      # LLMClient (zai-sdk 封装)
@@ -156,6 +169,7 @@ Spide_agent/
 │   │   ├── rate_limiter.py         # 令牌桶限流 + 熔断器 + 断点管理
 │   │   ├── incremental.py          # 增量检测器（Diff + 状态标记）
 │   │   └── deep_tracker.py         # 话题深度追踪（搜索+摘要+情感）
+│   │   └── timed_search.py         # 定时搜索（热搜+关联新闻+持久化）
 │   ├── monitor/                    # 告警监控
 │   │   ├── alert_engine.py         # 告警规则引擎（关键词/热度/状态）
 │   │   └── notifier.py             # 多渠道通知（Log/MQTT/Webhook/飞书）
@@ -171,7 +185,7 @@ Spide_agent/
 │   ├── queue/                      # 消息总线
 │   │   └── broker.py               # MessageBroker (pub/sub)
 │   ├── storage/                    # 数据存储
-│   │   ├── models.py               # Pydantic 数据模型 (15 个实体 + 8 个枚举)
+│   │   ├── models.py               # Pydantic 数据模型 (15 实体 + 6 枚举)
 │   │   ├── sqlite_repo.py          # SQLite 异步仓库 (12 个表)
 │   │   ├── redis_cache.py          # Redis 缓存
 │   │   ├── repository.py           # 抽象仓库接口
@@ -189,8 +203,8 @@ Spide_agent/
 │       └── __init__.py
 ├── tests/                          # 测试
 │   ├── conftest.py
-│   ├── unit/                       # 单元测试 (29 个)
-│   ├── integration/                # 集成测试 (5 个)
+│   ├── unit/                       # 单元测试 (34 个)
+│   ├── integration/                # 集成测试 (6 个)
 │   └── e2e/                        # E2E 测试 (4 个)
 ├── configs/                        # 配置文件 (不入 Git)
 │   ├── default.yaml
@@ -206,6 +220,11 @@ Spide_agent/
 ├── scripts/                        # 工具脚本
 ├── skills/                         # Skill 定义
 ├── pyproject.toml                  # 项目元数据 + 依赖
+├── dashboard/                      # Dashboard Web 应用（独立于 spide/dashboard/）
+│   ├── api.py                      # FastAPI 后端 — Dashboard API + 采集触发 + GitHub 热点
+│   ├── feishu_handler.py           # 飞书 Bot 事件回调（指令解析 + 命令执行）
+│   ├── github_trending.py          # GitHub AI 热点采集（5 方向搜索 + 飞书卡片推送）
+│   └── index.html                  # 前端页面
 └── CLAUDE.md                       # 本文件
 ```
 
@@ -215,18 +234,19 @@ Spide_agent/
 
 | 模块 | 文件数 | 行数 | 职责 | 模块文档 |
 |------|--------|------|------|----------|
-| `spide/` (根级) | 11 | ~2700 | CLI、配置、LLM、记忆、工作空间 | — |
-| `spide/spider/` | 10 | ~3100 | 采集引擎（UAPI/深度/调度/限流/增量/追踪） | [CLAUDE.md](./spide/spider/CLAUDE.md) |
-| `spide/monitor/` | 3 | ~400 | 告警监控（规则引擎/多渠道通知） | — |
-| `spide/harness/` | 2 | ~420 | 核心调度引擎 | [CLAUDE.md](./spide/harness/CLAUDE.md) |
-| `spide/mcp/` | 5 | ~960 | MCP 协议（Server/Client/工具/搜索适配器） | [CLAUDE.md](./spide/mcp/CLAUDE.md) |
-| `spide/mqtt/` | 2 | ~210 | MQTT 通讯（TLS + aiomqtt） | [CLAUDE.md](./spide/mqtt/CLAUDE.md) |
-| `spide/queue/` | 2 | ~145 | 消息总线（pub/sub） | [CLAUDE.md](./spide/queue/CLAUDE.md) |
-| `spide/storage/` | 6 | ~1550 | SQLite/Redis/导出/模型 | [CLAUDE.md](./spide/storage/CLAUDE.md) |
-| `spide/analysis/` | 5 | ~910 | AI 分析（摘要/趋势/词云/聚类/相似度） | [CLAUDE.md](./spide/analysis/CLAUDE.md) |
-| `spide/dashboard/` | 4 | ~700 | 数据看板（HTML 生成） | [CLAUDE.md](./spide/dashboard/CLAUDE.md) |
-| `tests/` | 34 | ~5000 | 测试（单元/集成/E2E） | [CLAUDE.md](./tests/CLAUDE.md) |
-| **总计** | **59** | **~9635** | | |
+| `spide/` (根级) | 11 | ~3011 | CLI、配置、LLM、记忆、工作空间 | — |
+| `spide/spider/` | 11 | ~2574 | 采集引擎（UAPI/深度/调度/限流/增量/追踪/定时搜索） | [CLAUDE.md](./spide/spider/CLAUDE.md) |
+| `spide/monitor/` | 3 | ~395 | 告警监控（规则引擎/多渠道通知） | — |
+| `spide/harness/` | 2 | ~414 | 核心调度引擎 | [CLAUDE.md](./spide/harness/CLAUDE.md) |
+| `spide/mcp/` | 5 | ~988 | MCP 协议（Server/Client/工具/搜索适配器） | [CLAUDE.md](./spide/mcp/CLAUDE.md) |
+| `spide/mqtt/` | 2 | ~216 | MQTT 通讯（TLS + aiomqtt） | [CLAUDE.md](./spide/mqtt/CLAUDE.md) |
+| `spide/queue/` | 2 | ~149 | 消息总线（pub/sub） | [CLAUDE.md](./spide/queue/CLAUDE.md) |
+| `spide/storage/` | 6 | ~1171 | SQLite/Redis/导出/模型 | [CLAUDE.md](./spide/storage/CLAUDE.md) |
+| `spide/analysis/` | 5 | ~851 | AI 分析（摘要/趋势/词云/聚类/相似度） | [CLAUDE.md](./spide/analysis/CLAUDE.md) |
+| `spide/dashboard/` | 4 | ~709 | 数据看板（HTML 生成） | [CLAUDE.md](./spide/dashboard/CLAUDE.md) |
+| `dashboard/` (Web) | 4 | ~1,354 | FastAPI Dashboard + 飞书 Bot + GitHub 热点 | — |
+| `tests/` | 50 | ~6,484 | 测试（单元/集成/E2E） | [CLAUDE.md](./tests/CLAUDE.md) |
+| **总计** | **~100** | **~12,683** | | |
 
 ---
 
@@ -252,6 +272,8 @@ Spide_agent/
 | `spide dedup` | 数据去重 |
 | `spide dashboard` | 数据看板 |
 | `spide schedule start` | 定时调度 |
+| `spide timed-search start` | 定时搜索（每日 09:00/18:00 采集热搜 + 搜索关联新闻） |
+| `spide timed-search query` | 查询定时搜索记录 |
 | `spide mcp-serve` | 启动 MCP Server |
 | `spide mqtt pub` / `sub` | MQTT 消息 |
 | `spide memory list` / `add` | 记忆管理 |
@@ -297,7 +319,7 @@ UAPI/MediaCrawler → Pipeline(清洗去重) → IncrementalDetector(增量检�
 uv sync                              # 安装依赖
 spide --help                         # CLI 帮助
 spide doctor                         # 环境检查
-uv run pytest                        # 运行全部测试（333 passed）
+uv run pytest                        # 运行全部测试（471 passed）
 uv run pytest tests/unit/            # 仅单元测试
 uv run pytest -m integration         # 集成测试（需网络）
 uv run ruff format . && ruff check . # 格式化 + lint
@@ -332,13 +354,14 @@ uv run ruff format . && ruff check . # 格式化 + lint
 
 | 指标 | 数量 |
 |------|------|
-| 源码文件 | 51 (.py) |
-| 源码行数 | ~10,000 |
-| 测试文件 | 47 (.py) |
-| 测试行数 | ~5,200 |
-| 测试用例 | 366 |
+| 源码文件 | 55 (.py) = spide/ 52 + dashboard/ 3 |
+| 源码行数 | ~11,841 (spide ~10,487 + dashboard ~1,354) |
+| Dashboard 前端 | 1 (.html, ~434 行) |
+| 测试文件 | 50 (.py) |
+| 测试行数 | ~6,484 |
+| 测试用例 | 471 |
 | 配置文件 | 5 (.yaml) |
-| CLI 命令 | 21 |
+| CLI 命令 | 24 |
 | MCP 工具 | 8 |
-| 数据模型 | 15 (Pydantic) |
+| 数据模型 | 15 实体 + 6 枚举 (Pydantic) |
 | 异常类 | 8 |

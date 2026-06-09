@@ -146,12 +146,21 @@ class TestCrawlE2E:
             HotTopic(title="E2E热搜3", source=TopicSource.BAIDU, hot_value=6000, rank=1),
         ]
 
+        uapi_fetch = patch(
+            "spide.spider.uapi_client.UAPIClient.fetch_hotboard",
+            new_callable=AsyncMock, return_value=mock_topics[:2],
+        )
+        uapi_all = patch(
+            "spide.spider.uapi_client.UAPIClient.fetch_all",
+            new_callable=AsyncMock,
+            return_value={"weibo": mock_topics[:2], "baidu": [mock_topics[2]]},
+        )
         with patch("spide.llm.LLMClient.start", new_callable=AsyncMock), \
              patch("spide.llm.LLMClient.stop"), \
              patch("spide.spider.uapi_client.UAPIClient.start", new_callable=AsyncMock), \
              patch("spide.spider.uapi_client.UAPIClient.stop", new_callable=AsyncMock), \
-             patch("spide.spider.uapi_client.UAPIClient.fetch_hotboard", new_callable=AsyncMock, return_value=mock_topics[:2]), \
-             patch("spide.spider.uapi_client.UAPIClient.fetch_all", new_callable=AsyncMock, return_value={"weibo": mock_topics[:2], "baidu": [mock_topics[2]]}):
+             uapi_fetch, \
+             uapi_all:
 
             await engine.start(workspace=str(cli_workspace))
 
@@ -207,7 +216,11 @@ class TestCrawlE2E:
 
             # 模拟采集
             mock_topics = [HotTopic(title="会话测试热搜", source=TopicSource.WEIBO)]
-            with patch.object(bundle.uapi, "fetch_hotboard", new_callable=AsyncMock, return_value=mock_topics):
+            fetch_mock = patch.object(
+                bundle.uapi, "fetch_hotboard",
+                new_callable=AsyncMock, return_value=mock_topics,
+            )
+            with fetch_mock:
                 results = await engine.crawl(sources=["weibo"])
                 assert len(results["weibo"]) == 1
 

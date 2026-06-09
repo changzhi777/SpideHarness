@@ -137,8 +137,8 @@ class SqliteRepository:
                     upserted += 1
                 else:
                     # 不存在 → INSERT
-                    columns = ", ".join(k for k in data.keys() if k != "id")
-                    placeholders = ", ".join(f":{k}" for k in data.keys() if k != "id")
+                    columns = ", ".join(k for k in data if k != "id")
+                    placeholders = ", ".join(f":{k}" for k in data if k != "id")
                     cursor = await self._db.execute(
                         f"INSERT INTO {self._table} ({columns}) VALUES ({placeholders})", data
                     )

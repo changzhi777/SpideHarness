@@ -21,7 +21,6 @@ from spide.logging import get_logger
 from spide.storage.models import (
     TimedSearchBatch,
     TimedSearchRecord,
-    TopicSource,
 )
 
 logger = get_logger(__name__)

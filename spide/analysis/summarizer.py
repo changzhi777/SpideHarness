@@ -128,7 +128,13 @@ class ContentSummarizer:
             response = await asyncio.to_thread(
                 self._llm.chat, messages=messages, temperature=0.3, max_tokens=1024
             )
-            raw_text = response.choices[0].message.content.strip()
+            raw_text = response.choices[0].message.content or ""
+
+            if not raw_text.strip():
+                logger.warning(f"{task_name}_empty_response")
+                return {"error": "LLM 返回空响应"}
+
+            raw_text = raw_text.strip()
 
             # 清理可能的 markdown 代码块标记
             if raw_text.startswith("```"):
