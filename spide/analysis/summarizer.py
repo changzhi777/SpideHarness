@@ -58,6 +58,49 @@ _SMART_CRAWL_SYSTEM = """你是一个热点新闻采集策略专家。根据当�
 只返回 JSON，不要其他文字。"""
 
 
+async def _call_llm_json(
+    llm: LLMClient,
+    system_prompt: str,
+    user_message: str,
+    task_name: str,
+    *,
+    max_tokens: int = 1024,
+) -> dict[str, Any] | list[Any]:
+    """调用 LLM 并解析 JSON 响应（统一空响应 + markdown 清理 + 异常兜底）."""
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_message},
+    ]
+
+    try:
+        response = await asyncio.to_thread(
+            llm.chat, messages=messages, temperature=0.3, max_tokens=max_tokens
+        )
+        raw_text = response.choices[0].message.content or ""
+
+        if not raw_text.strip():
+            logger.warning(f"{task_name}_empty_response")
+            return {"error": "LLM 返回空响应"}
+
+        raw_text = raw_text.strip()
+
+        if raw_text.startswith("```"):
+            raw_text = raw_text.split("\n", 1)[-1]
+        if raw_text.endswith("```"):
+            raw_text = raw_text.rsplit("```", 1)[0]
+
+        result = json.loads(raw_text)
+        logger.debug(f"{task_name}_completed", type=type(result).__name__)
+        return result
+
+    except json.JSONDecodeError as e:
+        logger.warning(f"{task_name}_parse_error", error=str(e), raw=raw_text[:200])
+        return {"error": f"JSON 解析失败: {e}", "raw": raw_text[:500]}
+    except Exception as e:
+        logger.error(f"{task_name}_failed", error=str(e))
+        return {"error": str(e)}
+
+
 class ContentSummarizer:
     """内容智能摘要."""
 
@@ -118,43 +161,7 @@ class ContentSummarizer:
         user_message: str,
         task_name: str,
     ) -> dict[str, Any]:
-        """调用 LLM 并解析 JSON 响应."""
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message},
-        ]
-
-        try:
-            response = await asyncio.to_thread(
-                self._llm.chat, messages=messages, temperature=0.3, max_tokens=1024
-            )
-            raw_text = response.choices[0].message.content or ""
-
-            if not raw_text.strip():
-                logger.warning(f"{task_name}_empty_response")
-                return {"error": "LLM 返回空响应"}
-
-            raw_text = raw_text.strip()
-
-            # 清理可能的 markdown 代码块标记
-            if raw_text.startswith("```"):
-                raw_text = raw_text.split("\n", 1)[-1]
-            if raw_text.endswith("```"):
-                raw_text = raw_text.rsplit("```", 1)[0]
-
-            result = json.loads(raw_text)
-            logger.debug(
-                f"{task_name}_completed",
-                keys=list(result.keys()),
-            )
-            return result
-
-        except json.JSONDecodeError as e:
-            logger.warning(f"{task_name}_parse_error", error=str(e), raw=raw_text[:200])
-            return {"error": f"JSON 解析失败: {e}", "raw": raw_text[:500]}
-        except Exception as e:
-            logger.error(f"{task_name}_failed", error=str(e))
-            return {"error": str(e)}
+        return await _call_llm_json(self._llm, system_prompt, user_message, task_name)
 
 
 class SmartCrawlStrategy:
@@ -186,33 +193,7 @@ class SmartCrawlStrategy:
         return await self._call_llm(_SMART_CRAWL_SYSTEM, user_msg)
 
     async def _call_llm(self, system_prompt: str, user_message: str) -> dict[str, Any]:
-        """调用 LLM 并解析 JSON 响应."""
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message},
-        ]
-
-        try:
-            response = await asyncio.to_thread(
-                self._llm.chat, messages=messages, temperature=0.3, max_tokens=1024
-            )
-            raw_text = response.choices[0].message.content.strip()
-
-            if raw_text.startswith("```"):
-                raw_text = raw_text.split("\n", 1)[-1]
-            if raw_text.endswith("```"):
-                raw_text = raw_text.rsplit("```", 1)[0]
-
-            result = json.loads(raw_text)
-            logger.debug("smart_strategy_completed", keys=list(result.keys()))
-            return result
-
-        except json.JSONDecodeError as e:
-            logger.warning("smart_strategy_parse_error", error=str(e))
-            return {"error": f"JSON 解析失败: {e}"}
-        except Exception as e:
-            logger.error("smart_strategy_failed", error=str(e))
-            return {"error": str(e)}
+        return await _call_llm_json(self._llm, system_prompt, user_message, "smart_strategy")
 
 
 class TrendAnalyzer:
@@ -256,23 +237,9 @@ class TrendAnalyzer:
 }
 只返回 JSON。"""
 
-        messages = [
-            {"role": "system", "content": system},
-            {"role": "user", "content": f"当前热搜：\n{topics_text}"},
-        ]
-
-        try:
-            response = await asyncio.to_thread(
-                self._llm.chat, messages=messages, temperature=0.3, max_tokens=1024
-            )
-            raw_text = response.choices[0].message.content.strip()
-            if raw_text.startswith("```"):
-                raw_text = raw_text.split("\n", 1)[-1]
-            if raw_text.endswith("```"):
-                raw_text = raw_text.rsplit("```", 1)[0]
-            return json.loads(raw_text)
-        except Exception as e:
-            return {"error": str(e)}
+        return await _call_llm_json(
+            self._llm, system, f"当前热搜：\n{topics_text}", "trend_analysis"
+        )
 
     async def _compare(
         self,

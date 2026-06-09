@@ -11,11 +11,10 @@
 
 from __future__ import annotations
 
-import asyncio
-import json
 from collections import defaultdict
 from typing import Any
 
+from spide.analysis.summarizer import _call_llm_json
 from spide.analysis.title_similarity import is_similar
 from spide.llm import LLMClient
 from spide.logging import get_logger
@@ -84,17 +83,14 @@ class CrossPlatformAnalyzer:
     ) -> list[dict[str, Any]]:
         """跨平台相似度去重 — 合并相似话题."""
         all_topics: list[dict[str, Any]] = []
-        seen_titles: list[str] = []
 
         for source, topics in topics_by_source.items():
             for topic in topics[:20]:
                 title_lower = topic.title.strip().lower()
 
-                # 检查是否与已有话题相似
                 merged = False
                 for existing in all_topics:
                     if is_similar(title_lower, existing["title"].lower(), threshold=0.6):
-                        # 合并到已有条目
                         if source not in existing["platforms"]:
                             existing["platforms"].append(source)
                         existing["hot_value"] += topic.hot_value or 0
@@ -108,7 +104,6 @@ class CrossPlatformAnalyzer:
                         "platforms": [source],
                         "hot_value": topic.hot_value or 0,
                     })
-                    seen_titles.append(title_lower)
 
         return all_topics
 
@@ -120,41 +115,29 @@ class CrossPlatformAnalyzer:
         if not topics:
             return []
 
-        # 构建输入
         topics_text = "\n".join(
             f"- [{','.join(t['platforms'])}] {t['title']} (热度: {t['hot_value']})"
             for t in topics[:50]
         )
 
-        messages = [
-            {"role": "system", "content": _CLUSTER_SYSTEM_PROMPT},
-            {"role": "user", "content": f"请分析以下热搜话题并聚类：\n{topics_text}"},
-        ]
+        result = await _call_llm_json(
+            self._llm,
+            _CLUSTER_SYSTEM_PROMPT,
+            f"请分析以下热搜话题并聚类：\n{topics_text}",
+            "cluster",
+            max_tokens=2048,
+        )
 
-        try:
-            response = await asyncio.to_thread(
-                self._llm.chat,
-                messages=messages,
-                temperature=0.3,
-                max_tokens=2048,
-            )
-            raw_text = response.choices[0].message.content.strip()
-
-            # 清理 markdown 代码块
-            if raw_text.startswith("```"):
-                raw_text = raw_text.split("\n", 1)[-1]
-            if raw_text.endswith("```"):
-                raw_text = raw_text.rsplit("```", 1)[0]
-
-            raw_clusters = json.loads(raw_text)
-            return self._parse_clusters(raw_clusters)
-
-        except json.JSONDecodeError as e:
-            logger.warning("cluster_parse_error", error=str(e))
+        if "error" in result:
+            logger.warning("cluster_llm_error", error=result["error"])
             return self._fallback_clusters(topics)
-        except Exception as e:
-            logger.error("cluster_failed", error=str(e))
-            return self._fallback_clusters(topics)
+
+        if isinstance(result, list):
+            return self._parse_clusters(result)
+
+        # LLM 可能返回 {"clusters": [...]} 包装
+        clusters = result.get("clusters", [result])
+        return self._parse_clusters(clusters)
 
     @staticmethod
     def _parse_clusters(raw: list[dict[str, Any]]) -> list[TopicCluster]:
