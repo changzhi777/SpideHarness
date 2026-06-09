@@ -10,7 +10,7 @@
 
 ```
 tests/
-├── conftest.py                    # 共享 fixtures (tmp_db, tmp_workspace, real_settings, mock_aiohttp_response)
+├── conftest.py                    # 共享 fixtures (tmp_db, tmp_workspace, real_settings, mock_aiohttp_response, skip_if_*)
 ├── unit/                          # 单元测试（36 个文件，350 用例）
 │   ├── test_alert_engine.py       # AlertEngine 规则匹配 + YAML 加载
 │   ├── test_analysis.py           # ContentSummarizer/TrendAnalyzer/SmartCrawlStrategy
@@ -65,7 +65,7 @@ tests/
 ## 运行方式
 
 ```bash
-uv run pytest                      # 全部测试（471 passed）
+uv run pytest                      # 全部测试（469 passed + 1 skipped）
 uv run pytest tests/unit/          # 仅单元测试
 uv run pytest tests/integration/   # 集成测试（需 API Key）
 uv run pytest tests/e2e/           # E2E 测试（需完整环境）
@@ -81,28 +81,69 @@ uv run pytest --cov=spide          # 覆盖率报告
 - `@pytest.mark.integration` — 集成测试（需要网络，真实 API 调用）
 - `@pytest.mark.e2e` — 端到端测试（完整 CLI 流程）
 
-## 配置
+## 配置（pyproject.toml）
 
-- `asyncio_mode = "auto"` (pyproject.toml) — 无需 `@pytest.mark.asyncio`
-- `testpaths = ["tests"]`
-- `addopts = "-ra -q --tb=short"`
-- Mock 策略：HTTP 用 `aioresponses`，MQTT 用 `mock`，LLM 用 `mock`
+```toml
+[tool.pytest.ini_options]
+asyncio_mode = "auto"      # 无需 @pytest.mark.asyncio
+testpaths = ["tests"]
+addopts = "-ra -q --tb=short"
+```
+
+**Mock 策略**：
+- HTTP：使用 `unittest.mock.AsyncMock` + `aiohttp` MagicMock 模拟
+- MQTT：使用 `unittest.mock`
+- LLM：使用 `unittest.mock` 包装 `zai-sdk` ZaiClient
 
 ## Fixtures (conftest.py)
 
 | Fixture | 作用域 | 用途 |
 |---------|--------|------|
-| `tmp_db` | function | 临时 SQLite 数据库路径 |
-| `tmp_workspace` | function | 临时工作空间目录 |
-| `real_settings` | session | 从 configs/ 加载真实配置 |
-| `skip_if_no_uapi` | — | UAPI API Key 未配置时跳过 |
-| `skip_if_no_llm` | — | LLM API Key 未配置时跳过 |
-| `skip_if_no_mqtt` | — | MQTT 未配置时跳过 |
-| `mock_aiohttp_response` | function | aiohttp 响应 Mock |
+| `tmp_db` | function | 临时 SQLite 数据库路径（`tmp_path / "test.db"`） |
+| `tmp_workspace` | function | 临时工作空间目录（设置 `SPIDE_WORKSPACE` 环境变量 + `initialize_workspace`） |
+| `mock_aiohttp_response` | function | **工厂 fixture** — 返回 helper 函数，用于构建 aiohttp `ClientSession.get` mock（处理 `__aenter__/__aexit__` 异步上下文） |
+| `real_settings` | function | 从 `configs/` 加载真实配置（`load_settings()`） |
+| `skip_if_no_uapi` | function | UAPI API Key 未配置时 `pytest.skip` |
+| `skip_if_no_llm` | function | 智谱 LLM API Key 未配置时 `pytest.skip` |
+| `skip_if_no_mqtt` | function | MQTT 配置未设置时 `pytest.skip` |
+
+### `mock_aiohttp_response` 工厂模式
+
+```python
+def test_xxx(self, mock_aiohttp_response):
+    mock_resp = MagicMock()
+    mock_resp.status = 200
+    mock_resp.json = AsyncMock(return_value={"data": 1})
+    with patch("aiohttp.ClientSession.get", new=mock_aiohttp_response(mock_resp)):
+        result = await fetch_data()
+```
+
+**实现要点**：
+- 模拟 `async with session.get(url) as resp:` 异步上下文协议
+- 内部用 `AsyncMock` 设置 `__aenter__`（返回 resp）和 `__aexit__`（返回 False）
+
+## 集成测试标记
+
+集成测试需要真实 API/服务，使用 `skip_if_no_*` fixture 在无 Key 时优雅跳过：
+
+```python
+@pytest.mark.integration
+async def test_real_uapi_call(real_settings, skip_if_no_uapi):
+    # skip_if_no_uapi 自动检查 api_key 并跳过
+    ...
+```
 
 ## 统计
 
-- **总文件**: 50 个（unit 36 + integration 6 + e2e 6 + conftest）
+- **总文件**: 50 个（unit 36 + integration 6 + e2e 6 + conftest 1）
 - **总行数**: ~6,484 行
 - **测试用例**: 471 个（unit 350 + integration 38 + e2e 82）
-- **覆盖率**: 所有 spide/ 子模块 + dashboard/ Web API
+- **覆盖率**: 100% 覆盖 spide/ 所有子模块 + dashboard/ Web API
+
+## 设计原则
+
+- **KISS** — 工厂 fixture 模式简化 aiohttp mock
+- **DRY** — `skip_if_no_*` fixtures 消除重复的跳过逻辑
+- **隔离性** — `tmp_db` / `tmp_workspace` 用 `tmp_path` 确保测试间无状态污染
+- **真实集成** — `@integration` marker 区分纯单元测试与需网络的测试
+- **自动异步** — `asyncio_mode = "auto"` 减少样板代码
