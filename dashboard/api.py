@@ -21,8 +21,10 @@ from fastapi import Body, FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 
 from dashboard.capability_registry import registry
+from dashboard.feishu_agent import get_feishu_agent
 from dashboard.feishu_handler import router as feishu_router
 from dashboard.github_trending import GitHubTrendingService
+from dashboard.scheduler import get_scheduler
 from spide.logging import get_logger
 from spide.mcp.tools import ALL_TOOLS as _MCP_TOOLS
 
@@ -159,6 +161,31 @@ _HTTP_ENDPOINTS = [
     (
         "/api/feishu/command", "POST", "通用命令执行接口（供飞书 Agent 或其他客户端调用）",
         {"category": "integration"},
+    ),
+    (
+        "/api/feishu/agent", "POST", "飞书智能体对话接口（自然语言 → ReAct 循环 → 富文本卡片）",
+        {
+            "request_schema": {"type": "object", "required": ["user_id", "message"], "properties": {
+                "user_id": {"type": "string", "description": "用户 ID"},
+                "chat_id": {"type": "string", "description": "会话 ID（群 chat_id）"},
+                "message": {"type": "string", "description": "用户消息"},
+            }},
+            "response_schema": {"type": "object", "properties": {
+                "answer": {"type": "string"},
+                "iterations": {"type": "integer"},
+                "tool_calls": {"type": "array"},
+                "status": {"type": "string", "enum": ["ok", "error", "max_iter", "llm_down"]},
+            }},
+            "category": "agent",
+        },
+    ),
+    (
+        "/api/feishu/scheduler/start", "POST", "启动飞书主动推送调度器（需 app_secret）",
+        {"category": "agent"},
+    ),
+    (
+        "/api/feishu/scheduler/stop", "POST", "停止飞书主动推送调度器",
+        {"category": "agent"},
     ),
 ]
 for _path, _method, _summary, _kwargs in _HTTP_ENDPOINTS:
@@ -453,6 +480,117 @@ async def set_webhook(body: dict[str, str] = Body(...)) -> JSONResponse:
         return JSONResponse(status_code=400, content={"error": "url is required"})
     set_feishu_webhook(url)
     return JSONResponse(content={"status": "ok", "url_set": True})
+
+
+# ── 飞书智能体端点 ────────────────────────────────────────────────
+
+
+@app.post("/api/feishu/agent", summary="飞书智能体对话接口")
+async def feishu_agent_chat(body: dict[str, Any] = Body(...)) -> JSONResponse:
+    """飞书智能体 ReAct 对话入口.
+
+    请求体:
+        {"user_id": "u_123", "chat_id": "oc_456", "message": "采集微博热搜"}
+
+    返回:
+        {"answer": "...", "iterations": 2, "tool_calls": [...], "status": "ok"}
+    """
+    user_id = body.get("user_id", "")
+    chat_id = body.get("chat_id", "default")
+    message = body.get("message", "")
+
+    if not user_id or not message:
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error", "message": "user_id 和 message 必填"},
+        )
+
+    agent = get_feishu_agent()
+    try:
+        await agent.init()
+    except Exception as exc:
+        logger.warning("agent_init_failed", error=str(exc))
+
+    try:
+        result = await agent.chat(user_message=message, user_id=user_id, chat_id=chat_id)
+        return JSONResponse(
+            content={
+                "answer": result.answer,
+                "iterations": result.iterations,
+                "tool_calls": result.tool_calls,
+                "status": result.status,
+                "error": result.error,
+            }
+        )
+    except Exception as exc:
+        logger.error("agent_endpoint_failed", error=str(exc))
+        return JSONResponse(
+            status_code=500, content={"status": "error", "message": str(exc)}
+        )
+
+
+@app.post("/api/feishu/agent/clear", summary="清空飞书智能体会话历史")
+async def feishu_agent_clear(body: dict[str, str] = Body(...)) -> JSONResponse:
+    """清空指定用户的会话记忆.
+
+    请求体: {"user_id": "u_123", "chat_id": "oc_456"}
+    """
+    user_id = body.get("user_id", "")
+    chat_id = body.get("chat_id", "default")
+    if not user_id:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "user_id 必填"})
+
+    agent = get_feishu_agent()
+    deleted = await agent.clear_session(user_id=user_id, chat_id=chat_id)
+    return JSONResponse(content={"status": "ok", "deleted_messages": deleted})
+
+
+@app.post("/api/feishu/scheduler/start", summary="启动飞书主动推送调度器")
+async def feishu_scheduler_start() -> JSONResponse:
+    """启动 APScheduler 主动推送（需 app_secret）。"""
+    scheduler = get_scheduler()
+    started = await scheduler.start()
+    if not started:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "status": "error",
+                "message": "调度器未启动（检查 configs/feishu.yaml 的 app_secret 和 jobs）",
+            },
+        )
+    jobs = [{"name": j.name, "cron": j.cron, "action": j.action} for j in scheduler.config.jobs]
+    return JSONResponse(content={"status": "ok", "jobs": jobs})
+
+
+@app.post("/api/feishu/scheduler/stop", summary="停止飞书主动推送调度器")
+async def feishu_scheduler_stop() -> JSONResponse:
+    scheduler = get_scheduler()
+    await scheduler.stop()
+    return JSONResponse(content={"status": "ok"})
+
+
+@app.get("/api/feishu/agent/status", summary="飞书智能体健康检查")
+async def feishu_agent_status() -> JSONResponse:
+    """返回 Agent / LLM / 调度器状态。"""
+    from dashboard.llm_client import get_llm_client
+    from dashboard.tool_router import list_tools
+
+    llm = get_llm_client()
+    healthy = await llm.health_check()
+    scheduler = get_scheduler()
+
+    return JSONResponse(
+        content={
+            "llm_healthy": healthy,
+            "llm_config": {
+                "base_url": llm.config.base_url,
+                "model": llm.config.model,
+                "supports_function_calling": llm.config.supports_function_calling,
+            },
+            "tools_available": list_tools(),
+            "scheduler_configured": bool(scheduler.config.app_secret and scheduler.config.jobs),
+        }
+    )
 
 
 # ── 静态文件 & 前端路由 ──────────────────────────────────────────

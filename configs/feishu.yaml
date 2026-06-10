@@ -1,0 +1,58 @@
+# 飞书智能体配置
+# App ID: cli_a976c6aaaa7adcbb（已确认）
+# App Secret: 缺失 → 主动推送禁用，webhook 正常
+# LLM: Google Gemma 3 4B（端口 8001，本地推理）
+
+feishu:
+  app_id: cli_a976c6aaaa7adcbb
+  app_secret: ""                       # 待补充：填入后启用主动推送
+  verification_token: ""               # webhook 验证 token（按需）
+  encrypt_key: ""                      # 加密 key（按需）
+  # 默认推送目标（主动推送）
+  default_chat_id: ""                  # 群 chat_id 或 user open_id
+
+llm:
+  base_url: http://localhost:8001      # OpenAI 兼容端点
+  model: google/gemma-3-4b-it
+  api_key: EMPTY                       # 本地服务通常不需要鉴权
+  timeout: 60
+  max_tokens: 2048
+  temperature: 0.7
+  supports_function_calling: false     # Gemma 3 4B 弱 → JSON Action 兜底
+
+agent:
+  # ReAct 循环参数
+  max_iterations: 5                    # 最大迭代次数（防死循环）
+  max_history: 20                      # 多轮记忆窗口
+  step_timeout: 30                     # 单次工具调用超时（秒）
+  system_prompt: |
+    你是 SpideHarness 飞书智能助手。
+    你可以调用工具采集热搜、分析趋势、生成词云、追踪话题、跨平台关联分析。
+    回答简洁专业，使用中文，必要时输出富文本卡片。
+    工具调用规则：
+    - 若需要执行操作，输出 JSON Action：```json{"action": "工具名", "arguments": {...}}```
+    - 若只需回答，直接输出文本
+    - 同一轮最多调用 1 个工具
+
+scheduler:
+  enabled: true                        # 主动推送总开关（需 app_secret）
+  jobs:
+    - name: daily_morning_brief
+      cron: "0 9 * * *"                # 每日 09:00
+      action: crawl_hot_topics
+      params:
+        source: weibo
+        limit: 10
+      push_card: true
+      target_chat_id: ""               # 留空使用默认
+    - name: daily_evening_brief
+      cron: "0 18 * * *"
+      action: crawl_hot_topics
+      params:
+        source: weibo
+        limit: 10
+      push_card: true
+      target_chat_id: ""
+
+storage:
+  conversation_db: spide_data.db       # 复用主数据库

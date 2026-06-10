@@ -283,13 +283,37 @@ async def feishu_event(request: Request) -> JSONResponse:
         # 解析指令
         parsed = parse_command(text)
         if not parsed:
-            return JSONResponse(
-                content={
-                    "status": "ignored",
-                    "reason": "not a command",
-                    "hint": "发送 'help' 查看可用指令",
-                }
-            )
+            # 非指令消息 → 路由到 Agent（自然语言对话）
+            from .feishu_agent import get_feishu_agent
+            from .feishu_card import agent_response_card
+
+            agent = get_feishu_agent()
+            try:
+                await agent.init()
+            except Exception as exc:
+                logger.warning("agent_init_failed", error=str(exc))
+
+            sender_open_id = sender.get("sender_id", {}).get("open_id", "unknown")
+            chat_id = message.get("chat_id", "")
+            try:
+                agent_result = await agent.chat(
+                    user_message=text, user_id=sender_open_id, chat_id=chat_id
+                )
+                card = agent_response_card(
+                    answer=agent_result.answer,
+                    tool_calls=agent_result.tool_calls,
+                    iterations=agent_result.iterations,
+                )
+                return JSONResponse(content=card)
+            except Exception as exc:
+                logger.error("agent_chat_failed", error=str(exc))
+                return JSONResponse(
+                    content={
+                        "status": "error",
+                        "message": f"Agent 处理失败: {exc}",
+                        "hint": "可尝试指令: 'crawl weibo' / 'analyze weibo' / 'status'",
+                    }
+                )
 
         cmd, args = parsed
         result = await execute_command(cmd, args)

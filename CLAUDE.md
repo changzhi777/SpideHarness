@@ -1,6 +1,6 @@
 # SpideHarness Agent — 项目 AI 上下文文档
 
-> 📍 [根目录](./) | 当前版本: V3.1.1 (DEV) | 最后更新: 2026-06-09 15:24
+> 📍 [根目录](./) | 当前版本: V3.1.1 (DEV) | 最后更新: 2026-06-10 12:55
 
 ## 变更记录
 
@@ -15,6 +15,7 @@
 | 2026-05-21 | 深化 | 数据采集 5 方向深化：增量采集/关键词告警/深度追踪/跨平台分析/反爬稳定 |
 | 2026-05-26 | 更新 | 全仓增量扫描：新增 timed_search.py + Dashboard API，更新统计（379 测试/22 命令） |
 | 2026-05-27 | 扩展 | Dashboard Web 扩展：飞书 Bot 事件回调 + GitHub AI 热点采集，更新统计 |
+| 2026-06-10 | **飞书智能体** | ReAct Agent + 4 大能力：自然语言对话 / 多轮记忆 / 主动推送 / 富文本卡片。6 阶段 A-F 实施，新增 7 个 dashboard 文件 + 6 个测试文件（53 用例），测试 471→528。文档：`docs/integration/feishu-agent.md`（350 行）+ `configs/feishu.yaml` + `skills/spide-feishu/SKILL.md` 智能体章节。 |
 | 2026-06-09 | 增量更新 | 全仓增量扫描：CLI 24 命令（+timed-search）、测试 471 用例，更新统计 |
 | 2026-06-09 | 审查优化 | 43 lint 清零 + analyze 缩进 bug + LLM 空响应容错 + Coding Plan 端点 + 15/15 功能测试 100% |
 | 2026-06-09 | **深度全量重扫** | 推倒重来：重写根级 + 9 个模块 CLAUDE.md，重生 Mermaid 结构图 + 9 个模块导航面包屑 |
@@ -28,7 +29,7 @@
 
 核心能力：UAPI 热搜采集（5 大平台）→ 增量检测 → 关键词告警 → 深度追踪（搜索+LLM）→ 跨平台关联分析 → Dashboard 看板 → 多通道输出（SQLite/Excel/MQTT）。
 
-CLI 24 命令、MCP 8 工具、LLM 双模型（GLM-5.1 + GLM-5V-Turbo）、471 测试用例、55 个 .py 源文件、~11,841 行源码。
+CLI 24 命令、MCP 8 工具、LLM 双模型（GLM-5.1 + GLM-5V-Turbo）、528 测试用例、62 个 .py 源文件、~14,300 行源码。
 
 ## 当前状态：**已实现 (Stage 2)**
 
@@ -55,7 +56,8 @@ CLI 24 命令、MCP 8 工具、LLM 双模型（GLM-5.1 + GLM-5V-Turbo）、471 �
 - ✅ Dashboard Web API（FastAPI 后端 + 前端页面）
 - ✅ 飞书 Bot 事件回调（指令解析 + 命令执行 + 事件订阅）
 - ✅ GitHub AI 热点采集（5 方向 topic 搜索 + 趋势仓库 + 飞书卡片推送）
-- ✅ 测试：50 个测试文件，471 个测试用例
+- ✅ 测试：56 个测试文件，528 个测试用例
+- ✅ 飞书智能体（V3.1.1+）：ReAct 循环 + 多轮记忆 + 主动推送 + 富文本卡片
 
 ---
 
@@ -339,7 +341,7 @@ UAPI/MediaCrawler → Pipeline(清洗去重) → IncrementalDetector(增量检�
 uv sync                              # 安装依赖
 spide --help                         # CLI 帮助
 spide doctor                         # 环境检查
-uv run pytest                        # 运行全部测试（471 passed）
+uv run pytest                        # 运行全部测试（528 passed）
 uv run pytest tests/unit/            # 仅单元测试
 uv run pytest -m integration         # 集成测试（需网络）
 uv run ruff format . && ruff check . # 格式化 + lint（当前 0 错误）
@@ -384,7 +386,7 @@ uvicorn dashboard.api:app --reload --port 8765   # 启动 Web Dashboard
 | Dashboard 前端 | 1 (.html, ~434 行) |
 | 测试文件 | 50 (.py) |
 | 测试行数 | ~6,484 |
-| 测试用例 | 471 (unit 350 + integration 38 + e2e 82) |
+| 测试用例 | 528 (unit 403 + integration 38 + e2e 82 + feishu_agent 53) |
 | 配置文件 | 5 (.yaml) |
 | CLI 命令 | 24 |
 | MCP 工具 | 8 |

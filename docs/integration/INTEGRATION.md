@@ -1,6 +1,6 @@
 # SpideHarness Agent — 集成手册（INTEGRATION）
 
-> 版本: V3.1.1 | 更新: 2026-06-09 | 受众: 开发者 + 终端用户 + AI Agent
+> 版本: V3.1.1 | 更新: 2026-06-10 | 受众: 开发者 + 终端用户 + AI Agent
 
 本文档是 **SpideHarness Agent 集成的中央入口**，面向三类受众提供差异化集成路径。新用户**必读 §1 快速开始**，再按身份选择对应章节。
 
@@ -551,6 +551,7 @@ setInterval(loadDashboardData, 60000);  // 每分钟刷新
 |------|------|------|
 | **本文档 (INTEGRATION.md)** | 所有人 | — |
 | [claude-desktop-config.md](./claude-desktop-config.md) | 终端用户 | 566 |
+| [feishu-agent.md](./feishu-agent.md) | 开发者 / 飞书用户 | 350+ |
 | [mcp-api-reference.md](../mcp-api-reference.md) | 开发者 / 终端用户 | 871 |
 | [http-api-reference.md](../http-api-reference.md) | 开发者 | 500+ |
 | [skills/README.md](../../skills/README.md) | 终端用户 / AI | 258 |
@@ -587,7 +588,19 @@ setInterval(loadDashboardData, 60000);  // 每分钟刷新
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
-| **V3.1.1** | 2026-06-09 | 🆕 **集成层完整化** |
+| **V3.1.1** | 2026-06-10 | 🆕 **飞书智能体（ReAct Agent）** |
+|  |  | - 新增 `dashboard/feishu_agent.py` — ReAct 循环 + 多轮记忆 |
+|  |  | - 新增 `dashboard/llm_client.py` — OpenAI 兼容 LLM 客户端 |
+|  |  | - 新增 `dashboard/conversation_store.py` — SQLite 会话记忆 |
+|  |  | - 新增 `dashboard/tool_router.py` — 8 个 MCP 工具本地路由 |
+|  |  | - 新增 `dashboard/feishu_card.py` — 飞书富文本卡片模板 |
+|  |  | - 新增 `dashboard/scheduler.py` — APScheduler 主动推送 |
+|  |  | - 新增 `configs/feishu.yaml` — 飞书 + LLM 配置 |
+|  |  | - 新增 4 个端点：`/api/feishu/agent` + `agent/clear` + `scheduler/start/stop` |
+|  |  | - 新增 `docs/integration/feishu-agent.md`（350 行） |
+|  |  | - 新增 6 个测试文件 / 53 用例 |
+|  |  | - **测试统计：471 → 528（+57）** |
+| V3.1.1 | 2026-06-09 | 🆕 **集成层完整化** |
 |  |  | - 新增 Auto-Config API (`/.well-known/agent.json`) |
 |  |  | - 新增 HTTP REST 完整文档（10 端点） |
 |  |  | - 新增 MCP 文档（SSE 规划 / JSON-RPC 错误码 / FAQ） |

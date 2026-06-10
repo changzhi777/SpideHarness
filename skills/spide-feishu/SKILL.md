@@ -99,11 +99,71 @@ result = await client.call_tool("manage_memory", {
   ↓
 dashboard/feishu_handler.py
   ├─→ url_verification: 回 challenge
-  └─→ im.message.receive_v1: 解析文本 → execute_command
-                                  ↓
-                            subprocess.run([spide, ...])
-                                  ↓
-                            返回 JSON 响应
+  └─→ im.message.receive_v1: 解析文本
+        ├─→ 命中指令格式 → execute_command (subprocess)
+        └─→ 自然语言 → FeishuAgent.chat (ReAct 循环)
+                                ↓
+                          8 个 MCP 工具本地调用
+                                ↓
+                          返回富文本卡片
+```
+
+## 智能体模式（V3.1.1+）
+
+**V3.1.1 起，非指令消息自动路由到 ReAct Agent**：
+
+```
+[用户 @机器人] 今天微博上有哪些热门 AI 话题？
+[机器人]   →  LLM 推理 → 调用 crawl_hot_topics 工具
+            → 返回 Top 10 话题 → 渲染富文本卡片
+```
+
+### 智能体对话 API
+
+```bash
+# 自然语言对话
+curl -X POST http://localhost:8765/api/feishu/agent \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "u_123",
+    "chat_id": "oc_456",
+    "message": "今天微博上有哪些热门 AI 话题？"
+  }'
+
+# 返回
+{
+  "answer": "已采集微博热搜...",
+  "iterations": 2,
+  "tool_calls": [{"name": "crawl_hot_topics", "arguments": {"source": "weibo"}}],
+  "status": "ok"
+}
+```
+
+### 智能体能力
+
+| 维度 | 能力 |
+|------|------|
+| LLM | OpenAI 兼容客户端（Gemma 3 4B / vLLM / Ollama） |
+| Function Calling | 支持（自动检测）+ JSON Action 兜底 |
+| 多轮记忆 | SQLite 持久化（`chat_sessions` / `chat_messages`） |
+| 工具 | 8 个 MCP 工具（采集/搜索/抓取/记忆/健康/深度） |
+| 降级策略 | LLM 不可用 → 关键词模式（仍支持指令） |
+| ReAct | 最多 5 轮迭代 + 单工具超时 30s |
+
+### 主动推送（需 app_secret）
+
+```bash
+# 启动调度器（按 configs/feishu.yaml 中 cron jobs 定时执行 + 推送卡片）
+curl -X POST http://localhost:8765/api/feishu/scheduler/start
+
+# 停止
+curl -X POST http://localhost:8765/api/feishu/scheduler/stop
+```
+
+### 健康检查
+
+```bash
+curl http://localhost:8765/api/feishu/agent/status
 ```
 
 ## 支持的消息类型
