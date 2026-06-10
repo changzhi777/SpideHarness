@@ -53,10 +53,13 @@ def set_feishu_config(
     encrypt_key: str = "",
 ) -> None:
     global _FEISHU_APP_ID, _FEISHU_APP_SECRET, _FEISHU_VERIFICATION_TOKEN, _FEISHU_ENCRYPT_KEY
-    _FEISHU_APP_ID = app_id
-    _FEISHU_APP_SECRET = app_secret
-    _FEISHU_VERIFICATION_TOKEN = verification_token
-    _FEISHU_ENCRYPT_KEY = encrypt_key
+    # 解析 ${ENV_VAR[:default]} 占位符(支持从环境变量注入密钥)
+    from .secrets import resolve_secrets
+
+    _FEISHU_APP_ID = resolve_secrets(app_id)
+    _FEISHU_APP_SECRET = resolve_secrets(app_secret)
+    _FEISHU_VERIFICATION_TOKEN = resolve_secrets(verification_token)
+    _FEISHU_ENCRYPT_KEY = resolve_secrets(encrypt_key)
 
 
 # ── 指令解析 ──────────────────────────────────────────────────────

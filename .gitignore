@@ -32,6 +32,8 @@ htmlcov/
 configs/mqtt.yaml
 configs/llm.yaml
 configs/uapi.yaml
+configs/feishu.yaml  # 飞书凭证（占位符在仓库,真实值在 .env / 环境变量）
+.env                # 本地环境变量（严禁提交）
 CA/
 
 # uv

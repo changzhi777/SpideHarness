@@ -61,10 +61,11 @@ class LLMClient:
     async def health_check(self) -> bool:
         """检查 LLM 服务是否可用。"""
         url = f"{self.config.base_url.rstrip('/')}/v1/models"
+        headers = {"Authorization": f"Bearer {self.config.api_key}"} if self.config.api_key else {}
         try:
             async with aiohttp.ClientSession(
                 timeout=aiohttp.ClientTimeout(total=5)
-            ) as session, session.get(url) as resp:
+            ) as session, session.get(url, headers=headers) as resp:
                 self._healthy = resp.status == 200
                 if self._healthy:
                     logger.info(
@@ -193,11 +194,56 @@ class LLMClient:
 _client: LLMClient | None = None
 
 
+def load_llm_config_from_yaml(config_path: str = "configs/feishu.yaml") -> LLMConfig | None:
+    """从 configs/feishu.yaml 加载 LLM 配置（llm 节）。
+
+    Returns:
+        LLMConfig 实例;文件不存在或 llm 节缺失时返回 None
+    """
+    from pathlib import Path
+
+    import yaml
+
+    path = Path(config_path)
+    if not path.exists():
+        return None
+
+    with path.open(encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+
+    # 解析 ${ENV_VAR[:default]} 占位符
+    from .secrets import resolve_secrets_in_obj
+
+    data = resolve_secrets_in_obj(data)
+    llm_data = data.get("llm")
+    if not llm_data or not isinstance(llm_data, dict):
+        return None
+
+    # 映射 feishu.yaml 的 llm 节 → LLMConfig
+    return LLMConfig(
+        base_url=llm_data.get("base_url", "http://localhost:8001"),
+        model=llm_data.get("model", "google/gemma-3-4b-it"),
+        api_key=llm_data.get("api_key", "EMPTY"),
+        timeout=int(llm_data.get("timeout", 60)),
+        max_tokens=int(llm_data.get("max_tokens", 2048)),
+        temperature=float(llm_data.get("temperature", 0.7)),
+        supports_function_calling=bool(llm_data.get("supports_function_calling", False)),
+    )
+
+
 def get_llm_client(config: LLMConfig | None = None) -> LLMClient:
-    """获取全局 LLM 客户端单例。"""
+    """获取全局 LLM 客户端单例。
+
+    优先级:
+    1. 显式传入的 config
+    2. configs/feishu.yaml 中的 llm 节
+    3. 默认 LLMConfig()
+    """
     global _client
     if _client is None:
-        _client = LLMClient(config or LLMConfig())
+        if config is None:
+            config = load_llm_config_from_yaml() or LLMConfig()
+        _client = LLMClient(config)
     return _client
 
 

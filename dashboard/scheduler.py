@@ -21,6 +21,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from .feishu_card import daily_brief_card, error_card, topics_list_card
+from .secrets import resolve_secrets_in_obj
 from .tool_router import call_tool
 
 logger = structlog.get_logger(__name__)
@@ -207,6 +208,9 @@ def load_scheduler_from_config(config_path: str = "configs/feishu.yaml") -> Feis
 
     with path.open(encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
+
+    # 解析 ${ENV_VAR[:default]} 占位符（app_secret 等敏感字段）
+    data = resolve_secrets_in_obj(data)
 
     feishu = data.get("feishu", {})
     sched = data.get("scheduler", {})

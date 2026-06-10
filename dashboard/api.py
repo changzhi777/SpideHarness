@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import re
 import sqlite3
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -69,7 +69,58 @@ def _query(sql: str, params: tuple = ()) -> list[Row]:
 
 
 # ── API 路由 ──────────────────────────────────────────────────────
-app = FastAPI(title="SpideHarness Dashboard API", version="3.1.1")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期:启动时初始化 LLM / Agent / Scheduler,关闭时清理。"""
+    from dashboard.llm_client import get_llm_client, load_llm_config_from_yaml
+    from dashboard.secrets import resolve_secrets_in_obj
+
+    # 1. 解析 ${ENV_VAR[:default]} 占位符 + 加载 LLM 配置
+    feishu_yaml_cfg = load_llm_config_from_yaml()
+    if feishu_yaml_cfg:
+        logger.info(
+            "llm_config_loaded_from_yaml",
+            base_url=feishu_yaml_cfg.base_url,
+            model=feishu_yaml_cfg.model,
+        )
+    llm = get_llm_client()  # 触发单例初始化（读 yaml）
+    healthy = await llm.health_check()
+    logger.info("llm_health_on_startup", healthy=healthy)
+
+    # 2. 加载 feishu.yaml 中飞书凭证（注入到 handler）
+    try:
+        import yaml
+
+        cfg_path = Path("configs/feishu.yaml")
+        if cfg_path.exists():
+            with cfg_path.open(encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+            data = resolve_secrets_in_obj(data)
+            feishu = data.get("feishu", {})
+            from dashboard.feishu_handler import set_feishu_config
+
+            set_feishu_config(
+                app_id=feishu.get("app_id", ""),
+                app_secret=feishu.get("app_secret", ""),
+                verification_token=feishu.get("verification_token", ""),
+                encrypt_key=feishu.get("encrypt_key", ""),
+            )
+            logger.info("feishu_config_loaded", app_id=feishu.get("app_id", ""))
+    except Exception as exc:
+        logger.warning("feishu_config_load_failed", error=str(exc))
+
+    yield
+
+    # 关闭时清理
+    try:
+        from dashboard.scheduler import get_scheduler
+
+        await get_scheduler().stop()
+    except Exception:
+        pass
+
+
+app = FastAPI(title="SpideHarness Dashboard API", version="3.1.1", lifespan=lifespan)
 app.include_router(feishu_router)
 
 

@@ -133,8 +133,10 @@ async def test_agent_clear_session(tmp_db) -> None:
     assert history == []
 
 
-async def test_agent_singleton() -> None:
+async def test_agent_singleton(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     """get_feishu_agent 返回单例。"""
+    # 切到无 feishu.yaml 的目录,避免解析 ${ENV_VAR} 占位符
+    monkeypatch.chdir(tmp_path)
     reset_feishu_agent()
     a1 = get_feishu_agent()
     a2 = get_feishu_agent()
