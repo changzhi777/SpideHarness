@@ -1,11 +1,10 @@
 # 飞书智能体配置
 # App ID: cli_a976c6aaaa7adcbb（已确认）
-# App Secret: 缺失 → 主动推送禁用，webhook 正常
 # LLM: Google Gemma 3 4B（端口 8001，本地推理）
 
 feishu:
   app_id: cli_a976c6aaaa7adcbb
-  app_secret: ""                       # 待补充：填入后启用主动推送
+  app_secret: efN3hVVOajwSITZIfPjRSbnualUBx6eP
   verification_token: ""               # webhook 验证 token（按需）
   encrypt_key: ""                      # 加密 key（按需）
   # 默认推送目标（主动推送）
@@ -26,7 +25,7 @@ agent:
   max_history: 20                      # 多轮记忆窗口
   step_timeout: 30                     # 单次工具调用超时（秒）
   system_prompt: |
-    你是 SpideHarness 飞书智能助手。
+    你是「青沐信息官」，一位专业、亲切的信息助手。
     你可以调用工具采集热搜、分析趋势、生成词云、追踪话题、跨平台关联分析。
     回答简洁专业，使用中文，必要时输出富文本卡片。
     工具调用规则：

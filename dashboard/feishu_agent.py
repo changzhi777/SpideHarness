@@ -62,7 +62,7 @@ def _friendly_action(tool_name: str, result: dict[str, Any]) -> str:
     return actions.get(tool_name, "处理完成")
 
 
-DEFAULT_SYSTEM_PROMPT = """你是 SpideHarness 飞书智能助手。
+DEFAULT_SYSTEM_PROMPT = """你是「青沐信息官」，一位专业、亲切的信息助手。
 
 你的能力：
 - 采集热搜（微博/百度/抖音/知乎/B站）

@@ -111,7 +111,7 @@ def agent_response_card(
         "card": {
             "config": {"wide_screen_mode": True},
             "header": {
-                "title": {"tag": "plain_text", "content": "小助手回复"},
+                "title": {"tag": "plain_text", "content": "青沐信息官"},
                 "template": "blue",
             },
             "elements": elements,
@@ -166,7 +166,7 @@ def _footer_element() -> dict[str, Any]:
         "elements": [
             {
                 "tag": "plain_text",
-                "content": f"SpideHarness Agent V3.1.1 | {ts}",
+                "content": f"青沐信息官 · SpideHarness V3.1.1 | {ts}",
             }
         ],
     }

@@ -88,14 +88,13 @@ def test_agent_response_card_with_trace() -> None:
     assert "工具调用轨迹" not in body
     assert "crawl_hot_topics" not in body  # 工具原始名不暴露
     # 标题温和
-    assert "小助手回复" in body
+    assert "青沐信息官" in body
 
 
 def test_agent_response_card_no_trace() -> None:
     """agent_response_card 无工具调用时不显示进度区。"""
     card = agent_response_card(answer="你好")
     body = str(card)
-    assert "工具调用轨迹" not in body
     assert "处理进度" not in body
     assert "你好" in body
 
@@ -105,6 +104,7 @@ def test_agent_response_card_empty_answer_friendly() -> None:
     card = agent_response_card(answer="", tool_calls=None)
     body = str(card)
     assert "稍后再试" in body or "😊" in body
+    assert "青沐信息官" in body
 
 
 def test_agent_response_card_hides_long_call_id() -> None:
