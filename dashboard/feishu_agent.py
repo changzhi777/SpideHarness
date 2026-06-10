@@ -27,6 +27,41 @@ from .tool_router import call_tool, format_tool_result, get_tool_schemas
 
 logger = structlog.get_logger(__name__)
 
+
+def _short_task_id(call_id: str, tool_name: str) -> str:
+    """生成 3 位短任务标识（UI 友好，DB 保留完整 ID）。
+
+    优先取 call_id 后 3 位；空 call_id 时从 tool_name 生成稳定 hash 后 3 位。
+    """
+    import hashlib
+
+    if call_id:
+        return call_id[-3:]
+    h = hashlib.md5(tool_name.encode("utf-8")).hexdigest()
+    return h[-3:]
+
+
+def _friendly_action(tool_name: str, result: dict[str, Any]) -> str:
+    """生成人类友好的动作描述（用于 UI 显示）。"""
+    if result.get("status") == "error":
+        return f"尝试获取 {tool_name} 时遇到问题"
+
+    count = result.get("count")
+    source = result.get("source", "")
+
+    actions: dict[str, str] = {
+        "crawl_hot_topics": f"已为您采集{source or ''}热搜{count or ''}条".rstrip("已为您采集"),
+        "web_search": f"为您检索了 {count or '相关'} 条结果",
+        "web_search_enhanced": f"为您检索了 {count or '相关'} 条结果",
+        "fetch_web_page": "已获取网页内容",
+        "fetch_repo_info": "已获取仓库信息",
+        "manage_memory": "已更新记忆",
+        "health_check": "已完成健康检查",
+        "deep_crawl_hot_topics": f"已为您深度采集{count or ''}条内容".rstrip("已为您深度采集"),
+    }
+    return actions.get(tool_name, "处理完成")
+
+
 DEFAULT_SYSTEM_PROMPT = """你是 SpideHarness 飞书智能助手。
 
 你的能力：
@@ -43,7 +78,7 @@ DEFAULT_SYSTEM_PROMPT = """你是 SpideHarness 飞书智能助手。
 - 若只需回答，直接输出文本
 - 同一轮最多调用 1 个工具
 
-回答风格：简洁、专业、中文。"""
+回答风格：像一位专业、亲切的同事，自然流畅、中文表达。"""
 
 
 @dataclass
@@ -152,6 +187,8 @@ class FeishuAgent:
                         tool_result.get("message")
                         or f"count={tool_result.get('count', '?')}"
                     ),
+                    "task_id_short": _short_task_id(tc.call_id, tc.name),
+                    "friendly_action": _friendly_action(tc.name, tool_result),
                 }
             )
 

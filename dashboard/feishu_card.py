@@ -83,20 +83,25 @@ def agent_response_card(
     tool_calls: list[dict[str, Any]] | None = None,
     iterations: int = 0,
 ) -> dict[str, Any]:
-    """Agent 响应卡片（含工具调用轨迹）。"""
+    """Agent 响应卡片（拟人化风格）。
+
+    UI 隐藏 call_id / 迭代次数等机械标识。
+    仅以温和的方式提示每一步的处理进度 + 任务短码（#xxx）。
+    数据库（chat_messages.tool_calls）保留完整 call_id 用于追踪。
+    """
     elements: list[dict[str, Any]] = [
-        {"tag": "div", "text": {"tag": "lark_md", "content": answer or "*（无响应）*"}},
+        {"tag": "div", "text": {"tag": "lark_md", "content": answer or "我这边暂时没有合适的回答，稍后再试？😊"}},
     ]
 
     if tool_calls:
-        trace_lines = [f"**🔧 工具调用轨迹** (迭代 {iterations} 次)"]
-        for i, tc in enumerate(tool_calls, 1):
-            name = tc.get("name", "?")
-            summary = str(tc.get("summary", ""))[:80]
-            trace_lines.append(f"  {i}. `{name}` — {summary}")
+        progress_lines = ["**处理进度**"]
+        for tc in tool_calls:
+            short_id = tc.get("task_id_short", "000")
+            friendly = tc.get("friendly_action") or "已为您处理"
+            progress_lines.append(f"- {friendly} · 任务 #{short_id}")
         elements.append({"tag": "hr"})
         elements.append(
-            {"tag": "div", "text": {"tag": "lark_md", "content": "\n".join(trace_lines)}}
+            {"tag": "div", "text": {"tag": "lark_md", "content": "\n".join(progress_lines)}}
         )
 
     elements.append(_footer_element())
@@ -106,7 +111,7 @@ def agent_response_card(
         "card": {
             "config": {"wide_screen_mode": True},
             "header": {
-                "title": {"tag": "plain_text", "content": "🤖 SpideHarness 智能助手"},
+                "title": {"tag": "plain_text", "content": "小助手回复"},
                 "template": "blue",
             },
             "elements": elements,

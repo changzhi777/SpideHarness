@@ -68,23 +68,61 @@ def test_topics_list_card_truncate_long_title() -> None:
 
 
 def test_agent_response_card_with_trace() -> None:
-    """agent_response_card 含工具调用轨迹。"""
+    """agent_response_card 含工具调用进度（拟人化 + 短任务码）。"""
     tool_calls = [
-        {"name": "crawl_hot_topics", "arguments": {"source": "weibo"}, "summary": "ok: count=20"},
+        {
+            "name": "crawl_hot_topics",
+            "arguments": {"source": "weibo"},
+            "summary": "ok: count=20",
+            "task_id_short": "a3f",
+            "friendly_action": "已为您采集微博热搜 20 条",
+        },
     ]
-    card = agent_response_card(answer="已采集微博热搜", tool_calls=tool_calls, iterations=2)
+    card = agent_response_card(answer="微博热搜 Top 20 已送上", tool_calls=tool_calls, iterations=2)
     body = str(card)
-    assert "已采集微博热搜" in body
-    assert "crawl_hot_topics" in body
-    assert "迭代 2" in body
+    assert "微博热搜 Top 20 已送上" in body
+    assert "已为您采集微博热搜 20 条" in body
+    assert "任务 #a3f" in body
+    # 拟人化要求：不显示机械标识
+    assert "迭代 2" not in body
+    assert "工具调用轨迹" not in body
+    assert "crawl_hot_topics" not in body  # 工具原始名不暴露
+    # 标题温和
+    assert "小助手回复" in body
 
 
 def test_agent_response_card_no_trace() -> None:
-    """agent_response_card 无工具调用时不含轨迹。"""
+    """agent_response_card 无工具调用时不显示进度区。"""
     card = agent_response_card(answer="你好")
     body = str(card)
     assert "工具调用轨迹" not in body
+    assert "处理进度" not in body
     assert "你好" in body
+
+
+def test_agent_response_card_empty_answer_friendly() -> None:
+    """空 answer 时显示友好的兜底文案。"""
+    card = agent_response_card(answer="", tool_calls=None)
+    body = str(card)
+    assert "稍后再试" in body or "😊" in body
+
+
+def test_agent_response_card_hides_long_call_id() -> None:
+    """UI 中不暴露完整 call_id（只显示短码）。"""
+    tool_calls = [
+        {
+            "name": "web_search",
+            "arguments": {},
+            "summary": "ok: count=5",
+            "task_id_short": "xyz",
+            "friendly_action": "为您检索了 5 条结果",
+        },
+    ]
+    card = agent_response_card(answer="搜索完成", tool_calls=tool_calls)
+    body = str(card)
+    # 长 call_id 不应出现
+    assert "call_" not in body
+    assert "xyz" in body  # 短码出现
 
 
 def test_daily_brief_card() -> None:
