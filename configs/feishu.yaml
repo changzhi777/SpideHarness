@@ -17,6 +17,9 @@ feishu:
   app_secret: ${SPIDE_FEISHU__APP_SECRET}             # 必填 → 环境变量
   verification_token: ${SPIDE_FEISHU__VERIFICATION_TOKEN:}  # 选填 → 默认空
   encrypt_key: ${SPIDE_FEISHU__ENCRYPT_KEY:}          # 选填 → 默认空
+  # WebSocket 长连接配置（推荐，无需公网 URL）
+  ws:
+    enabled: true                       # 是否启用 WebSocket 长连接
   # 默认推送目标（主动推送）
   default_chat_id: ""                  # 群 chat_id 或 user open_id
 

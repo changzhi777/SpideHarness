@@ -109,6 +109,35 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning("feishu_config_load_failed", error=str(exc))
 
+    # 3. 启动飞书 WebSocket 长连接（无需公网 URL）
+    ws_app_id = feishu.get("app_id", "")
+    ws_app_secret = feishu.get("app_secret", "")
+    if ws_app_id and ws_app_secret:
+        try:
+            from dashboard.feishu_handler import on_feishu_message_event
+            from dashboard.feishu_ws_client import (
+                init_ws_client,
+                register_message_handler,
+                start_ws_client,
+            )
+
+            init_ws_client(ws_app_id, ws_app_secret)
+            register_message_handler(on_feishu_message_event)
+            import threading
+
+            ws_thread = threading.Thread(
+                target=start_ws_client,
+                args=(ws_app_id, ws_app_secret),
+                daemon=True,
+                name="feishu-ws",
+            )
+            ws_thread.start()
+            logger.info("feishu_ws_started", app_id=ws_app_id[:8] + "***")
+        except Exception as exc:
+            logger.warning("feishu_ws_start_failed", error=str(exc))
+    else:
+        logger.warning("feishu_ws_skipped", reason="app_id 或 app_secret 为空")
+
     yield
 
     # 关闭时清理
@@ -116,6 +145,13 @@ async def lifespan(app: FastAPI):
         from dashboard.scheduler import get_scheduler
 
         await get_scheduler().stop()
+    except Exception:
+        pass
+
+    try:
+        from dashboard.feishu_ws_client import stop_ws_client
+
+        stop_ws_client()
     except Exception:
         pass
 

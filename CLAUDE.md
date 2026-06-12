@@ -1,6 +1,6 @@
 # SpideHarness Agent — 项目 AI 上下文文档
 
-> 📍 [根目录](./) | 当前版本: V3.1.1 (DEV) | 最后更新: 2026-06-10 12:55
+> 📍 [根目录](./) | 当前版本: V3.1.2 (DEV) | 最后更新: 2026-06-11
 
 ## 变更记录
 
@@ -20,6 +20,8 @@
 | 2026-06-09 | 审查优化 | 43 lint 清零 + analyze 缩进 bug + LLM 空响应容错 + Coding Plan 端点 + 15/15 功能测试 100% |
 | 2026-06-09 | **深度全量重扫** | 推倒重来：重写根级 + 9 个模块 CLAUDE.md，重生 Mermaid 结构图 + 9 个模块导航面包屑 |
 | 2026-06-09 | **集成层完整化** | Auto-Config API + HTTP REST 完整文档 + MCP 文档完善 + Claude Desktop 配置手册 + 3 个新 Skills (trending/monitor/feishu) + 4 核心 Skills 加 MCP 示例 + skills/README.md + INTEGRATION.md 综合文档 |
+| 2026-06-11 | **飞书 WS 迁移** | 新增 `dashboard/feishu_ws_client.py`（lark-oapi WebSocket 长连接，替代 HTTP Webhook）+ `configs/feishu.yaml:ws.enabled` 开关。同步补全 dashboard/CLAUDE.md（4→12 文件，新增 capability_registry/conversation_store/feishu_agent/feishu_card/llm_client/scheduler/secrets/tool_router 共 8 个未文档化文件）+ 根级 Mermaid 图扩展 dashboard 内部结构 |
+| 2026-06-11 | **依赖扩充** | `pyproject.toml` 新增 `lark-oapi>=1.6` / `apscheduler>=3.10` / `fastapi>=0.136.3` / `uvicorn>=0.44.0` |
 
 ---
 
@@ -58,6 +60,7 @@ CLI 24 命令、MCP 8 工具、LLM 双模型（GLM-5.1 + GLM-5V-Turbo）、528 �
 - ✅ GitHub AI 热点采集（5 方向 topic 搜索 + 趋势仓库 + 飞书卡片推送）
 - ✅ 测试：56 个测试文件，528 个测试用例
 - ✅ 飞书智能体（V3.1.1+）：ReAct 循环 + 多轮记忆 + 主动推送 + 富文本卡片
+- ✅ 飞书 WebSocket 长连接（V3.1.2+）：`lark-oapi` SDK 替代 HTTP Webhook，无需公网 URL
 
 ---
 
@@ -133,8 +136,17 @@ graph TD
     Dashboard --> Renderer["renderer.py<br/>渲染输出"]
 
     DashboardAPI["dashboard/api.py<br/>FastAPI Web API"]
-    DashboardAPI --> FeishuHandler["feishu_handler.py<br/>飞书 Bot 事件回调"]
-    DashboardAPI --> GitHubTrending["github_trending.py<br/>GitHub AI 热点采集"]
+    DashboardAPI --> FeishuHandler["feishu_handler.py<br/>飞书事件回调（HTTP+WS）"]
+    DashboardAPI --> FeishuAgent["feishu_agent.py<br/>ReAct Agent"]
+    DashboardAPI --> FeishuWS["feishu_ws_client.py<br/>WebSocket 长连接"]
+    DashboardAPI --> ToolRouter["tool_router.py<br/>8 工具路由"]
+    DashboardAPI --> FeishuCard["feishu_card.py<br/>富文本卡片"]
+    DashboardAPI --> FeishuSched["scheduler.py<br/>主动推送调度"]
+    DashboardAPI --> GitHubTrending["github_trending.py<br/>GitHub AI 热点"]
+    DashboardAPI --> ConvStore["conversation_store.py<br/>多轮记忆"]
+    DashboardAPI --> LLMClient2["llm_client.py<br/>OpenAI 兼容客户端"]
+    DashboardAPI --> CapRegistry["capability_registry.py<br/>Agent 自发现"]
+    DashboardAPI --> Secrets["secrets.py<br/>环境变量注入"]
 
     CLI --> Config["spide/config.py<br/>Pydantic Settings"]
     CLI --> Memory["spide/memory.py<br/>记忆管理"]
@@ -233,11 +245,20 @@ Spide_agent/
 │   ├── mqtt.yaml
 │   ├── uapi.yaml
 │   └── alert_rules.yaml
-├── dashboard/                      # Dashboard Web 应用
-│   ├── api.py                      # FastAPI 后端
-│   ├── feishu_handler.py           # 飞书 Bot 事件回调
-│   ├── github_trending.py          # GitHub AI 热点采集
-│   └── index.html                  # 前端页面
+├── dashboard/                      # Dashboard Web 应用（12 文件 ~3354 行）
+│   ├── api.py                      # FastAPI 主应用 — lifespan 启动 LLM/Agent/Scheduler/WS
+│   ├── feishu_handler.py           # 飞书事件回调（HTTP Webhook + WebSocket 双模式）
+│   ├── feishu_agent.py             # ReAct Agent（LLM + 工具循环 + 多轮记忆）
+│   ├── feishu_ws_client.py         # WebSocket 长连接（lark-oapi SDK）
+│   ├── feishu_card.py              # 飞书 Interactive Card v2 模板
+│   ├── tool_router.py              # 8 个 MCP 工具异步路由 + CLI 兜底
+│   ├── capability_registry.py      # AI Agent 自发现（/.well-known/agent.json）
+│   ├── conversation_store.py       # SQLite 多轮记忆（chat_sessions + chat_messages）
+│   ├── llm_client.py               # OpenAI 兼容客户端（vLLM/Ollama）+ JSON Action 兜底
+│   ├── scheduler.py                # APScheduler 主动推送调度器
+│   ├── secrets.py                  # ${ENV_VAR} 占位符解析
+│   ├── github_trending.py          # GitHub AI 热点采集（9 查询）
+│   └── index.html                  # 前端页面（~1000 行）
 ├── CA/                             # TLS 证书 (不入 Git)
 ├── Mcaclaw/                        # macOS 安装引导脚本
 ├── MediaCrawler/                   # MediaCrawler 子项目
@@ -266,7 +287,7 @@ Spide_agent/
 | `spide/storage/` | 5 | SQLite/Redis/导出/模型 | [CLAUDE.md](./spide/storage/CLAUDE.md) |
 | `spide/analysis/` | 4 | AI 分析（摘要/趋势/词云/聚类/相似度） | [CLAUDE.md](./spide/analysis/CLAUDE.md) |
 | `spide/dashboard/` | 3 | HTML 数据看板 | [CLAUDE.md](./spide/dashboard/CLAUDE.md) |
-| `dashboard/` (Web) | 4 | FastAPI Dashboard + 飞书 Bot + GitHub 热点 | — |
+| `dashboard/` (Web) | 12 | FastAPI Dashboard + 飞书智能体（ReAct+WS+Scheduler+卡片）+ GitHub 热点 | [CLAUDE.md](./dashboard/CLAUDE.md) |
 | `tests/` | 50 | 测试（单元/集成/E2E） | [CLAUDE.md](./tests/CLAUDE.md) |
 | **总计** | **~101** | 源码 55 + 测试 50 + 配置/文档 若干 | |
 
@@ -379,19 +400,20 @@ uvicorn dashboard.api:app --reload --port 8765   # 启动 Web Dashboard
 | 指标 | 数量 |
 |------|------|
 | 源码文件 (spide/) | 52 (.py) |
-| Web 后端 (dashboard/) | 4 (.py) |
+| Web 后端 (dashboard/) | 12 (.py) |
 | 源码行数 (spide) | ~10,487 |
-| 源码行数 (dashboard) | ~1,354 |
+| 源码行数 (dashboard) | ~3,354 |
 | 源码合计 | ~11,841 |
 | Dashboard 前端 | 1 (.html, ~434 行) |
-| 测试文件 | 50 (.py) |
-| 测试行数 | ~6,484 |
-| 测试用例 | 528 (unit 403 + integration 38 + e2e 82 + feishu_agent 53) |
+| 测试文件 | 58 (.py) |
+| 测试行数 | ~7,100 |
+| 测试用例 | 536（unit 411 + integration 38 + e2e 82 + feishu_agent 53）|
 | 配置文件 | 5 (.yaml) |
 | CLI 命令 | 24 |
 | MCP 工具 | 8 |
 | AI Skills | 17 (含 3 个 V3.1.1 新增) |
 | HTTP REST 端点 | 10 |
+| 飞书 WebSocket 长连接 | 1（lark-oapi SDK） |
 | 集成文档 | 3 (.md) (http-api / mcp-api / claude-desktop) |
 | 数据模型 | 15 实体 + 6 枚举 (Pydantic v2) |
 | 异常类 | 9 (基类 + 8 子类) |

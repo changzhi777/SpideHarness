@@ -239,14 +239,18 @@ def _get_status() -> dict[str, Any]:
 # ── API 端点 ──────────────────────────────────────────────────────
 
 
-@router.post("/event", summary="飞书事件回调")
+@router.api_route("/event", methods=["GET", "POST"], summary="飞书事件回调")
 async def feishu_event(request: Request) -> JSONResponse:
     """处理飞书开放平台事件回调.
 
     支持:
-    - URL 验证 (challenge)
-    - 消息接收 (im.message.receive_v1)
+    - GET: 健康检查（返回 ok）
+    - POST URL 验证 (challenge)
+    - POST 消息接收 (im.message.receive_v1)
     """
+    if request.method == "GET":
+        return JSONResponse(content={"status": "ok"})
+
     body = await request.json()
 
     # 1. URL 验证（飞书配置事件订阅时发送）
@@ -383,3 +387,91 @@ def _extract_text(content_str: str, msg_type: str) -> str:
 
     # 其他类型尝试提取 text
     return content.get("text", "").strip()
+
+
+# ── WebSocket 事件回调（lark-oapi SDK） ───────────────────────────────
+
+
+def on_feishu_message_event(event) -> None:
+    """WebSocket 长连接消息事件回调（由 feishu_ws_client 调用）。
+
+    Args:
+        event: lark_oapi.api.im.v1.P2ImMessageReceiveV1 实例
+    """
+    import asyncio
+
+    msg = event.event.message
+    text = _extract_text(msg.content, msg.message_type)
+    if not text:
+        return
+
+    sender_open_id = event.event.sender.sender_id.open_id
+    chat_id = msg.chat_id
+
+    logger.info(
+        "feishu_ws_message_received sender=%s text=%s",
+        (sender_open_id or "unknown")[:12],
+        text[:100],
+    )
+
+    # 异步主循环中运行
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    loop.create_task(_process_and_reply(text, sender_open_id, chat_id))
+
+
+async def _process_and_reply(text: str, sender_open_id: str, chat_id: str) -> None:
+    """处理消息并发送回复（WebSocket 模式）。"""
+    from .feishu_ws_client import send_message
+
+    # 1. 尝试指令解析
+    parsed = parse_command(text)
+    if parsed:
+        cmd, args = parsed
+        result = await execute_command(cmd, args)
+        reply = result.get("message") or result.get("output", "")
+        if reply:
+            send_result = send_message(chat_id, reply)
+            logger.info(
+                "feishu_ws_command_replied cmd=%s status=%s",
+                cmd,
+                send_result.get("status"),
+            )
+        return
+
+    # 2. 非指令 → Agent 处理
+    from .feishu_agent import get_feishu_agent
+    from .feishu_card import agent_response_card
+
+    agent = get_feishu_agent()
+    try:
+        await agent.init()
+    except Exception as exc:
+        logger.warning("agent_init_failed: %s", exc)
+
+    try:
+        agent_result = await agent.chat(
+            user_message=text, user_id=sender_open_id, chat_id=chat_id
+        )
+        card = agent_response_card(
+            answer=agent_result.answer,
+            tool_calls=agent_result.tool_calls,
+            iterations=agent_result.iterations,
+        )
+        card_text = card.get("content", {}).get("text", agent_result.answer)
+        send_result = send_message(chat_id, card_text)
+        logger.info(
+            "feishu_ws_agent_replied iterations=%d status=%s",
+            agent_result.iterations,
+            send_result.get("status"),
+        )
+    except Exception as exc:
+        logger.error("agent_chat_failed: %s", exc)
+        send_message(
+            chat_id,
+            f"处理失败: {exc}\n可尝试指令: 'crawl weibo' / 'analyze weibo' / 'status'",
+        )
