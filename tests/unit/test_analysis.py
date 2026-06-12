@@ -102,6 +102,24 @@ class TestContentSummarizer:
 
         assert result["summary"] == "测试"
 
+    async def test_summarize_truncated_json_repaired(self):
+        """LLM 返回被截断的 JSON 时应被自动修复（max_tokens 不足兜底）."""
+        # 模拟 GLM-5.1 在 max_tokens=1024 时被截断的中文摘要
+        truncated = (
+            '{"summary": "OpenAI 今天正式发布了最新一代人工智能模型 GPT-5。'
+            "据悉，该模型在多项关键基准测试中展现出了显著的突破与性能提升。"
+            "具体而言，GPT-5 在代码生成能力、复杂数学推理以及多语言理解方面"
+        )
+        llm = MagicMock()
+        llm.chat = MagicMock(return_value=_mock_llm_response(truncated))
+
+        summarizer = ContentSummarizer(llm)
+        result = await summarizer.summarize(title="GPT-5", content="...")
+
+        # 修复成功时应拿到 summary 字段
+        assert "summary" in result, f"未修复截断 JSON: {result}"
+        assert "GPT-5" in result["summary"]
+
     async def test_summarize_llm_error(self):
         """LLM 调用失败."""
         llm = MagicMock()

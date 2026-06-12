@@ -64,9 +64,15 @@ async def _call_llm_json(
     user_message: str,
     task_name: str,
     *,
-    max_tokens: int = 1024,
+    max_tokens: int = 2048,
 ) -> dict[str, Any] | list[Any]:
-    """调用 LLM 并解析 JSON 响应（统一空响应 + markdown 清理 + 异常兜底）."""
+    """调用 LLM 并解析 JSON 响应（统一空响应 + markdown 清理 + 异常兜底）.
+
+    Note:
+        max_tokens 默认值从 1024 提升到 2048，原因是 GLM-5.1 中文 JSON 输出
+        在 1024 tokens 时常被截断（中文 1 字符 ≈ 1.5 token，含引号转义后
+        实际可用空间更小）。2048 足以容纳中等长度摘要 + 关键词 + 分类。
+    """
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_message},
@@ -89,7 +95,16 @@ async def _call_llm_json(
         if raw_text.endswith("```"):
             raw_text = raw_text.rsplit("```", 1)[0]
 
-        result = json.loads(raw_text)
+        try:
+            result = json.loads(raw_text)
+        except json.JSONDecodeError:
+            # 兜底：尝试补全截断的 JSON（常见于 max_tokens 不足时）
+            repaired = _try_repair_truncated_json(raw_text)
+            if repaired is not None:
+                logger.warning(f"{task_name}_repaired_truncated_json")
+                return repaired
+            raise
+
         logger.debug(f"{task_name}_completed", type=type(result).__name__)
         return result
 
@@ -99,6 +114,45 @@ async def _call_llm_json(
     except Exception as e:
         logger.error(f"{task_name}_failed", error=str(e))
         return {"error": str(e)}
+
+
+def _try_repair_truncated_json(text: str) -> dict[str, Any] | list[Any] | None:
+    """尝试修复被截断的 JSON 字符串（兜底逻辑）.
+
+    常见场景：max_tokens 不足导致 LLM 输出在字符串值中间被截断，
+    如 `{"summary": "部分内容...`（字符串未闭合 + 对象未闭合）。
+
+    策略：按从「最小补全」到「最大补全」依次尝试修复，能 parse 即返回。
+    """
+    text = text.rstrip()
+    if not text or text[0] not in ("{", "["):
+        return None
+
+    open_braces = text.count("{") - text.count("}")
+    open_brackets = text.count("[") - text.count("]")
+
+    # 候选修复方案：依次追加不同组合的闭合符
+    candidates = [
+        text + "]" * open_brackets + "}" * open_braces,    # 1. 仅补结构
+        text + '"' + "]" * open_brackets + "}" * open_braces,  # 2. 补字符串+结构
+        text + ' ""' + "]" * open_brackets + "}" * open_braces,  # 3. 空值+结构
+    ]
+
+    # 如果以 ":" 结尾，截断在 key:value 中间，移除未完成的 value
+    stripped = text.rstrip()
+    if stripped.endswith(":"):
+        cleaned = stripped.rsplit(":", 1)[0].rstrip().rstrip(",").rstrip()
+        candidates.append(
+            cleaned + "]" * open_brackets + "}" * open_braces
+        )
+
+    for candidate in candidates:
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+
+    return None
 
 
 class ContentSummarizer:
