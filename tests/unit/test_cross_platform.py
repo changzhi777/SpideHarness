@@ -100,3 +100,55 @@ class TestAnalyzeWithMock:
         result = await analyzer.analyze(topics_by_source)
         assert len(result) >= 1
         assert result[0].cluster_name == "科技"
+
+    async def test_analyze_llm_error_falls_back_to_platform_grouping(self):
+        """GAP-002 关键场景：LLM 返回 error 时应自动降级到按平台分组."""
+        from unittest.mock import MagicMock
+
+        llm = MagicMock()
+        mock_resp = MagicMock()
+        mock_resp.choices = [MagicMock()]
+        # 模拟 _call_llm_json 解析失败后返回的 error 结构
+        mock_resp.choices[0].message.content = '{"error": "JSON 解析失败: truncated", "raw": "{"}'
+        llm.chat.return_value = mock_resp
+
+        analyzer = CrossPlatformAnalyzer(llm=llm)
+        topics_by_source = {
+            "weibo": [
+                _make_topic("微博话题1", TopicSource.WEIBO, 5000),
+                _make_topic("微博话题2", TopicSource.WEIBO, 3000),
+            ],
+            "zhihu": [
+                _make_topic("知乎话题1", TopicSource.ZHIHU, 4000),
+            ],
+        }
+
+        result = await analyzer.analyze(topics_by_source)
+
+        # 验证降级路径：按平台分组，每个平台一个 cluster
+        assert len(result) == 2, f"应有 2 个平台 cluster，实际 {len(result)}"
+        platforms = {c.platform_sources[0] for c in result}
+        assert platforms == {"weibo", "zhihu"}
+        # 验证降级标记
+        for c in result:
+            assert c.cross_platform is False
+            assert "LLM 不可用" in c.analysis or "降级" in c.analysis or "分组" in c.analysis
+
+    async def test_analyze_llm_exception_falls_back(self):
+        """GAP-002 关键场景：LLM 抛异常时也应降级."""
+        from unittest.mock import MagicMock
+
+        from spide.exceptions import LLMError
+
+        llm = MagicMock()
+        llm.chat.side_effect = LLMError("API 401")
+
+        analyzer = CrossPlatformAnalyzer(llm=llm)
+        topics_by_source = {
+            "weibo": [_make_topic("test", TopicSource.WEIBO, 1000)],
+        }
+
+        result = await analyzer.analyze(topics_by_source)
+        # 异常也应被捕获并降级
+        assert len(result) >= 1
+        assert result[0].platform_sources == ["weibo"]
