@@ -1,11 +1,12 @@
 # SpideHarness Agent — 项目 AI 上下文文档
 
-> 📍 [根目录](./) | 当前版本: V3.1.2 (DEV) | 最后更新: 2026-06-11
+> 📍 [根目录](./) | 当前版本: V3.1.2 (DEV) | 最后更新: 2026-06-12 20:34
 
 ## 变更记录
 
 | 日期 | 操作 | 说明 |
 |------|------|------|
+| 2026-06-12 20:34 | **轻量健康检查** | 12 模块 CLAUDE.md + 根级完整，结构与代码 100% 匹配。验证：spide/ 11+11+3+2+5+2+2+6+5+4+1=52 .py（与 index.json 一致）、dashboard/ 12 .py + 1 html（与文档一致）、tests/ 58 .py 文件（与文档一致）、Mermaid 图覆盖所有 12 个模块（均含 `click` 链接）、所有模块 CLAUDE.md 顶部均含面包屑导航。结论：覆盖率 100%，本轮无新增/删除文件、无接口级变更，无需重写，仅刷新元数据时间戳。同步刷新 `.claude/index.json` 时间戳 |
 | 2026-04-08 | 初始化 | 首次扫描，项目空白阶段 |
 | 2026-04-08 | 重建 | 基于详细项目描述重建文档，明确技术栈与架构设计 |
 | 2026-04-08 | 补充 | SQLite+Redis，MQTT，GLM 双模型，UAPI 数据源 |
@@ -22,6 +23,9 @@
 | 2026-06-09 | **集成层完整化** | Auto-Config API + HTTP REST 完整文档 + MCP 文档完善 + Claude Desktop 配置手册 + 3 个新 Skills (trending/monitor/feishu) + 4 核心 Skills 加 MCP 示例 + skills/README.md + INTEGRATION.md 综合文档 |
 | 2026-06-11 | **飞书 WS 迁移** | 新增 `dashboard/feishu_ws_client.py`（lark-oapi WebSocket 长连接，替代 HTTP Webhook）+ `configs/feishu.yaml:ws.enabled` 开关。同步补全 dashboard/CLAUDE.md（4→12 文件，新增 capability_registry/conversation_store/feishu_agent/feishu_card/llm_client/scheduler/secrets/tool_router 共 8 个未文档化文件）+ 根级 Mermaid 图扩展 dashboard 内部结构 |
 | 2026-06-11 | **依赖扩充** | `pyproject.toml` 新增 `lark-oapi>=1.6` / `apscheduler>=3.10` / `fastapi>=0.136.3` / `uvicorn>=0.44.0` |
+| 2026-06-12 | **增量扫描** | 全仓增量扫描：修复测试统计不一致（58 文件/536 用例），修正用例拆解算术错误（feishu_agent 53 应含在 unit 416 中），补录 `spide/gateway/` 到模块索引和 Mermaid 图，修复模块文件计数（mcp 4→5/storage 5→6/analysis 4→5/dashboard 3→4，统一含 __init__.py），同步更新 tests/CLAUDE.md 和 .claude/index.json |
+| 2026-06-12 | **索引重写** | 重写 `.claude/index.json`（2026-04-08 初始化版本已严重过时）：从"规划阶段"升级为 V3.1.2 (Stage 2 已实现)，记录 13 个模块完整清单、覆盖率 ~100%、缺口清单、依赖栈、推荐下一步。同步修正 `spide/storage/CLAUDE.md` (5→6 文件) 和 `spide/mcp/CLAUDE.md` (4→5 文件) 计数 |
+| 2026-06-12 | **接口级深扫** | 对 `dashboard/` (12 文件 ~3370 行) 和 `spide/harness/` (2 文件 ~414 行) 进行接口级深度扫描。`dashboard/CLAUDE.md` 补全 5 个未列出的飞书 Agent REST 端点 + 独立事件循环 hack 说明 + 3 个新章节（关键设计模式 8 类 / 集成边界 4 维 / 已知脆弱点 12 条）。`spide/harness/CLAUDE.md` 补全 "Engine 的不承担职责" 边界（7 条） + 调用方清单（15 项）+ `_engine_session` 标准 CLI 协议说明 + MCP `deep_crawl_hot_topics` 唯一集成点 |
 
 ---
 
@@ -31,7 +35,7 @@
 
 核心能力：UAPI 热搜采集（5 大平台）→ 增量检测 → 关键词告警 → 深度追踪（搜索+LLM）→ 跨平台关联分析 → Dashboard 看板 → 多通道输出（SQLite/Excel/MQTT）。
 
-CLI 24 命令、MCP 8 工具、LLM 双模型（GLM-5.1 + GLM-5V-Turbo）、528 测试用例、62 个 .py 源文件、~14,300 行源码。
+CLI 24 命令、MCP 8 工具、LLM 双模型（GLM-5.1 + GLM-5V-Turbo）、536 测试用例、64 个 .py 源文件、~14,300 行源码。
 
 ## 当前状态：**已实现 (Stage 2)**
 
@@ -58,7 +62,7 @@ CLI 24 命令、MCP 8 工具、LLM 双模型（GLM-5.1 + GLM-5V-Turbo）、528 �
 - ✅ Dashboard Web API（FastAPI 后端 + 前端页面）
 - ✅ 飞书 Bot 事件回调（指令解析 + 命令执行 + 事件订阅）
 - ✅ GitHub AI 热点采集（5 方向 topic 搜索 + 趋势仓库 + 飞书卡片推送）
-- ✅ 测试：56 个测试文件，528 个测试用例
+- ✅ 测试：58 个测试文件，536 个测试用例
 - ✅ 飞书智能体（V3.1.1+）：ReAct 循环 + 多轮记忆 + 主动推送 + 富文本卡片
 - ✅ 飞书 WebSocket 长连接（V3.1.2+）：`lark-oapi` SDK 替代 HTTP Webhook，无需公网 URL
 
@@ -120,6 +124,7 @@ graph TD
     Engine --> Storage["spide/storage/<br/>持久化"]
     Engine --> Analysis["spide/analysis/<br/>AI 分析"]
     Engine --> Dashboard["spide/dashboard/<br/>HTML 看板"]
+    Engine --> Gateway["spide/gateway/<br/>网关（预留）"]
 
     Storage --> SQLite["sqlite_repo.py<br/>SQLite"]
     Storage --> Redis["redis_cache.py<br/>Redis"]
@@ -162,6 +167,8 @@ graph TD
     click Storage "./spide/storage/CLAUDE.md" "查看 storage 模块文档"
     click Analysis "./spide/analysis/CLAUDE.md" "查看 analysis 模块文档"
     click Dashboard "./spide/dashboard/CLAUDE.md" "查看 dashboard 模块文档"
+    click Gateway "./spide/gateway/CLAUDE.md" "查看 gateway 模块文档"
+    click DashboardAPI "./dashboard/CLAUDE.md" "查看 Dashboard Web 应用文档"
     click Tests "./tests/CLAUDE.md" "查看 tests 模块文档"
 ```
 
@@ -234,9 +241,9 @@ Spide_agent/
 │   │   └── renderer.py             # 渲染 + 输出
 │   └── gateway/                    # 网关（预留）
 │       └── __init__.py
-├── tests/                          # 测试 (50 文件)
+├── tests/                          # 测试 (58 文件)
 │   ├── conftest.py
-│   ├── unit/                       # 单元测试 (36 个)
+│   ├── unit/                       # 单元测试 (42 个)
 │   ├── integration/                # 集成测试 (6 个)
 │   └── e2e/                        # E2E 测试 (6 个)
 ├── configs/                        # 配置文件 (不入 Git)
@@ -244,7 +251,9 @@ Spide_agent/
 │   ├── llm.yaml
 │   ├── mqtt.yaml
 │   ├── uapi.yaml
-│   └── alert_rules.yaml
+│   ├── alert_rules.yaml
+│   ├── feishu.yaml
+│   └── nginx-spide.conf
 ├── dashboard/                      # Dashboard Web 应用（12 文件 ~3354 行）
 │   ├── api.py                      # FastAPI 主应用 — lifespan 启动 LLM/Agent/Scheduler/WS
 │   ├── feishu_handler.py           # 飞书事件回调（HTTP Webhook + WebSocket 双模式）
@@ -281,15 +290,16 @@ Spide_agent/
 | `spide/spider/` | 11 | 采集引擎（UAPI/深度/调度/限流/增量/追踪/定时搜索） | [CLAUDE.md](./spide/spider/CLAUDE.md) |
 | `spide/monitor/` | 3 | 告警监控（规则引擎/多渠道通知） | [CLAUDE.md](./spide/monitor/CLAUDE.md) |
 | `spide/harness/` | 2 | 核心调度引擎 | [CLAUDE.md](./spide/harness/CLAUDE.md) |
-| `spide/mcp/` | 4 | MCP 协议（Server/Client/工具/搜索适配器） | [CLAUDE.md](./spide/mcp/CLAUDE.md) |
+| `spide/mcp/` | 5 | MCP 协议（Server/Client/工具/搜索适配器） | [CLAUDE.md](./spide/mcp/CLAUDE.md) |
 | `spide/mqtt/` | 2 | MQTT 通讯（TLS + aiomqtt） | [CLAUDE.md](./spide/mqtt/CLAUDE.md) |
 | `spide/queue/` | 2 | 消息总线（pub/sub） | [CLAUDE.md](./spide/queue/CLAUDE.md) |
-| `spide/storage/` | 5 | SQLite/Redis/导出/模型 | [CLAUDE.md](./spide/storage/CLAUDE.md) |
-| `spide/analysis/` | 4 | AI 分析（摘要/趋势/词云/聚类/相似度） | [CLAUDE.md](./spide/analysis/CLAUDE.md) |
-| `spide/dashboard/` | 3 | HTML 数据看板 | [CLAUDE.md](./spide/dashboard/CLAUDE.md) |
+| `spide/storage/` | 6 | SQLite/Redis/导出/模型 | [CLAUDE.md](./spide/storage/CLAUDE.md) |
+| `spide/analysis/` | 5 | AI 分析（摘要/趋势/词云/聚类/相似度） | [CLAUDE.md](./spide/analysis/CLAUDE.md) |
+| `spide/dashboard/` | 4 | HTML 数据看板 | [CLAUDE.md](./spide/dashboard/CLAUDE.md) |
+| `spide/gateway/` | 1 | 网关（预留 — HTTP/WebSocket API 网关） | [CLAUDE.md](./spide/gateway/CLAUDE.md) |
 | `dashboard/` (Web) | 12 | FastAPI Dashboard + 飞书智能体（ReAct+WS+Scheduler+卡片）+ GitHub 热点 | [CLAUDE.md](./dashboard/CLAUDE.md) |
-| `tests/` | 50 | 测试（单元/集成/E2E） | [CLAUDE.md](./tests/CLAUDE.md) |
-| **总计** | **~101** | 源码 55 + 测试 50 + 配置/文档 若干 | |
+| `tests/` | 58 | 测试（单元/集成/E2E） | [CLAUDE.md](./tests/CLAUDE.md) |
+| **总计** | **122** | 源码 64 + 测试 58 | |
 
 ---
 
@@ -342,7 +352,7 @@ UAPI/MediaCrawler → Pipeline(清洗去重) → IncrementalDetector(增量检�
 
 `spide/config.py` — Pydantic Settings，按优先级合并：
 
-1. `configs/default.yaml` → `configs/llm.yaml` → `configs/mqtt.yaml` → `configs/uapi.yaml` → `configs/alert_rules.yaml`
+1. `configs/default.yaml` → `configs/llm.yaml` → `configs/mqtt.yaml` → `configs/uapi.yaml` → `configs/alert_rules.yaml` → `configs/feishu.yaml`
 2. 环境变量覆盖：`SPIDE_LLM__COMMON__API_KEY=xxx`（双下划线分隔层级）
 
 ## LLM 模型
@@ -362,7 +372,7 @@ UAPI/MediaCrawler → Pipeline(清洗去重) → IncrementalDetector(增量检�
 uv sync                              # 安装依赖
 spide --help                         # CLI 帮助
 spide doctor                         # 环境检查
-uv run pytest                        # 运行全部测试（528 passed）
+uv run pytest                        # 运行全部测试（536 passed）
 uv run pytest tests/unit/            # 仅单元测试
 uv run pytest -m integration         # 集成测试（需网络）
 uv run ruff format . && ruff check . # 格式化 + lint（当前 0 错误）
@@ -390,7 +400,7 @@ uvicorn dashboard.api:app --reload --port 8765   # 启动 Web Dashboard
 
 - **作者**: 外星动物（常智）/ IoTchange / 14455975@qq.com
 - **版权**: Copyright (C) 2026 IoTchange - All Rights Reserved
-- **版本**: V3.1.1 (DEV) — 奇数次版本 = 开发测试版
+- **版本**: V3.1.2 (DEV) — 奇数次版本 = 开发测试版
 - **包版本**: 1.1.1 (pyproject.toml)
 
 ---
@@ -403,18 +413,18 @@ uvicorn dashboard.api:app --reload --port 8765   # 启动 Web Dashboard
 | Web 后端 (dashboard/) | 12 (.py) |
 | 源码行数 (spide) | ~10,487 |
 | 源码行数 (dashboard) | ~3,354 |
-| 源码合计 | ~11,841 |
-| Dashboard 前端 | 1 (.html, ~434 行) |
+| 源码合计 | ~13,841 |
+| Dashboard 前端 | 1 (.html, ~1,000 行) |
 | 测试文件 | 58 (.py) |
 | 测试行数 | ~7,100 |
-| 测试用例 | 536（unit 411 + integration 38 + e2e 82 + feishu_agent 53）|
-| 配置文件 | 5 (.yaml) |
+| 测试用例 | 536（unit 416 + integration 38 + e2e 82）|
+| 配置文件 | 7 (.yaml) + 1 (.conf) |
 | CLI 命令 | 24 |
 | MCP 工具 | 8 |
-| AI Skills | 17 (含 3 个 V3.1.1 新增) |
-| HTTP REST 端点 | 10 |
+| AI Skills | 17 |
+| HTTP REST 端点 | 15（Dashboard 6 + Feishu Agent 5 + GitHub 3 + Feishu Webhook 2，详见 dashboard/CLAUDE.md） |
 | 飞书 WebSocket 长连接 | 1（lark-oapi SDK） |
-| 集成文档 | 3 (.md) (http-api / mcp-api / claude-desktop) |
+| 集成文档 | 4 (.md) (integration/) + 2 (.md) (docs/) |
 | 数据模型 | 15 实体 + 6 枚举 (Pydantic v2) |
 | 异常类 | 9 (基类 + 8 子类) |
 

@@ -4,19 +4,20 @@
 
 ## 职责
 
-分层测试套件，覆盖所有 `spide/` 子模块 + `dashboard/` Web API。包含单元测试、集成测试和端到端测试，共 50 个测试文件、471 个测试用例。
+分层测试套件，覆盖所有 `spide/` 子模块 + `dashboard/` Web API。包含单元测试、集成测试和端到端测试，共 58 个测试文件、536 个测试用例。
 
 ## 结构
 
 ```
 tests/
 ├── conftest.py                    # 共享 fixtures (tmp_db, tmp_workspace, real_settings, mock_aiohttp_response, skip_if_*)
-├── unit/                          # 单元测试（36 个文件，350 用例）
+├── unit/                          # 单元测试（42 个文件，416 用例）
 │   ├── test_alert_engine.py       # AlertEngine 规则匹配 + YAML 加载
 │   ├── test_analysis.py           # ContentSummarizer/TrendAnalyzer/SmartCrawlStrategy
 │   ├── test_batch_scheduler.py    # BatchCrawlScheduler + BatchTask/Result
 │   ├── test_broker.py             # MessageBroker pub/sub + 通配符匹配
 │   ├── test_config.py             # Settings 加载 + 环境变量覆盖
+│   ├── test_conversation_store.py # SQLite 多轮记忆 CRUD
 │   ├── test_cross_platform.py     # CrossPlatformAnalyzer 跨平台聚类
 │   ├── test_dashboard.py          # DataCollector 聚合 + 渲染
 │   ├── test_deep_crawl.py         # MediaCrawlerAdapter 深度采集
@@ -24,9 +25,13 @@ tests/
 │   ├── test_engine.py             # Engine 生命周期 + crawl/deep_crawl/chat
 │   ├── test_exceptions.py         # 异常层级验证
 │   ├── test_exporter.py           # DataExporter JSON/CSV/Excel
+│   ├── test_feishu_agent.py       # ReAct 循环 + 降级 + 多轮记忆（53 用例）
+│   ├── test_feishu_card.py        # 5 种卡片模板
+│   ├── test_feishu_ws.py          # WebSocket 客户端 + 事件回调 + 双路径处理
 │   ├── test_fetcher.py            # AsyncFetcher HTTP 抓取
 │   ├── test_incremental.py        # IncrementalDetector 增量检测
 │   ├── test_llm.py                # LLMClient Mock 测试
+│   ├── test_llm_client.py         # OpenAI 兼容协议 + JSON Action 兜底
 │   ├── test_logging.py            # structlog 配置 + get_logger
 │   ├── test_mcp_search_tools.py   # MCP 搜索工具分发
 │   ├── test_mcp_server.py         # MCP Server 工具注册
@@ -37,12 +42,15 @@ tests/
 │   ├── test_pipeline.py           # clean_topics/deduplicate/parse
 │   ├── test_prompts.py            # Prompt 层叠组装
 │   ├── test_rate_limiter.py       # RateLimiter + CircuitBreaker + CheckpointManager
+│   ├── test_scheduler.py          # APScheduler + token 缓存 + 卡片渲染
 │   ├── test_search_provider.py    # WebSearchProvider / WebContentProvider
+│   ├── test_secrets.py            # ${ENV_VAR} 占位符解析
 │   ├── test_session_storage.py    # 会话快照保存/加载
 │   ├── test_sqlite_repo.py        # SqliteRepository CRUD + upsert
 │   ├── test_task_scheduler.py     # TaskScheduler 定时调度
 │   ├── test_timed_search.py       # TimedSearchService 定时搜索
 │   ├── test_title_similarity.py   # Jaccard + 编辑距离相似度
+│   ├── test_tool_router.py        # 8 工具路由 + 超时 + 兜底
 │   ├── test_uapi_client.py        # UAPIClient 热搜 + 限流
 │   ├── test_wordcloud.py          # WordCloudGenerator 词云
 │   └── test_workspace.py          # 工作空间初始化/健康检查
@@ -65,7 +73,7 @@ tests/
 ## 运行方式
 
 ```bash
-uv run pytest                      # 全部测试（469 passed + 1 skipped）
+uv run pytest                      # 全部测试（536 passed）
 uv run pytest tests/unit/          # 仅单元测试
 uv run pytest tests/integration/   # 集成测试（需 API Key）
 uv run pytest tests/e2e/           # E2E 测试（需完整环境）
@@ -135,9 +143,9 @@ async def test_real_uapi_call(real_settings, skip_if_no_uapi):
 
 ## 统计
 
-- **总文件**: 50 个（unit 36 + integration 6 + e2e 6 + conftest 1）
-- **总行数**: ~6,484 行
-- **测试用例**: 471 个（unit 350 + integration 38 + e2e 82）
+- **总文件**: 58 个（unit 42 + integration 6 + e2e 6 + conftest 1，含 3 个 __init__.py）
+- **总行数**: ~7,100 行
+- **测试用例**: 536 个（unit 416 + integration 38 + e2e 82）
 - **覆盖率**: 100% 覆盖 spide/ 所有子模块 + dashboard/ Web API
 
 ## 设计原则

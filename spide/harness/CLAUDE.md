@@ -2,6 +2,8 @@
 
 > [根目录](../../CLAUDE.md) > [spide](../) > **harness**
 
+最后更新：2026-06-12
+
 ## 职责
 
 核心调度引擎，管理 RuntimeBundle 生命周期和管道编排（采集/深度采集/增量/深度追踪/跨平台分析/LLM 对话）。是整个 CLI 命令的"胶水层"。
@@ -160,6 +162,45 @@ async def chat(self, user_message: str):
 
 `bundle` 属性访问时检查 `_bundle is None`，未启动抛 `SpideError("引擎未启动，请先调用 start()")`。
 各管道方法在 `bundle.llm` / `bundle.uapi` 为 None 时同样抛 `SpideError`。
+
+## Engine 的"不承担"职责（边界说明）
+
+Engine 明确不做的事——把职责切分讲清楚，便于理解 Engine 在系统中的"工种"：
+
+| 不做的事 | 原因 / 委托方 |
+|---------|--------------|
+| **不做 Function Calling 调度** | `chat()` 是纯对话；工具调用能力在 `LLMClient` 内部 |
+| **不订阅消息队列** | 无 `spide.queue.broker` 消费循环（不替代 `batch_scheduler` / `task_scheduler`） |
+| **不实现重试** | 委托给各底层客户端（`UAPIClient` / `LLMClient` / `MediaCrawlerAdapter`） |
+| **不做持久化编排** | SQLite 写入在 `crawl_diff` 内部短生命周期，不替代 `UAPIClient` 的存储 |
+| **不持有全局单例** | 每次 CLI / MCP 调用都 `Engine(settings)` 创建新实例 |
+| **不支持暂停/恢复** | `stop()` 后 `_bundle` 即销毁（仅在 `SessionStorage` 中留有快照，但 Engine 自身无 `resume()` 方法） |
+| **不直接调用 MCP 工具**（除 `deep_crawl` 外）| MCP 工具路由在 `tool_router` / `dashboard/tool_router.py`，不在 Engine |
+
+## 调用方清单（实际集成方）
+
+| 调用方 | 上下文 | 调用 Engine 方法 | 备注 |
+|--------|--------|----------------|------|
+| `spide/cli.py` 的 `_engine_session` (行 60-79) | 公共 async 上下文管理器 | `Engine(settings)` + `start(workspace=workspace)` + `stop()` | **所有 CLI 命令的标准使用协议**：`async with _engine_session(workspace) as (engine, bundle, settings): ...` |
+| CLI `crawl` (行 210-220) | `spide crawl` | `engine.crawl(sources=[source])` / `engine.crawl()` | 单源或全源 |
+| CLI `deep-crawl` (行 295-422) | `spide deep-crawl` | `engine.deep_crawl(platform, mode, keywords, ...)` | 完整参数透传 |
+| CLI `run` (行 422-501) | `spide run`（交互式 REPL）| `engine.chat_stream(prompt)` / `engine.chat(prompt)` | 流式 + 非流式双模式 |
+| CLI `analyze` (行 756-867) | `spide analyze` | 直接用 `bundle.llm` / `bundle.uapi`（绕过 Engine 方法） | 调 `ContentSummarizer` / `TrendAnalyzer` / `SmartCrawlStrategy` |
+| CLI `wordcloud` (行 925) | `spide wordcloud` | `engine.crawl(sources=[source])` | 仅取数据 |
+| CLI `batch-crawl` (行 1017) | `spide batch-crawl` | `engine.crawl(sources=[source])` | 单源批量展示 |
+| CLI `crawl-diff` (行 1393) | `spide crawl-diff` | `engine.crawl_diff(sources=[source])` | 完整差异管道 |
+| CLI `monitor` (行 1470) | `spide monitor` | `engine.crawl(sources=sources)` | 采集 + 监控规则（混用 `AlertEngine`，非 Harness） |
+| CLI `track` (行 1529) | `spide track` | `engine.crawl(sources=[source])` + `engine.track_deep(topics, top_n=top)` | 二段管道串联 |
+| CLI `cross-analyze` (行 1571) | `spide cross-analyze` | `engine.crawl(sources=sources)` + `engine.cross_analyze(available)` | 跨平台分析管道 |
+| MCP `deep_crawl_hot_topics` | `spide/mcp/server.py:241-293` | `Engine(settings)` + `start()` + `deep_crawl(...)` + `stop()` | **唯一使用 Engine 的 MCP 工具**；try/finally 包裹 |
+| `spider/batch_scheduler.py` | 批量调度 | **未使用 Engine** | 自建调度（无 Engine 引用） |
+| `spider/task_scheduler.py` | 定时调度 | **未使用 Engine** | 自建调度（无 Engine 引用） |
+| `dashboard/api.py` | Web API | **未使用 Engine** | 走 `spide.spider` 层直接接口 |
+
+**关键发现**：
+- `batch_scheduler` / `task_scheduler` 完全是独立调度实现，不依赖 Engine（grep 无匹配）
+- `dashboard/api.py` 也不调用 Engine——它直接调 `spide.spider` 层
+- **唯一非 CLI 集成方**是 `spide.mcp.server.py` 的 `_tool_deep_crawl`（仅 `deep_crawl` 方法被 MCP 暴露）
 
 ## 依赖
 

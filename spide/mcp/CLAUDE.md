@@ -6,7 +6,7 @@
 
 Model Context Protocol (MCP) 实现，提供 stdio MCP Server 和 Client，供外部 AI 模型（如 Claude Desktop）调用 Spide 能力。同时内置独立的搜索适配器层（DuckDuckGo / 网页抓取 / GitHub）。
 
-## 文件清单（4 个文件）
+## 文件清单（5 个文件，含 `__init__.py`）
 
 | 文件 | 行数 | 职责 |
 |------|------|------|
@@ -130,3 +130,10 @@ _TIMEOUT = aiohttp.ClientTimeout(total=15)        # 15s 超时
 - `tests/unit/test_search_provider.py` — 3 个 Provider 单元测试（≥15 个用例）
 - `tests/unit/test_mcp_search_tools.py` — MCP 搜索工具分发测试（≥4 个用例）
 - `tests/e2e/test_dashboard_api.py` — 间接测试（通过 Dashboard Web API）
+
+## 变更记录
+
+| 日期 | 操作 | 说明 |
+|------|------|------|
+| 2026-05-20 | 初始化 | 模块文档首版 |
+| 2026-06-12 | 计数修正 | 文件清单 4 → 5（含 `__init__.py`），与根级一致 |

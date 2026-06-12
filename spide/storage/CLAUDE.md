@@ -6,7 +6,7 @@
 
 数据持久化层，包含 Pydantic 数据模型、SQLite 异步仓库、Redis 缓存、抽象仓库接口和数据导出（JSON/JSONL/CSV/Excel）。
 
-## 文件清单（5 个文件）
+## 文件清单（6 个文件，含 `__init__.py`）
 
 | 文件 | 职责 |
 |------|------|
@@ -19,96 +19,117 @@
 
 ## 数据模型 (models.py)
 
-### 枚举（6 个）
-- `TopicSource` — 热搜数据源平台：weibo/baidu/douyin/zhihu/bilibili/kuaishou/tieba/web_search/custom
-- `Platform` — 深度采集平台：xhs/dy/ks/bili/wb/tieba/zhihu（对应 MediaCrawler）
-- `CrawlMode` — 深度采集模式：search/detail/creator
-- `TaskStatus` — 任务状态：pending/running/completed/failed/cancelled
-- `ArticleCategory` — 新闻分类：society/tech/finance/entertainment/sports/international/science/health/other
-- `TopicStatus` — 话题状态变化：new/rising/falling/stable/dropped
+15 个 Pydantic BaseModel 实体 + 6 个 StrEnum 枚举。
 
-### 实体（15 个）
-- **HotTopic** — 热搜话题（title, source, hot_value, url, rank）
-- **NewsArticle** — 新闻文章（title, url, content, summary, keywords）
-- **CrawlTask** — 爬取任务（name, source, status, params）
-- **CrawlSession** — 会话快照（session_id, messages, progress, crawled_urls）
-- **DeepContent** — 深度采集内容（7 平台统一，含 extra dict）
-- **DeepComment** — 深度采集评论
-- **DeepCreator** — 深度采集创作者
-- **HotTopicChange** — 话题变更记录（NEW/RISING/FALLING/DROPPED 标记）
-- **CrawlSnapshot** — 采集快照（含 changes 列表）
-- **AlertRule** — 告警规则
-- **AlertRecord** — 告警记录
-- **TopicDeepTrack** — 话题深度追踪记录
-- **TopicCluster** — 跨平台话题聚类
-- **TimedSearchBatch** — 定时搜索批次
-- **TimedSearchRecord** — 定时搜索记录
+### 实体（15）
 
-## SqliteRepository
+| 实体 | 关键字段 | 用途 |
+|------|----------|------|
+| `HotTopic` | title, source, hot_value, url, rank, category, fetched_at | 热搜条目 |
+| `NewsArticle` | title, content, url, source, published_at | 新闻文章 |
+| `CrawlTask` | task_id, platform, mode, status, params | 采集任务 |
+| `CrawlSession` | session_id, topics_count, status, started_at | 采集会话 |
+| `DeepContent` | content_id, platform, text, media, author | 深度内容 |
+| `DeepComment` | comment_id, content_id, text, likes | 深度评论 |
+| `DeepCreator` | creator_id, platform, name, followers | 创作者 |
+| `HotTopicChange` | topic_id, status, prev_value, new_value | 增量变化 |
+| `CrawlSnapshot` | snapshot_id, source, data, taken_at | 采集快照 |
+| `AlertRule` | rule_id, keyword, source, severity | 告警规则 |
+| `AlertRecord` | record_id, rule_id, matched, sent_at | 告警记录 |
+| `TopicDeepTrack` | topic_id, summary, sentiment, sources | 深度追踪 |
+| `TopicCluster` | cluster_id, topics, theme, confidence | 跨平台聚类 |
+| `TimedSearchBatch` | batch_id, query, run_at, result_count | 定时搜索批次 |
+| `TimedSearchRecord` | record_id, batch_id, query, source, title, url | 定时搜索记录 |
+
+### 枚举（6）
+
+| 枚举 | 取值 |
+|------|------|
+| `TopicSource` | weibo / baidu / douyin / zhihu / bilibili |
+| `TaskStatus` | pending / running / completed / failed |
+| `ArticleCategory` | tech / entertainment / sports / finance / ... |
+| `Platform` | xhs / dy / ks / bili / wb / tieba / zhihu |
+| `CrawlMode` | search / detail / creator / comment |
+| `TopicStatus` | NEW / RISING / STABLE / FALLING / DROPPED |
+
+## SqliteRepository（sqlite_repo.py）
+
+基于 aiosqlite 的异步仓库，自动建表、类型映射、upsert。
 
 ```python
-from spide.storage import create_sqlite_repo
-from spide.storage.models import HotTopic
+from spide.storage import SqliteRepository, HotTopic
 
-repo = create_sqlite_repo(HotTopic, db_path="spide_data.db")
-await repo.start()
-
-# CRUD
-topic_id = await repo.save(topic)
-topics = await repo.query(source="weibo", limit=10)
-count = await repo.count(source="weibo")
-ok = await repo.delete(id)
-exists = await repo.exists(title="xxx")
-
-# 批量保存（支持去重 upsert）
-ids = await repo.save_many(topics, dedup_fields=["title", "source"])
-
-await repo.stop()
+repo = SqliteRepository("spide_data.db")
+await repo.init()           # 自动建表
+await repo.upsert_topic(topic)
+topics = await repo.list_topics(source="weibo", limit=50)
+await repo.close()
 ```
 
-特性：
-- 自动建表（Pydantic 模型反射 → SQLite DDL）
-- Pydantic → SQLite 类型映射（int/str/datetime/list[dict] 自动 JSON 序列化）
-- 集合类型（list[str] / dict）自动 JSON 序列化
-- `save_many` 支持 `dedup_fields` 实现 upsert
+**关键方法**：
+- `init()` — 自动建表（id/topic/comment/creator/snapshot/alert/track/cluster/timed_search 等表）
+- `upsert_topic(topic)` / `bulk_upsert(topics)` — 批量 upsert
+- `list_topics(source, limit, since)` — 多条件查询
+- `get_last_snapshot(source)` / `save_snapshot(...)` — 增量快照
+- `list_alerts(rule_id, since)` / `record_alert(...)` — 告警 CRUD
+- `save_timed_search(record)` / `list_timed_search(batch_id)` — 定时搜索
+- `close()` — 关闭连接
 
-## DataExporter
+## RedisCache（redis_cache.py）
 
-```python
-from spide.storage.exporter import DataExporter
-
-exporter = DataExporter(output_dir="data/export")
-filepath = await exporter.export(topics, filename="weibo_hot", fmt="excel")
-# 支持: json, jsonl, csv, excel
-```
-
-支持格式：
-- `json` — 格式化 JSON 数组
-- `jsonl` — 换行分隔 JSON
-- `csv` — UTF-8 BOM CSV
-- `excel` — `.xlsx` (openpyxl)
-
-## RedisCache
+基于 aioredis 的缓存层，提供 topic 去重（hash）、recent top N（sorted set）、增量指纹缓存。
 
 ```python
-from spide.storage import create_redis_cache
+from spide.storage import RedisCache
 
-cache = create_redis_cache(url="redis://localhost:6379/0", prefix="spide:")
+cache = RedisCache(url="redis://localhost:6379/0")
 await cache.connect()
-await cache.set("key", {"data": 1}, ttl=300)
-value = await cache.get("key")
-await cache.disconnect()
+fp = await cache.fingerprint(title)         # 标题指纹（去重键）
+is_new = await cache.is_new(fp)             # True = 首次出现
+await cache.set_recent(source, top_n, ttl=3600)
+await cache.close()
+```
+
+## AbstractRepository（repository.py）
+
+抽象接口，定义 `init / upsert / get / list / delete` 等方法，便于在测试中用内存实现替换 SQLite。
+
+## DataExporter（exporter.py）
+
+多格式导出器，支持 JSON / JSONL / CSV / Excel（openpyxl）。
+
+```python
+from spide.storage import DataExporter, ExportFormat
+
+exporter = DataExporter(output_dir="./exports")
+path = await exporter.export_topics(topics, fmt=ExportFormat.EXCEL, filename="weibo_2026_06")
 ```
 
 ## 依赖
 
-- aiosqlite — SQLite 异步
-- redis (aioredis) — Redis 缓存
-- openpyxl — Excel 导出
-- pydantic (v2) — 数据模型
+- `aiosqlite>=0.20` — 异步 SQLite
+- `redis[hiredis]>=5.0` — 异步 Redis
+- `openpyxl>=3.1.5` — Excel 导出
+- `pydantic>=2.0` — 数据模型
 
 ## 测试
 
 - `tests/unit/test_models.py` — Pydantic 模型验证
-- `tests/unit/test_sqlite_repo.py` — SqliteRepository CRUD + upsert
-- `tests/unit/test_exporter.py` — DataExporter JSON/CSV/Excel
+- `tests/unit/test_sqlite_repo.py` — CRUD + upsert
+- `tests/unit/test_exporter.py` — JSON/CSV/Excel
+- `tests/integration/test_crawl_pipeline.py` — 端到端持久化
+
+## 设计原则
+
+- **Pydantic v2** — 强类型 + 自动验证
+- **抽象层** — `AbstractRepository` 支持依赖反转（测试用 mock）
+- **自动建表** — `init()` 一键建表，无需迁移脚本
+- **Upsert** — 重复数据自动覆盖
+- **多格式** — JSON/JSONL/CSV/Excel 统一接口
+
+## 变更记录
+
+| 日期 | 操作 | 说明 |
+|------|------|------|
+| 2026-05-20 | 初始化 | 模块文档首版 |
+| 2026-06-12 | 计数修正 | 文件清单 5 → 6（含 `__init__.py`），与根级一致 |

@@ -2,7 +2,7 @@
 
 > [根目录](../CLAUDE.md) → `dashboard/`
 
-最后更新：2026-06-11
+最后更新：2026-06-12（接口级深扫）
 
 ## 职责
 
@@ -98,10 +98,19 @@ python -m dashboard.scheduler
 
 > **推荐模式**：WebSocket 长连接（无需公网 URL）。HTTP Webhook 作为兜底兼容方案。
 
+### 飞书 Agent REST（`api.py`，V3.1.1+）
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/feishu/agent` | POST | Agent ReAct 对话入口（`user_message` / `user_id` / `chat_id`） |
+| `/api/feishu/agent/clear` | POST | 清空指定会话历史 |
+| `/api/feishu/agent/status` | GET | Agent/LLM/Scheduler 健康状态 |
+| `/api/feishu/scheduler/start` | POST | 启动主动推送调度器（异步） |
+| `/api/feishu/scheduler/stop` | POST | 停止主动推送调度器 |
+
 ### GitHub 热点（`github_trending.py`）
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/github/trending` | GET | 获取 GitHub AI 热点仓库 |
+| `/api/github/trending` | GET | 获取 GitHub AI 热点仓库（取前 30） |
 | `/api/github/push` | POST | 采集 GitHub 热点并推送到飞书 |
 | `/api/github/webhook` | POST | 设置飞书 Webhook URL |
 
@@ -240,6 +249,8 @@ feishu:
 
 **事件回调链**：`lark.ws.Client` → `on_feishu_message_event` → `_process_and_reply`（异步任务）→ 走双路径（指令 / Agent）→ `send_message` 推送。
 
+**关键技术 hack**：`start_ws_client()` 内部创建独立事件循环 `_asyncio.new_event_loop()`，并**覆写 `lark_oapi.ws.client.loop` 模块全局**——避免 lark SDK 内部 `asyncio.get_event_loop()` 拿到 uvicorn 的运行中循环导致冲突（与近期 Python 3.14 事件循环兼容性修复直接相关，参见 git log `577f491`）。
+
 ## 飞书 Bot 指令解析（`feishu_handler`）
 
 **指令正则**：`^(crawl|analyze|status|track|export|help|batch)\s*(.*)`（忽略大小写）
@@ -340,3 +351,80 @@ structlog>=24.0     pyyaml>=6.0
 - 9 个 GitHub 查询全部串行执行（无并发）
 - **WebSocket 模式优先于 HTTP Webhook** — 部署在 PVE/无公网环境时无需 Cloudflare Tunnel
 - 卡片模板统一 `template: "blue"`（飞书固定配色），错误用 `"red"`，空数据用 `"grey"`
+
+---
+
+## 关键设计模式
+
+本模块整体架构采用了多种经典设计模式，理解这些模式有助于快速定位代码修改点：
+
+| 模式 | 应用位置 | 体现 |
+|------|----------|------|
+| **单例（模块级）** | `conversation_store._store`, `llm_client._client`, `feishu_agent._agent`, `scheduler._scheduler`, `capability_registry.registry`, `feishu_ws_client._client/_api_client` | 6 个全局单例 + 1 个 `__new__` 单例类 |
+| **策略（路由表）** | `tool_router._TOOL_ROUTES` | 工具名 → async handler 字典 |
+| **模板方法** | `feishu_card.*_card` 函数族 | 统一返回 Interactive Card v2 结构 + 公共 `_footer_element()` |
+| **数据驱动注册** | `api.py:_HTTP_ENDPOINTS`, `api.py:_MCP_META` | 列表驱动批量注册到 `capability_registry` |
+| **降级链** | `feishu_agent.chat()` → `_fallback_keyword()` | LLM 不可用 → 关键词解析 → CLI 子进程 |
+| **超时包装** | `tool_router.call_tool`, `api.py:_run_crawl_sync`, `feishu_handler._run_spide_sync` | `asyncio.wait_for` + subprocess timeout |
+| **缓存** | `scheduler._ensure_token` | tenant_access_token 提前 5 分钟续期 |
+| **依赖注入** | `FeishuAgent.__init__(llm_client, store, config)` | 构造注入便于测试（提供 `reset_*` 钩子） |
+
+---
+
+## 集成边界
+
+### FastAPI 边界
+- **入口**：`app = FastAPI(lifespan=lifespan)` + `app.include_router(feishu_router)`
+- **路由分组**：
+  - `feishu_handler.router`（`prefix="/api/feishu"`）
+  - 其余路由直接在 `app` 上挂载
+- **请求体**：全部用 `Body(...)` 接收 `dict[str, Any]`（**未定义 Pydantic 模型** — 缺字段不会报 422，类型不安全）
+- **响应**：全部 `JSONResponse` 而非 `dict` 自动序列化
+- **启动钩子**：单 `lifespan` 函数 + 6 步顺序
+
+### lark-oapi 边界
+- **唯一对接点**：`feishu_ws_client.py`
+- **使用的 SDK 类**：`lark.Client`, `lark.ws.Client`, `lark.EventDispatcherHandler`, `lark.LogLevel`, `lark_oapi.api.im.v1.{CreateMessageRequest, CreateMessageRequestBody, CreateMessageResponse, P2ImMessageReceiveV1}`
+- **关键 hack**：覆写 `lark_oapi.ws.client.loop` 模块全局变量以避免与 uvicorn 主循环冲突
+- **消息发送**：通过 REST API (`_api_client.request(CreateMessageRequest)`)，**不**经 WebSocket
+
+### MCP 边界
+- **输入**（消费侧）：`tool_router.get_tool_schemas()` 读取 `spide.mcp.tools.ALL_TOOLS` 转换为 OpenAI Function Calling schema；`api.py` 启动时遍历 `ALL_TOOLS` 注册到 `capability_registry`
+- **输出**（暴露侧）：`capability_registry` 声明 `transport: ["stdio", "sse"], command: "spide mcp-serve"`（实际 stdio 实现不在本目录）
+- **关系**：dashboard 既是 MCP **工具的调用方**（通过 `tool_router`），又是 MCP **能力的声明方**（通过 `capability_registry`）
+
+### SQLite 边界
+- **复用数据库**：同一文件 `spide_data.db` 存三套表：
+  - `hot_topics`（spide/ 写入，dashboard/ 读取）
+  - `chat_sessions` / `chat_messages`（dashboard/ 写入+读取）
+- **两种连接**：`sqlite3`（同步，dashboard 数据查询）+ `aiosqlite`（异步，多轮记忆）
+
+---
+
+## 已知脆弱点（建议加固）
+
+按严重性排序，标记"建议加固"为**可选**的工程改进，不影响当前运行：
+
+1. **【类型】Pydantic 校验缺失**（api.py）— 全部 `Body(...)` 接收 `dict[str, Any]`，无 Pydantic 校验，缺字段不会报 422。建议补 `pydantic.BaseModel` 校验。
+
+2. **【数据】会话无 TTL 清理**（conversation_store.py）— `updated_at` 字段保留但未使用，会话/消息无限增长。建议增加后台清理任务或 `init()` 内 lazy GC。
+
+3. **【可靠性】WebSocket 重连无显式策略**（feishu_ws_client.py）— 依赖 lark SDK 内部行为；如 SDK 内部断连后无重试，dashboard 进程将永久丢失消息通道。建议加 healthcheck + 自动重启。
+
+4. **【并发】WS 启动用 `threading.Thread(daemon=True)`**（api.py）— 线程异常无法被 uvicorn 主进程捕获，日志易丢。建议改 `asyncio.create_task` 或独立进程管理。
+
+5. **【性能】GitHub 9 个查询全部串行**（github_trending.py）— 采集耗时长（20s timeout × 9 = 最多 180s），建议 `asyncio.gather` 并发 + `Semaphore(3)` 限流。
+
+6. **【可靠性】GitHub API 限流无重试**（github_trending.py）— HTTP 403 仅 warning，建议指数退避 + 切换 fallback webhook。
+
+7. **【异步】tool_router 工具实现混用同步/异步 + 子进程**（tool_router.py）— `spide.memory` 是纯同步，调用会阻塞当前协程。建议显式用 `loop.run_in_executor`。
+
+8. **【可靠性】LLM 客户端无重试**（llm_client.py）— `health_check` 失败后 `_healthy=False` 永久（除非重启），`chat()` 单次失败 → `finish_reason="error"`，无自动重试或熔断。
+
+9. **【并发】凭证注入与生命周期不严格**（feishu_handler.py）— `_FEISHU_APP_SECRET` 等是模块全局变量，`set_feishu_config` 多次调用会覆盖，缺少锁。多 worker 部署时会状态不一致（建议绑定到 `app.state`）。
+
+10. **【资源】scheduler `wait=False` + asyncio 混合**（scheduler.py）— `scheduler.shutdown(wait=False)` 在异步上下文中可能不优雅地中断运行中的 job（playwright 子进程可能残留）。
+
+11. **【数据】`format_tool_result` 截断到 1500 字符**（tool_router.py）— 对长 JSON 结果（如 `fetch_web_page`）可能丢失关键信息；建议按工具分别设置阈值或结构化摘要。
+
+12. **【解析】frontmatter 解析脆弱**（api.py）— 用简单 `re.splitlines` 解析 YAML，不支持多行值/嵌套/引号转义。建议用 `yaml.safe_load` 解析 frontmatter 块。
