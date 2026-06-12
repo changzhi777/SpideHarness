@@ -63,9 +63,10 @@ class LLMClient:
         url = f"{self.config.base_url.rstrip('/')}/v1/models"
         headers = {"Authorization": f"Bearer {self.config.api_key}"} if self.config.api_key else {}
         try:
-            async with aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=5)
-            ) as session, session.get(url, headers=headers) as resp:
+            async with (
+                aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session,
+                session.get(url, headers=headers) as resp,
+            ):
                 self._healthy = resp.status == 200
                 if self._healthy:
                     logger.info(
@@ -115,9 +116,12 @@ class LLMClient:
         }
 
         try:
-            async with aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=self.config.timeout)
-            ) as session, session.post(url, json=payload, headers=headers) as resp:
+            async with (
+                aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=self.config.timeout)
+                ) as session,
+                session.post(url, json=payload, headers=headers) as resp,
+            ):
                 if resp.status != 200:
                     text = await resp.text()
                     logger.error("llm_http_error", status=resp.status, body=text[:500])

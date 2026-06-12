@@ -185,93 +185,136 @@ for _tool in _MCP_TOOLS:
 # HTTP 端点（data-driven 列表）— (path, method, summary, kwargs)
 _HTTP_ENDPOINTS = [
     (
-        "/.well-known/agent.json", "GET",
+        "/.well-known/agent.json",
+        "GET",
         "AI Agent 自发现端点 — 返回所有 MCP / HTTP / Skills 能力清单",
         {"category": "discovery"},
     ),
     (
-        "/api/dashboard", "GET", "获取 Dashboard 全量数据",
+        "/api/dashboard",
+        "GET",
+        "获取 Dashboard 全量数据",
         {
-            "response_schema": {"type": "object", "properties": {
-                "total_count": {"type": "integer"},
-                "platform_stats": {"type": "array"},
-                "top_topics": {"type": "array"},
-            }},
+            "response_schema": {
+                "type": "object",
+                "properties": {
+                    "total_count": {"type": "integer"},
+                    "platform_stats": {"type": "array"},
+                    "top_topics": {"type": "array"},
+                },
+            },
             "category": "dashboard",
         },
     ),
     (
-        "/api/topics", "GET", "获取话题列表（支持分页/筛选）",
+        "/api/topics",
+        "GET",
+        "获取话题列表（支持分页/筛选）",
         {
-            "response_schema": {"type": "object", "properties": {
-                "total": {"type": "integer"},
-                "items": {"type": "array"},
-                "limit": {"type": "integer"},
-                "offset": {"type": "integer"},
-            }},
+            "response_schema": {
+                "type": "object",
+                "properties": {
+                    "total": {"type": "integer"},
+                    "items": {"type": "array"},
+                    "limit": {"type": "integer"},
+                    "offset": {"type": "integer"},
+                },
+            },
             "category": "dashboard",
         },
     ),
     ("/api/sources", "GET", "获取所有数据源平台", {"category": "dashboard"}),
     (
-        "/api/crawl", "POST", "触发全量热搜采集（同步执行 spide crawl --all --save，超时 120s）",
+        "/api/crawl",
+        "POST",
+        "触发全量热搜采集（同步执行 spide crawl --all --save，超时 120s）",
         {
-            "response_schema": {"type": "object", "properties": {
-                "status": {"type": "string"},
-                "saved": {"type": "integer"},
-                "output": {"type": "string"},
-            }},
+            "response_schema": {
+                "type": "object",
+                "properties": {
+                    "status": {"type": "string"},
+                    "saved": {"type": "integer"},
+                    "output": {"type": "string"},
+                },
+            },
             "category": "data_collection",
         },
     ),
     (
-        "/api/github/trending", "GET", "采集 GitHub AI/LLM/Agent/MCP/MLX 热门仓库",
+        "/api/github/trending",
+        "GET",
+        "采集 GitHub AI/LLM/Agent/MCP/MLX 热门仓库",
         {"category": "data_collection"},
     ),
     (
-        "/api/github/push", "POST", "采集 GitHub 热点并推送到飞书 Webhook",
+        "/api/github/push",
+        "POST",
+        "采集 GitHub 热点并推送到飞书 Webhook",
         {"category": "integration"},
     ),
     (
-        "/api/github/webhook", "POST", "动态设置飞书 Webhook URL",
+        "/api/github/webhook",
+        "POST",
+        "动态设置飞书 Webhook URL",
         {
-            "request_schema": {"type": "object", "required": ["url"], "properties": {
-                "url": {"type": "string"},
-            }},
+            "request_schema": {
+                "type": "object",
+                "required": ["url"],
+                "properties": {
+                    "url": {"type": "string"},
+                },
+            },
             "category": "integration",
         },
     ),
     (
-        "/api/feishu/event", "POST", "飞书事件回调（URL 验证 + 消息接收）",
+        "/api/feishu/event",
+        "POST",
+        "飞书事件回调（URL 验证 + 消息接收）",
         {"auth": "feishu_signature", "category": "integration"},
     ),
     (
-        "/api/feishu/command", "POST", "通用命令执行接口（供飞书 Agent 或其他客户端调用）",
+        "/api/feishu/command",
+        "POST",
+        "通用命令执行接口（供飞书 Agent 或其他客户端调用）",
         {"category": "integration"},
     ),
     (
-        "/api/feishu/agent", "POST", "飞书智能体对话接口（自然语言 → ReAct 循环 → 富文本卡片）",
+        "/api/feishu/agent",
+        "POST",
+        "飞书智能体对话接口（自然语言 → ReAct 循环 → 富文本卡片）",
         {
-            "request_schema": {"type": "object", "required": ["user_id", "message"], "properties": {
-                "user_id": {"type": "string", "description": "用户 ID"},
-                "chat_id": {"type": "string", "description": "会话 ID（群 chat_id）"},
-                "message": {"type": "string", "description": "用户消息"},
-            }},
-            "response_schema": {"type": "object", "properties": {
-                "answer": {"type": "string"},
-                "iterations": {"type": "integer"},
-                "tool_calls": {"type": "array"},
-                "status": {"type": "string", "enum": ["ok", "error", "max_iter", "llm_down"]},
-            }},
+            "request_schema": {
+                "type": "object",
+                "required": ["user_id", "message"],
+                "properties": {
+                    "user_id": {"type": "string", "description": "用户 ID"},
+                    "chat_id": {"type": "string", "description": "会话 ID（群 chat_id）"},
+                    "message": {"type": "string", "description": "用户消息"},
+                },
+            },
+            "response_schema": {
+                "type": "object",
+                "properties": {
+                    "answer": {"type": "string"},
+                    "iterations": {"type": "integer"},
+                    "tool_calls": {"type": "array"},
+                    "status": {"type": "string", "enum": ["ok", "error", "max_iter", "llm_down"]},
+                },
+            },
             "category": "agent",
         },
     ),
     (
-        "/api/feishu/scheduler/start", "POST", "启动飞书主动推送调度器（需 app_secret）",
+        "/api/feishu/scheduler/start",
+        "POST",
+        "启动飞书主动推送调度器（需 app_secret）",
         {"category": "agent"},
     ),
     (
-        "/api/feishu/scheduler/stop", "POST", "停止飞书主动推送调度器",
+        "/api/feishu/scheduler/stop",
+        "POST",
+        "停止飞书主动推送调度器",
         {"category": "agent"},
     ),
 ]
@@ -303,7 +346,7 @@ if _SKILLS_DIR.is_dir():
             _desc = _meta.get("description", "")
             # 取首段非空 markdown 文本作为描述（若 frontmatter 无 description）
             if not _desc:
-                for _line in _content[_m.end():].splitlines():
+                for _line in _content[_m.end() :].splitlines():
                     _line = _line.strip()
                     if _line and not _line.startswith("#"):
                         _desc = _line[:200]
@@ -521,10 +564,16 @@ async def trigger_crawl() -> JSONResponse:
         result = await asyncio.get_event_loop().run_in_executor(None, _run_crawl_sync)
         return JSONResponse(content=result)
     except TimeoutError:
-        return JSONResponse(status_code=504, content={"status": "error", "message": "crawl timeout (>120s)"})
+        return JSONResponse(
+            status_code=504, content={"status": "error", "message": "crawl timeout (>120s)"}
+        )
     except Exception as e:
         import traceback
-        return JSONResponse(status_code=500, content={"status": "error", "message": f"{e}", "traceback": traceback.format_exc()})
+
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": f"{e}", "traceback": traceback.format_exc()},
+        )
 
 
 # ── GitHub AI 热点 ────────────────────────────────────────────────
@@ -542,10 +591,12 @@ async def get_github_trending() -> JSONResponse:
     """采集 GitHub AI/LLM/Agent/MCP/MLX 热门仓库."""
     svc = GitHubTrendingService(feishu_webhook_url=_feishu_webhook_url)
     repos = await svc.collect()
-    return JSONResponse(content={
-        "total": len(repos),
-        "repos": [r.to_dict() for r in repos[:30]],
-    })
+    return JSONResponse(
+        content={
+            "total": len(repos),
+            "repos": [r.to_dict() for r in repos[:30]],
+        }
+    )
 
 
 @app.post("/api/github/push", summary="采集 GitHub 热点并推送到飞书")
@@ -611,9 +662,7 @@ async def feishu_agent_chat(body: dict[str, Any] = Body(...)) -> JSONResponse:
         )
     except Exception as exc:
         logger.error("agent_endpoint_failed", error=str(exc))
-        return JSONResponse(
-            status_code=500, content={"status": "error", "message": str(exc)}
-        )
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(exc)})
 
 
 @app.post("/api/feishu/agent/clear", summary="清空飞书智能体会话历史")
@@ -681,6 +730,7 @@ async def feishu_agent_status() -> JSONResponse:
 
 
 # ── 静态文件 & 前端路由 ──────────────────────────────────────────
+
 
 # 根路径返回 dashboard 页面
 @app.get("/", include_in_schema=False)

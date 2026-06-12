@@ -71,12 +71,14 @@ class DeepTopicTracker:
                     title=topic.title[:50],
                     error=str(result),
                 )
-                tracks.append(TopicDeepTrack(
-                    topic_title=topic.title,
-                    topic_source=topic.source,
-                    topic_hot_value=topic.hot_value,
-                    analysis_status="failed",
-                ))
+                tracks.append(
+                    TopicDeepTrack(
+                        topic_title=topic.title,
+                        topic_source=topic.source,
+                        topic_hot_value=topic.hot_value,
+                        analysis_status="failed",
+                    )
+                )
             else:
                 tracks.append(result)
 
@@ -146,10 +148,7 @@ class DeepTopicTracker:
             provider = WebSearchProvider()
             results = await provider.search(query, limit=5)
 
-            return [
-                {"title": r.title, "url": r.url, "snippet": r.description}
-                for r in results
-            ]
+            return [{"title": r.title, "url": r.url, "snippet": r.description} for r in results]
 
         except Exception as e:
             logger.debug("web_search_fallback", query=query[:30], error=str(e))

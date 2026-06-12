@@ -16,20 +16,16 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
-import hmac
 import json
+import logging
 import re
 import subprocess
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Body, Request
 from fastapi.responses import JSONResponse
-
-import logging
 
 logger = logging.getLogger("spide.feishu")
 
@@ -116,6 +112,7 @@ def parse_command(text: str) -> tuple[str, dict[str, Any]] | None:
 
 # ── 指令执行 ──────────────────────────────────────────────────────
 
+
 def _run_spide_sync(args: list[str], timeout: int = 120) -> dict[str, Any]:
     """同步执行 spide CLI 命令."""
     try:
@@ -176,9 +173,7 @@ async def execute_command(cmd: str, args: dict[str, Any]) -> dict[str, Any]:
 
     if cmd == "analyze":
         source = args.get("source", "weibo")
-        return await loop.run_in_executor(
-            None, _run_spide_sync, ["analyze", "-s", source], 180
-        )
+        return await loop.run_in_executor(None, _run_spide_sync, ["analyze", "-s", source], 180)
 
     if cmd == "track":
         source = args.get("source", "weibo")
@@ -379,7 +374,9 @@ def _extract_text(content_str: str, msg_type: str) -> str:
                 for line_blocks in lang_content:
                     if isinstance(line_blocks, list):
                         line_text = "".join(
-                            block.get("text", "") for block in line_blocks if isinstance(block, dict)
+                            block.get("text", "")
+                            for block in line_blocks
+                            if isinstance(block, dict)
                         )
                         if line_text:
                             lines.append(line_text)
@@ -454,9 +451,7 @@ async def _process_and_reply(text: str, sender_open_id: str, chat_id: str) -> No
         logger.warning("agent_init_failed: %s", exc)
 
     try:
-        agent_result = await agent.chat(
-            user_message=text, user_id=sender_open_id, chat_id=chat_id
-        )
+        agent_result = await agent.chat(user_message=text, user_id=sender_open_id, chat_id=chat_id)
         card = agent_response_card(
             answer=agent_result.answer,
             tool_calls=agent_result.tool_calls,

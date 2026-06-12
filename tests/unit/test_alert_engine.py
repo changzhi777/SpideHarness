@@ -111,16 +111,23 @@ class TestLoadRules:
 
     def test_load_from_yaml(self, tmp_path: Path):
         rules_file = tmp_path / "rules.yaml"
-        rules_file.write_text(yaml.dump({
-            "rules": [{
-                "name": "测试规则",
-                "keywords": ["AI"],
-                "sources": ["weibo"],
-                "hot_value_threshold": 10000,
-                "status_trigger": ["new"],
-                "enabled": True,
-            }],
-        }), encoding="utf-8")
+        rules_file.write_text(
+            yaml.dump(
+                {
+                    "rules": [
+                        {
+                            "name": "测试规则",
+                            "keywords": ["AI"],
+                            "sources": ["weibo"],
+                            "hot_value_threshold": 10000,
+                            "status_trigger": ["new"],
+                            "enabled": True,
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
 
         rules = AlertEngine.load_rules(rules_file)
         assert len(rules) == 1
@@ -137,12 +144,17 @@ class TestLoadRules:
 
     def test_skip_disabled_rules(self, tmp_path: Path):
         rules_file = tmp_path / "rules.yaml"
-        rules_file.write_text(yaml.dump({
-            "rules": [
-                {"name": "enabled", "keywords": ["AI"], "enabled": True},
-                {"name": "disabled", "keywords": ["GPT"], "enabled": False},
-            ],
-        }), encoding="utf-8")
+        rules_file.write_text(
+            yaml.dump(
+                {
+                    "rules": [
+                        {"name": "enabled", "keywords": ["AI"], "enabled": True},
+                        {"name": "disabled", "keywords": ["GPT"], "enabled": False},
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
 
         rules = AlertEngine.load_rules(rules_file)
         assert len(rules) == 1

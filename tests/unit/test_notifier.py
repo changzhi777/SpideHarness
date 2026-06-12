@@ -188,9 +188,7 @@ class TestNotifierDispatcher:
         mock_resp.__aexit__ = AsyncMock(return_value=False)
 
         with patch("aiohttp.ClientSession.post", return_value=mock_resp):
-            results = await dispatcher.dispatch(
-                _make_alert(), ["log", "mqtt", "webhook"]
-            )
+            results = await dispatcher.dispatch(_make_alert(), ["log", "mqtt", "webhook"])
             assert results["log"] is True
             assert results["mqtt"] is True
             assert results["webhook"] is True

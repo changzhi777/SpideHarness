@@ -98,12 +98,14 @@ class CrossPlatformAnalyzer:
                         break
 
                 if not merged:
-                    all_topics.append({
-                        "title": topic.title,
-                        "source": source,
-                        "platforms": [source],
-                        "hot_value": topic.hot_value or 0,
-                    })
+                    all_topics.append(
+                        {
+                            "title": topic.title,
+                            "source": source,
+                            "platforms": [source],
+                            "hot_value": topic.hot_value or 0,
+                        }
+                    )
 
         return all_topics
 
@@ -144,14 +146,16 @@ class CrossPlatformAnalyzer:
         """解析 LLM 返回的聚类 JSON."""
         clusters: list[TopicCluster] = []
         for item in raw:
-            clusters.append(TopicCluster(
-                cluster_name=item.get("name", "未命名"),
-                cluster_keywords=item.get("keywords", []),
-                platform_sources=item.get("platforms", []),
-                topic_titles=item.get("topic_titles", []),
-                cross_platform=item.get("cross_platform", False),
-                analysis=item.get("analysis", ""),
-            ))
+            clusters.append(
+                TopicCluster(
+                    cluster_name=item.get("name", "未命名"),
+                    cluster_keywords=item.get("keywords", []),
+                    platform_sources=item.get("platforms", []),
+                    topic_titles=item.get("topic_titles", []),
+                    cross_platform=item.get("cross_platform", False),
+                    analysis=item.get("analysis", ""),
+                )
+            )
         return clusters
 
     @staticmethod
@@ -164,13 +168,15 @@ class CrossPlatformAnalyzer:
 
         clusters: list[TopicCluster] = []
         for platform, platform_topics in by_platform.items():
-            clusters.append(TopicCluster(
-                cluster_name=f"{platform} 热点",
-                cluster_keywords=[],
-                platform_sources=[platform],
-                topic_titles=[t["title"] for t in platform_topics[:10]],
-                total_hot_value=sum(t["hot_value"] for t in platform_topics),
-                cross_platform=False,
-                analysis="LLM 不可用，仅按平台分组",
-            ))
+            clusters.append(
+                TopicCluster(
+                    cluster_name=f"{platform} 热点",
+                    cluster_keywords=[],
+                    platform_sources=[platform],
+                    topic_titles=[t["title"] for t in platform_topics[:10]],
+                    total_hot_value=sum(t["hot_value"] for t in platform_topics),
+                    cross_platform=False,
+                    analysis="LLM 不可用，仅按平台分组",
+                )
+            )
         return clusters

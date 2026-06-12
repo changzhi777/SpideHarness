@@ -2,7 +2,6 @@
 # Author: 外星动物（常智） / IoTchange / 14455975@qq.com
 """单元测试 — MediaCrawler 深度采集适配器."""
 
-
 import pytest
 
 from spide.spider.media_crawler_adapter import (
@@ -287,6 +286,7 @@ class TestNewModels:
 
     def test_crawl_mode_enum_values(self):
         from spide.storage.models import CrawlMode
+
         assert CrawlMode.SEARCH.value == "search"
         assert CrawlMode.DETAIL.value == "detail"
         assert CrawlMode.CREATOR.value == "creator"

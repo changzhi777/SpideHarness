@@ -105,13 +105,16 @@ class WebSearchProvider:
         """DuckDuckGo HTML 搜索."""
         results: list[SearchResult] = []
         try:
-            async with aiohttp.ClientSession(timeout=_TIMEOUT) as session, session.post(
-                _DDGS_URL,
-                data={"q": query, "b": ""},
-                headers={
-                    "User-Agent": "Mozilla/5.0 (compatible; SpideAgent/1.0)",
-                },
-            ) as resp:
+            async with (
+                aiohttp.ClientSession(timeout=_TIMEOUT) as session,
+                session.post(
+                    _DDGS_URL,
+                    data={"q": query, "b": ""},
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (compatible; SpideAgent/1.0)",
+                    },
+                ) as resp,
+            ):
                 if resp.status != 200:
                     logger.warning("ddgs_search_failed", status=resp.status)
                     return results
@@ -142,12 +145,14 @@ class WebSearchProvider:
             title = _strip_html(title_html).strip()
             desc = _strip_html(desc_html).strip()
             if title and url:
-                results.append(SearchResult(
-                    title=title,
-                    url=url,
-                    description=desc,
-                    source="duckduckgo",
-                ))
+                results.append(
+                    SearchResult(
+                        title=title,
+                        url=url,
+                        description=desc,
+                        source="duckduckgo",
+                    )
+                )
 
         return results
 
@@ -179,10 +184,13 @@ class WebContentProvider:
         """
         page = PageContent(url=url)
         try:
-            async with aiohttp.ClientSession(timeout=_TIMEOUT) as session, session.get(
-                url,
-                headers={"User-Agent": "Mozilla/5.0 (compatible; SpideAgent/1.0)"},
-            ) as resp:
+            async with (
+                aiohttp.ClientSession(timeout=_TIMEOUT) as session,
+                session.get(
+                    url,
+                    headers={"User-Agent": "Mozilla/5.0 (compatible; SpideAgent/1.0)"},
+                ) as resp,
+            ):
                 if resp.status != 200:
                     logger.warning("fetch_page_failed", url=url, status=resp.status)
                     return page

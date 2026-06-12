@@ -195,9 +195,7 @@ class ConversationStore:
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             if user_id:
-                query = (
-                    "SELECT * FROM chat_sessions WHERE user_id = ? ORDER BY updated_at DESC"
-                )
+                query = "SELECT * FROM chat_sessions WHERE user_id = ? ORDER BY updated_at DESC"
                 params: tuple[Any, ...] = (user_id,)
             else:
                 query = "SELECT * FROM chat_sessions ORDER BY updated_at DESC"

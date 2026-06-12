@@ -20,7 +20,6 @@ from dashboard.feishu_ws_client import (
     stop_ws_client,
 )
 
-
 # ── _extract_text ─────────────────────────────────────────────────────
 
 
@@ -36,10 +35,12 @@ def test_extract_text_empty():
 
 
 def test_extract_text_post_message():
-    content = json.dumps({
-        "title": "标题",
-        "content": [[{"tag": "text", "text": "段落1"}]],
-    })
+    content = json.dumps(
+        {
+            "title": "标题",
+            "content": [[{"tag": "text", "text": "段落1"}]],
+        }
+    )
     result = _extract_text(content, "post")
     assert "标题" in result
     assert "段落1" in result

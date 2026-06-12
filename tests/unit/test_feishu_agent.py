@@ -180,8 +180,12 @@ def test_short_task_id_fallback_to_hash() -> None:
 
 def test_friendly_action_success() -> None:
     """_friendly_action 成功时返回人类友好描述。"""
-    assert "微博" in _friendly_action("crawl_hot_topics", {"status": "ok", "source": "微博", "count": 10})
-    assert "10" in _friendly_action("crawl_hot_topics", {"status": "ok", "source": "weibo", "count": 10})
+    assert "微博" in _friendly_action(
+        "crawl_hot_topics", {"status": "ok", "source": "微博", "count": 10}
+    )
+    assert "10" in _friendly_action(
+        "crawl_hot_topics", {"status": "ok", "source": "weibo", "count": 10}
+    )
     assert _friendly_action("health_check", {"status": "ok"})  # 非空
     assert _friendly_action("unknown_tool", {"status": "ok"})  # 未知工具也有兜底
 

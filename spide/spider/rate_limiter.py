@@ -180,7 +180,9 @@ class CircuitBreaker:
         self._failure_count = 0
         if self._state == _BreakerState.HALF_OPEN:
             self._state = _BreakerState.CLOSED
-            logger.info("circuit_breaker_closed", name=self._name, success_count=self._success_count)
+            logger.info(
+                "circuit_breaker_closed", name=self._name, success_count=self._success_count
+            )
         self._success_count += 1
 
     def _on_failure(self) -> None:
@@ -297,12 +299,14 @@ class CheckpointManager:
         rows = await cursor.fetchall()
         results = []
         for row in rows:
-            results.append({
-                "task_id": row[0],
-                "created_at": row[2],
-                "updated_at": row[3],
-                **json.loads(row[1]),
-            })
+            results.append(
+                {
+                    "task_id": row[0],
+                    "created_at": row[2],
+                    "updated_at": row[3],
+                    **json.loads(row[1]),
+                }
+            )
         return results
 
     async def delete_checkpoint(self, task_id: str) -> bool:
@@ -310,8 +314,6 @@ class CheckpointManager:
         if self._db is None:
             return False
 
-        cursor = await self._db.execute(
-            "DELETE FROM checkpoints WHERE task_id = ?", (task_id,)
-        )
+        cursor = await self._db.execute("DELETE FROM checkpoints WHERE task_id = ?", (task_id,))
         await self._db.commit()
         return cursor.rowcount > 0

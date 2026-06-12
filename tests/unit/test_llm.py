@@ -16,9 +16,7 @@ class TestLLMParams:
 
     def test_default_params(self):
         client = LLMClient(LLMConfig(common=LLMCommonConfig(api_key="test")))
-        params = client._build_chat_params(
-            messages=[{"role": "user", "content": "hi"}]
-        )
+        params = client._build_chat_params(messages=[{"role": "user", "content": "hi"}])
         assert params["model"] == "glm-5.1"
         assert params["stream"] is False
 
@@ -38,9 +36,7 @@ class TestLLMParams:
 
     def test_thinking_mode(self):
         client = LLMClient(LLMConfig(common=LLMCommonConfig(api_key="test")))
-        params = client._build_chat_params(
-            messages=[{"role": "user", "content": "hi"}]
-        )
+        params = client._build_chat_params(messages=[{"role": "user", "content": "hi"}])
         assert "thinking" in params
         assert params["thinking"]["type"] == "enabled"
 

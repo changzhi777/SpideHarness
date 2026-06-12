@@ -345,7 +345,9 @@ async def _deep_crawl_async(
 
             kw_list = [k.strip() for k in keywords.split(",") if k.strip()] if keywords else None
             url_list = [u.strip() for u in urls.split(",") if u.strip()] if urls else None
-            creator_list = [c.strip() for c in creators.split(",") if c.strip()] if creators else None
+            creator_list = (
+                [c.strip() for c in creators.split(",") if c.strip()] if creators else None
+            )
 
             results = await engine.deep_crawl(
                 platform=platform,
@@ -510,9 +512,7 @@ def dashboard(
     asyncio.run(_dashboard_async(workspace, output, open_browser))
 
 
-async def _dashboard_async(
-    workspace: str | None, output: str | None, open_browser: bool
-) -> None:
+async def _dashboard_async(workspace: str | None, output: str | None, open_browser: bool) -> None:
     """Dashboard 异步实现."""
     import webbrowser
 
@@ -520,6 +520,7 @@ async def _dashboard_async(
     from spide.config import load_settings
     from spide.dashboard import collect_dashboard_data, render_dashboard
     from spide.dashboard.renderer import write_dashboard
+
     settings = load_settings()
     db_path = settings.storage.sqlite_path
 
@@ -543,7 +544,9 @@ async def _dashboard_async(
     # 转为绝对路径，确保 as_uri() 可用
     filepath = filepath.resolve()
     console.print(f"[green]看板已生成:[/green] {filepath}")
-    console.print(f"[dim]数据: {data['total_count']} 条话题, {data['stats_summary']['platforms']} 个平台[/dim]")
+    console.print(
+        f"[dim]数据: {data['total_count']} 条话题, {data['stats_summary']['platforms']} 个平台[/dim]"
+    )
 
     if open_browser:
         webbrowser.open(filepath.as_uri())
@@ -601,7 +604,10 @@ async def _dedup_async(workspace: str | None, dry_run: bool) -> None:
         if len(items) <= 1:
             continue
         # 排序：hot_value 降序 → fetched_at 降序，保留第一条
-        items.sort(key=lambda t: (t.hot_value or 0, t.fetched_at.isoformat() if t.fetched_at else ""), reverse=True)
+        items.sort(
+            key=lambda t: (t.hot_value or 0, t.fetched_at.isoformat() if t.fetched_at else ""),
+            reverse=True,
+        )
         for item in items[1:]:
             if item.id is not None:
                 ids_to_delete.append(item.id)
@@ -733,7 +739,9 @@ async def _mqtt_sub_async(topic: str, count: int) -> None:
 
 def _show_welcome() -> None:
     """显示欢迎信息."""
-    console.print(f"\n[bold cyan]SpideHarness Agent v{__version__}[/bold cyan]\n热点新闻抓取 Agent CLI\n")
+    console.print(
+        f"\n[bold cyan]SpideHarness Agent v{__version__}[/bold cyan]\n热点新闻抓取 Agent CLI\n"
+    )
     console.print("常用命令:")
     console.print("  [cyan]spide init[/cyan]          初始化工作空间")
     console.print("  [cyan]spide doctor[/cyan]        环境检查")
@@ -1019,7 +1027,9 @@ def batch_crawl(
     platforms: str = typer.Option(
         ..., "--platforms", "-p", help="平台列表（逗号分隔）: xhs,dy,ks,bili,wb,tieba,zhihu"
     ),
-    keywords: str | None = typer.Option(None, "--keywords", "-k", help="搜索关键词（逗号分隔，所有平台共用）"),
+    keywords: str | None = typer.Option(
+        None, "--keywords", "-k", help="搜索关键词（逗号分隔，所有平台共用）"
+    ),
     mode: str = typer.Option("search", "--mode", "-m", help="采集模式 (search/detail/creator)"),
     max_notes: int = typer.Option(10, "--max", help="每平台最大采集数"),
     concurrent: int = typer.Option(3, "--concurrent", "-c", help="最大并发数"),
@@ -1030,7 +1040,9 @@ def batch_crawl(
 ) -> None:
     """批量多平台深度采集 — 并行执行."""
     asyncio.run(
-        _batch_crawl_async(platforms, keywords, mode, max_notes, concurrent, save, export_fmt, output, workspace)
+        _batch_crawl_async(
+            platforms, keywords, mode, max_notes, concurrent, save, export_fmt, output, workspace
+        )
     )
 
 
@@ -1112,7 +1124,9 @@ async def _batch_crawl_async(
             from spide.storage.exporter import DataExporter
 
             exporter = DataExporter(output_dir=output_dir or "data/export")
-            filepath = await exporter.export(result.contents, filename="batch_crawl", fmt=export_fmt)  # type: ignore[arg-type]
+            filepath = await exporter.export(
+                result.contents, filename="batch_crawl", fmt=export_fmt
+            )  # type: ignore[arg-type]
             console.print(f"[green]已导出到 {filepath}[/green]")
 
     except Exception as e:
@@ -1228,7 +1242,9 @@ async def _schedule_async(
 
 @timed_search_app.command("start")
 def timed_search_start(
-    times: str = typer.Option("09:00,18:00", "--times", "-t", help="执行时间（逗号分隔），如 09:00,18:00"),
+    times: str = typer.Option(
+        "09:00,18:00", "--times", "-t", help="执行时间（逗号分隔），如 09:00,18:00"
+    ),
     sources: str = typer.Option("weibo,baidu,zhihu", "--sources", "-s", help="热搜源（逗号分隔）"),
     top_n: int = typer.Option(5, "--top", "-n", help="每个平台取 Top N 热搜"),
     workspace: str | None = typer.Option(None, "--workspace", "-w", help="工作空间路径"),
@@ -1370,6 +1386,7 @@ def _resolve_workspace(workspace: str | None) -> Path:
     if workspace:
         return Path(workspace)
     from spide.workspace import get_workspace_root
+
     return get_workspace_root()
 
 
@@ -1401,9 +1418,7 @@ def crawl_diff(
     asyncio.run(_crawl_diff_async(source, last, history, workspace))
 
 
-async def _crawl_diff_async(
-    source: str, last: bool, history: bool, workspace: str | None
-) -> None:
+async def _crawl_diff_async(source: str, last: bool, history: bool, workspace: str | None) -> None:
     async with _engine_session(workspace) as (engine, _bundle, settings):
         if last or history:
             from spide.storage.models import CrawlSnapshot
@@ -1450,19 +1465,31 @@ async def _crawl_diff_async(
 
         summary = report.get("summary", {})
         console.print(f"\n[bold cyan]{source} 增量差异报告[/bold cyan]")
-        console.print(f"  新增: [green]{summary.get('new', 0)}[/green]  "
-                      f"上升: [yellow]{summary.get('rising', 0)}[/yellow]  "
-                      f"下降: [red]{summary.get('falling', 0)}[/red]  "
-                      f"掉榜: [dim]{summary.get('dropped', 0)}[/dim]")
+        console.print(
+            f"  新增: [green]{summary.get('new', 0)}[/green]  "
+            f"上升: [yellow]{summary.get('rising', 0)}[/yellow]  "
+            f"下降: [red]{summary.get('falling', 0)}[/red]  "
+            f"掉榜: [dim]{summary.get('dropped', 0)}[/dim]"
+        )
 
         table = Table(title="话题变化详情")
         table.add_column("标题", style="cyan", max_width=40)
         table.add_column("状态", justify="center")
         table.add_column("热度变化", justify="right")
         for c in changes[:20]:
-            status_colors = {"new": "green", "rising": "yellow", "falling": "red", "stable": "dim", "dropped": "dim"}
+            status_colors = {
+                "new": "green",
+                "rising": "yellow",
+                "falling": "red",
+                "stable": "dim",
+                "dropped": "dim",
+            }
             color = status_colors.get(c.status.value, "white")
-            change_str = f"+{c.hot_value_change}" if (c.hot_value_change or 0) > 0 else str(c.hot_value_change or "-")
+            change_str = (
+                f"+{c.hot_value_change}"
+                if (c.hot_value_change or 0) > 0
+                else str(c.hot_value_change or "-")
+            )
             table.add_row(c.title[:40], f"[{color}]{c.status.value}[/{color}]", change_str)
         console.print(table)
 
@@ -1497,8 +1524,13 @@ async def _monitor_async(
     dispatcher = NotifierDispatcher()
 
     async with _engine_session(workspace) as (engine, _bundle, settings):
+
         async def _check_once() -> None:
-            sources = list(set(s.value for r in rules for s in r.sources)) or ["weibo", "baidu", "zhihu"]
+            sources = list(set(s.value for r in rules for s in r.sources)) or [
+                "weibo",
+                "baidu",
+                "zhihu",
+            ]
             results = await engine.crawl(sources=sources)
 
             all_topics = []
@@ -1509,7 +1541,9 @@ async def _monitor_async(
             if alerts:
                 console.print(f"\n[bold red]触发 {len(alerts)} 条告警[/bold red]")
                 for a in alerts:
-                    console.print(f"  [{a.rule_name}] {a.topic_title} ({a.topic_source.value}) — {a.alert_type}")
+                    console.print(
+                        f"  [{a.rule_name}] {a.topic_title} ({a.topic_source.value}) — {a.alert_type}"
+                    )
                 for a in alerts:
                     await dispatcher.dispatch(a, settings.alert.notification.channels)
 
@@ -1557,7 +1591,12 @@ async def _track_async(source: str, top: int, workspace: str | None) -> None:
 
         for t in tracks:
             status_color = "green" if t.analysis_status == "completed" else "red"
-            sentiment_color = {"positive": "green", "negative": "red", "neutral": "yellow", "mixed": "blue"}.get(t.sentiment, "dim")
+            sentiment_color = {
+                "positive": "green",
+                "negative": "red",
+                "neutral": "yellow",
+                "mixed": "blue",
+            }.get(t.sentiment, "dim")
             table.add_row(
                 t.topic_title[:30],
                 f"[{status_color}]{t.analysis_status}[/{status_color}]",
@@ -1578,9 +1617,7 @@ def cross_analyze(
     asyncio.run(_cross_analyze_async(report, save, workspace))
 
 
-async def _cross_analyze_async(
-    report: bool, save: bool, workspace: str | None
-) -> None:
+async def _cross_analyze_async(report: bool, save: bool, workspace: str | None) -> None:
     async with _engine_session(workspace) as (engine, _bundle, settings):
         sources = ["weibo", "baidu", "douyin", "zhihu", "bilibili"]
         console.print("[cyan]采集全平台热搜...[/cyan]")
@@ -1632,9 +1669,13 @@ async def _cross_analyze_async(
 
             output_dir = Path("data/reports")
             output_dir.mkdir(parents=True, exist_ok=True)
-            report_path = output_dir / f"cross_analyze_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            report_path = (
+                output_dir / f"cross_analyze_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            )
             report_path.write_text(
-                json.dumps([c.model_dump(mode="json") for c in clusters], ensure_ascii=False, indent=2),
+                json.dumps(
+                    [c.model_dump(mode="json") for c in clusters], ensure_ascii=False, indent=2
+                ),
                 encoding="utf-8",
             )
             console.print(f"[green]报告已保存: {report_path}[/green]")

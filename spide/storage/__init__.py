@@ -45,6 +45,8 @@ def create_sqlite_repo(model_class: type, *, db_path: str = "spide_data.db") -> 
     return SqliteRepository(model_class, db_path=db_path)
 
 
-def create_redis_cache(*, url: str = "redis://localhost:6379/0", prefix: str = "spide:") -> RedisCache:
+def create_redis_cache(
+    *, url: str = "redis://localhost:6379/0", prefix: str = "spide:"
+) -> RedisCache:
     """创建 Redis 缓存实例."""
     return RedisCache(url=url, prefix=prefix)

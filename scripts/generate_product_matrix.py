@@ -2,32 +2,32 @@
 """生成 SpideHarness 产品矩阵 Excel 表"""
 
 import openpyxl
-from openpyxl.styles import (
-    Font, Fill, PatternFill, Alignment, Border, Side, GradientFill
-)
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
-from openpyxl.formatting.rule import ColorScaleRule, DataBarRule
 
 wb = openpyxl.Workbook()
 ws = wb.active
 ws.title = "产品矩阵"
 
 # ─── 配色方案 ────────────────────────────────────────
-COL_HEADER_BG   = "1E3A5F"   # 深蓝 header
-COL_HEADER_FG   = "FFFFFF"   # 白色文字
-COL_ALT_ROW     = "E8F0F7"   # 浅蓝交替行
-COL_BORDER      = "B8CCE4"   # 边框蓝
-COL_STATUS_DONE = "27AE60"   # 绿-完成
-COL_STATUS_DEV  = "F39C12"   # 橙-dev
-COL_STATUS_ALPHA= "9B59B6"   # 紫-内测
+COL_HEADER_BG = "1E3A5F"  # 深蓝 header
+COL_HEADER_FG = "FFFFFF"  # 白色文字
+COL_ALT_ROW = "E8F0F7"  # 浅蓝交替行
+COL_BORDER = "B8CCE4"  # 边框蓝
+COL_STATUS_DONE = "27AE60"  # 绿-完成
+COL_STATUS_DEV = "F39C12"  # 橙-dev
+COL_STATUS_ALPHA = "9B59B6"  # 紫-内测
+
 
 # ─── 样式工厂 ────────────────────────────────────────
 def make_fill(hex_color):
     return PatternFill("solid", fgColor=hex_color)
 
+
 def make_border(color=COL_BORDER):
     s = Side(style="thin", color=color)
     return Border(left=s, right=s, top=s, bottom=s)
+
 
 def make_header_cell(ws, row, col, value):
     cell = ws.cell(row=row, column=col, value=value)
@@ -36,6 +36,7 @@ def make_header_cell(ws, row, col, value):
     cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     cell.border = make_border("FFFFFF")
     return cell
+
 
 def make_data_cell(ws, row, col, value, bold=False, align="left", bg=None):
     cell = ws.cell(row=row, column=col, value=value)
@@ -48,11 +49,9 @@ def make_data_cell(ws, row, col, value, bold=False, align="left", bg=None):
         cell.fill = make_fill(COL_ALT_ROW)
     return cell
 
+
 # ─── 数据定义 ────────────────────────────────────────
-headers = [
-    "功能模块", "产品定位", "应用场景", "市场需求",
-    "开发程度", "完成度", "商业模式"
-]
+headers = ["功能模块", "产品定位", "应用场景", "市场需求", "开发程度", "完成度", "商业模式"]
 
 # 功能完整数据
 data = [
@@ -64,7 +63,7 @@ data = [
         "热点发现是刚需\n用户粘性入口",
         "上线",
         "95%",
-        "开源免费版\n核心功能"
+        "开源免费版\n核心功能",
     ),
     (
         "深度采集\n(小红书/抖音/快手/B站等7平台)",
@@ -73,7 +72,7 @@ data = [
         "内容创作素材\nKOL营销洞察",
         "dev可运行",
         "85%",
-        "开源免费版\n核心功能"
+        "开源免费版\n核心功能",
     ),
     (
         "AI智能分析\n(摘要/情感/趋势/策略)",
@@ -82,7 +81,7 @@ data = [
         "降本增效\n差异化竞争",
         "上线",
         "90%",
-        "开源免费版\n核心功能"
+        "开源免费版\n核心功能",
     ),
     (
         "词云生成\n(jieba分词+wordcloud)",
@@ -91,7 +90,7 @@ data = [
         "汇报场景\n展示需求",
         "上线",
         "95%",
-        "开源免费版"
+        "开源免费版",
     ),
     (
         "定时任务调度\n(Cron-like)",
@@ -100,7 +99,7 @@ data = [
         "企业级刚需\n运营自动化",
         "上线",
         "90%",
-        "开源免费版"
+        "开源免费版",
     ),
     (
         "数据导出\n(JSON/CSV/Excel)",
@@ -109,7 +108,7 @@ data = [
         "数据资产化\n报表需求",
         "上线",
         "95%",
-        "开源免费版"
+        "开源免费版",
     ),
     (
         "MCP协议\n(Server/Client)",
@@ -118,7 +117,7 @@ data = [
         "开发者生态\nMCP是标配",
         "上线",
         "85%",
-        "开源免费版"
+        "开源免费版",
     ),
     (
         "MQTT通讯\n(EMQX Cloud TLS)",
@@ -127,7 +126,7 @@ data = [
         "企业集成\nIoT场景",
         "上线",
         "90%",
-        "开源免费版"
+        "开源免费版",
     ),
     (
         "浏览器自动化\n(OpenCLI 79+适配器)",
@@ -136,7 +135,7 @@ data = [
         "数据采集完整性\n差异化能力",
         "dev可运行",
         "80%",
-        "开源免费版"
+        "开源免费版",
     ),
     (
         "智能搜索路由\n(AI+60+网站多源)",
@@ -145,7 +144,7 @@ data = [
         "信息差竞争力\n效率提升",
         "dev可运行",
         "75%",
-        "展屏版/团队版"
+        "展屏版/团队版",
     ),
     (
         "适配器生态\n(Explorer/Oneshot/Autofix)",
@@ -154,7 +153,7 @@ data = [
         "生态护城河\n长期竞争力",
         "正在开发",
         "60%",
-        "展屏版/团队版"
+        "展屏版/团队版",
     ),
     (
         "大数据可视化展屏\n(React+ECharts)",
@@ -163,7 +162,7 @@ data = [
         "企业采购决策\n高溢价能力",
         "正在开发",
         "20%",
-        "展屏版¥99/月"
+        "展屏版¥99/月",
     ),
     (
         "关键词实时告警\n(多通道通知)",
@@ -172,7 +171,7 @@ data = [
         "企业刚需\n付费意愿强",
         "正在开发",
         "15%",
-        "团队版¥299/月"
+        "团队版¥299/月",
     ),
     (
         "自动日报/周报\n(AI生成推送)",
@@ -181,7 +180,7 @@ data = [
         "老板刚需\n降本增效",
         "正在开发",
         "10%",
-        "团队版¥299/月"
+        "团队版¥299/月",
     ),
     (
         "Web Dashboard\n(Vue3+FastAPI)",
@@ -190,7 +189,7 @@ data = [
         "团队版核心\n企业级需求",
         "正在开发",
         "5%",
-        "团队版¥299/月"
+        "团队版¥299/月",
     ),
     (
         "历史趋势对比\n(多维度分析)",
@@ -199,7 +198,7 @@ data = [
         "分析深度\n差异化价值",
         "正在开发",
         "5%",
-        "企业版¥2999/月"
+        "企业版¥2999/月",
     ),
     (
         "情感指数API\n(舆情量化指标)",
@@ -208,7 +207,7 @@ data = [
         "B端API收入\n高毛利",
         "规划中",
         "0%",
-        "企业版API"
+        "企业版API",
     ),
     (
         "热点→概念股关联\n(金融场景)",
@@ -217,7 +216,7 @@ data = [
         "付费能力强\n蓝海市场",
         "规划中",
         "0%",
-        "企业版API"
+        "企业版API",
     ),
 ]
 
@@ -227,10 +226,10 @@ for col_idx, header in enumerate(headers, start=1):
 
 # ─── 写数据 ──────────────────────────────────────────
 status_colors = {
-    "上线":       COL_STATUS_DONE,
-    "dev可运行":  COL_STATUS_DEV,
-    "正在开发":   "3498DB",      # 蓝色-进行中
-    "规划中":     "95A5A6",      # 灰色-规划
+    "上线": COL_STATUS_DONE,
+    "dev可运行": COL_STATUS_DEV,
+    "正在开发": "3498DB",  # 蓝色-进行中
+    "规划中": "95A5A6",  # 灰色-规划
 }
 
 completion_colors = {
@@ -243,8 +242,8 @@ completion_colors = {
     "20%": "FAD7A0",
     "15%": "F5B041",
     "10%": "F8C471",
-    "5%":  "FDEBD0",
-    "0%":  "E5E7E9",
+    "5%": "FDEBD0",
+    "0%": "E5E7E9",
 }
 
 for row_idx, row_data in enumerate(data, start=2):
@@ -273,13 +272,13 @@ for row_idx, row_data in enumerate(data, start=2):
 
 # ─── 列宽设置 ────────────────────────────────────────
 col_widths = {
-    1: 22,   # 功能模块
-    2: 18,   # 产品定位
-    3: 22,   # 应用场景
-    4: 20,   # 市场需求
-    5: 14,   # 开发程度
-    6: 12,   # 完成度
-    7: 22,   # 商业模式
+    1: 22,  # 功能模块
+    2: 18,  # 产品定位
+    3: 22,  # 应用场景
+    4: 20,  # 市场需求
+    5: 14,  # 开发程度
+    6: 12,  # 完成度
+    7: 22,  # 商业模式
 }
 for col, width in col_widths.items():
     ws.column_dimensions[get_column_letter(col)].width = width

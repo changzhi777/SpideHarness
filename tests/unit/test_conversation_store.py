@@ -34,8 +34,12 @@ def test_make_session_id_stable() -> None:
 
 def test_make_session_id_different() -> None:
     """不同 user/chat 生成不同 session_id。"""
-    assert ConversationStore.make_session_id("u1", "c1") != ConversationStore.make_session_id("u2", "c1")
-    assert ConversationStore.make_session_id("u1", "c1") != ConversationStore.make_session_id("u1", "c2")
+    assert ConversationStore.make_session_id("u1", "c1") != ConversationStore.make_session_id(
+        "u2", "c1"
+    )
+    assert ConversationStore.make_session_id("u1", "c1") != ConversationStore.make_session_id(
+        "u1", "c2"
+    )
 
 
 async def test_get_or_create_session_new(tmp_db) -> None:
@@ -85,7 +89,9 @@ async def test_get_history_with_tool_calls(tmp_db) -> None:
         ChatMessage(
             role="assistant",
             content="",
-            tool_calls=[{"name": "crawl_hot_topics", "arguments": {"source": "weibo"}, "id": "call_1"}],
+            tool_calls=[
+                {"name": "crawl_hot_topics", "arguments": {"source": "weibo"}, "id": "call_1"}
+            ],
         ),
     )
     history = await store.get_history(sid)

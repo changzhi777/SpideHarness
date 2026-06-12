@@ -89,13 +89,15 @@ class CapabilityRegistry:
         auth: str = "none",
         category: str = "general",
     ) -> None:
-        self._mcp_tools.append(MCPTool(
-            name=name,
-            description=description,
-            input_schema=input_schema,
-            auth=auth,
-            category=category,
-        ))
+        self._mcp_tools.append(
+            MCPTool(
+                name=name,
+                description=description,
+                input_schema=input_schema,
+                auth=auth,
+                category=category,
+            )
+        )
 
     def register_http_endpoint(
         self,
@@ -108,15 +110,17 @@ class CapabilityRegistry:
         auth: str = "none",
         category: str = "general",
     ) -> None:
-        self._http_endpoints.append(HTTPEndpoint(
-            path=path,
-            method=method.upper(),
-            summary=summary,
-            request_schema=request_schema or {},
-            response_schema=response_schema or {},
-            auth=auth,
-            category=category,
-        ))
+        self._http_endpoints.append(
+            HTTPEndpoint(
+                path=path,
+                method=method.upper(),
+                summary=summary,
+                request_schema=request_schema or {},
+                response_schema=response_schema or {},
+                auth=auth,
+                category=category,
+            )
+        )
 
     def register_skill(
         self,
@@ -126,12 +130,14 @@ class CapabilityRegistry:
         *,
         category: str = "general",
     ) -> None:
-        self._skills.append(Skill(
-            name=name,
-            description=description,
-            path=path,
-            category=category,
-        ))
+        self._skills.append(
+            Skill(
+                name=name,
+                description=description,
+                path=path,
+                category=category,
+            )
+        )
 
     def to_agent_json(self, *, base_url: str = "") -> dict[str, Any]:
         """生成符合 OpenAPI Discovery 风格的 agent.json."""

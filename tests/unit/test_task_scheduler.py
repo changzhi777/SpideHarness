@@ -98,9 +98,7 @@ class TestTaskScheduler:
         )
         scheduler.add_job(job)
 
-        with patch(
-            "spide.spider.uapi_client.UAPIClient"
-        ) as MockClient:
+        with patch("spide.spider.uapi_client.UAPIClient") as MockClient:
             instance = MockClient.return_value
             instance.start = AsyncMock()
             instance.stop = AsyncMock()

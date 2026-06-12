@@ -68,8 +68,10 @@ class TestFetcherMock:
         mock_resp = MagicMock()
         mock_resp.status = 404
 
-        with patch("aiohttp.ClientSession.get", new=mock_aiohttp_response(mock_resp)), \
-             pytest.raises(SpiderError, match="404"):
+        with (
+            patch("aiohttp.ClientSession.get", new=mock_aiohttp_response(mock_resp)),
+            pytest.raises(SpiderError, match="404"),
+        ):
             await fetcher.get("https://example.com/notfound")
 
         await fetcher.stop()

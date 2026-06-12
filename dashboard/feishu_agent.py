@@ -132,9 +132,7 @@ class FeishuAgent:
             return await self._fallback_keyword(user_message)
 
         session_id = await self.store.get_or_create_session(user_id, chat_id)
-        await self.store.append_message(
-            session_id, ChatMessage(role="user", content=user_message)
-        )
+        await self.store.append_message(session_id, ChatMessage(role="user", content=user_message))
 
         history = await self.store.get_history(session_id, limit=self.config.max_history)
         messages = self._build_messages(history)
@@ -143,9 +141,7 @@ class FeishuAgent:
         final_answer = ""
 
         for iteration in range(1, self.config.max_iterations + 1):
-            tools = (
-                get_tool_schemas() if self.llm.config.supports_function_calling else None
-            )
+            tools = get_tool_schemas() if self.llm.config.supports_function_calling else None
             response = await self.llm.chat(messages=messages, tools=tools)
 
             if response.finish_reason == "error":
@@ -183,10 +179,7 @@ class FeishuAgent:
                     "arguments": tc.arguments,
                     "summary": tool_result.get("status", "?")
                     + ": "
-                    + (
-                        tool_result.get("message")
-                        or f"count={tool_result.get('count', '?')}"
-                    ),
+                    + (tool_result.get("message") or f"count={tool_result.get('count', '?')}"),
                     "task_id_short": _short_task_id(tc.call_id, tc.name),
                     "friendly_action": _friendly_action(tc.name, tool_result),
                 }
@@ -202,9 +195,7 @@ class FeishuAgent:
                 ChatMessage(
                     role="assistant",
                     content=assistant_content,
-                    tool_calls=[
-                        {"name": tc.name, "arguments": tc.arguments, "id": tc.call_id}
-                    ],
+                    tool_calls=[{"name": tc.name, "arguments": tc.arguments, "id": tc.call_id}],
                 ),
             )
             await self.store.append_message(

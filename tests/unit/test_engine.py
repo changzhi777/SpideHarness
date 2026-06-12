@@ -42,11 +42,12 @@ class TestEngineLifecycle:
         )
         engine = Engine(settings)
 
-        with patch("spide.llm.LLMClient.start", new_callable=AsyncMock), \
-             patch("spide.llm.LLMClient.stop"), \
-             patch("spide.spider.uapi_client.UAPIClient.start", new_callable=AsyncMock), \
-             patch("spide.spider.uapi_client.UAPIClient.stop", new_callable=AsyncMock):
-
+        with (
+            patch("spide.llm.LLMClient.start", new_callable=AsyncMock),
+            patch("spide.llm.LLMClient.stop"),
+            patch("spide.spider.uapi_client.UAPIClient.start", new_callable=AsyncMock),
+            patch("spide.spider.uapi_client.UAPIClient.stop", new_callable=AsyncMock),
+        ):
             bundle = await engine.start(workspace=str(tmp_workspace))
             assert bundle.session_id
             assert "SpideHarness Agent" in bundle.system_prompt
@@ -66,8 +67,10 @@ class TestEngineLifecycle:
         )
         engine = Engine(settings)
 
-        with patch("spide.llm.LLMClient.start", new_callable=AsyncMock), \
-             patch("spide.llm.LLMClient.stop"):
+        with (
+            patch("spide.llm.LLMClient.start", new_callable=AsyncMock),
+            patch("spide.llm.LLMClient.stop"),
+        ):
             await engine.start(workspace=str(tmp_workspace))
             await engine.stop()
             await engine.stop()
@@ -79,8 +82,10 @@ class TestEngineLifecycle:
         )
         engine = Engine(settings)
 
-        with patch("spide.llm.LLMClient.start", new_callable=AsyncMock), \
-             patch("spide.llm.LLMClient.stop"):
+        with (
+            patch("spide.llm.LLMClient.start", new_callable=AsyncMock),
+            patch("spide.llm.LLMClient.stop"),
+        ):
             await engine.start(workspace=str(tmp_workspace))
             with pytest.raises(SpideError, match="UAPI"):
                 await engine.crawl(sources=["weibo"])
@@ -100,14 +105,16 @@ class TestEngineLifecycle:
 
         uapi_fetch = patch(
             "spide.spider.uapi_client.UAPIClient.fetch_hotboard",
-            new_callable=AsyncMock, return_value=mock_topics,
+            new_callable=AsyncMock,
+            return_value=mock_topics,
         )
-        with patch("spide.llm.LLMClient.start", new_callable=AsyncMock), \
-             patch("spide.llm.LLMClient.stop"), \
-             patch("spide.spider.uapi_client.UAPIClient.start", new_callable=AsyncMock), \
-             patch("spide.spider.uapi_client.UAPIClient.stop", new_callable=AsyncMock), \
-             uapi_fetch:
-
+        with (
+            patch("spide.llm.LLMClient.start", new_callable=AsyncMock),
+            patch("spide.llm.LLMClient.stop"),
+            patch("spide.spider.uapi_client.UAPIClient.start", new_callable=AsyncMock),
+            patch("spide.spider.uapi_client.UAPIClient.stop", new_callable=AsyncMock),
+            uapi_fetch,
+        ):
             await engine.start(workspace=str(tmp_workspace))
             results = await engine.crawl(sources=["weibo"])
             assert "weibo" in results
@@ -130,12 +137,13 @@ class TestEngineLifecycle:
                 raise ConnectionError("网络超时")
             return mock_topics
 
-        with patch("spide.llm.LLMClient.start", new_callable=AsyncMock), \
-             patch("spide.llm.LLMClient.stop"), \
-             patch("spide.spider.uapi_client.UAPIClient.start", new_callable=AsyncMock), \
-             patch("spide.spider.uapi_client.UAPIClient.stop", new_callable=AsyncMock), \
-             patch("spide.spider.uapi_client.UAPIClient.fetch_hotboard", side_effect=_mock_fetch):
-
+        with (
+            patch("spide.llm.LLMClient.start", new_callable=AsyncMock),
+            patch("spide.llm.LLMClient.stop"),
+            patch("spide.spider.uapi_client.UAPIClient.start", new_callable=AsyncMock),
+            patch("spide.spider.uapi_client.UAPIClient.stop", new_callable=AsyncMock),
+            patch("spide.spider.uapi_client.UAPIClient.fetch_hotboard", side_effect=_mock_fetch),
+        ):
             await engine.start(workspace=str(tmp_workspace))
             results = await engine.crawl(sources=["weibo", "baidu"])
             assert results["weibo"] == []
@@ -146,8 +154,10 @@ class TestEngineLifecycle:
         settings = Settings(llm=LLMConfig(common=LLMCommonConfig(api_key="test")))
         engine = Engine(settings)
 
-        with patch("spide.llm.LLMClient.start", new_callable=AsyncMock), \
-             patch("spide.llm.LLMClient.stop"):
+        with (
+            patch("spide.llm.LLMClient.start", new_callable=AsyncMock),
+            patch("spide.llm.LLMClient.stop"),
+        ):
             await engine.start(workspace=str(tmp_workspace))
 
             # Mock LLM chat
@@ -172,8 +182,10 @@ class TestEngineLifecycle:
         settings = Settings(llm=LLMConfig())
         engine = Engine(settings)
 
-        with patch("spide.llm.LLMClient.start", new_callable=AsyncMock), \
-             patch("spide.llm.LLMClient.stop"):
+        with (
+            patch("spide.llm.LLMClient.start", new_callable=AsyncMock),
+            patch("spide.llm.LLMClient.stop"),
+        ):
             await engine.start(workspace=str(tmp_workspace))
             # 手动置空 LLM 模拟异常场景
             engine.bundle.llm = None

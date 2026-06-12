@@ -128,11 +128,15 @@ class TestCleanTopics:
 
     def test_full_pipeline(self):
         topics = [
-            HotTopic(title="#热搜1#", source=TopicSource.WEIBO, hot_value=999, url="https://weibo.com/1"),
+            HotTopic(
+                title="#热搜1#", source=TopicSource.WEIBO, hot_value=999, url="https://weibo.com/1"
+            ),
             HotTopic(title="", source=TopicSource.WEIBO, hot_value=100),
             HotTopic(
-                title="  热搜2  ", source=TopicSource.BAIDU,
-                hot_value=-5, url="  https://baidu.com  ",
+                title="  热搜2  ",
+                source=TopicSource.BAIDU,
+                hot_value=-5,
+                url="  https://baidu.com  ",
             ),
         ]
         result = clean_topics(topics)

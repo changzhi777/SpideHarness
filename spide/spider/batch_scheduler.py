@@ -83,7 +83,9 @@ class BatchCrawlScheduler:
 
     def __init__(self, *, max_concurrent: int = 3) -> None:
         self._max_concurrent = max_concurrent
-        self._breaker = CircuitBreaker(failure_threshold=3, recovery_timeout=60.0, name="batch_crawl")
+        self._breaker = CircuitBreaker(
+            failure_threshold=3, recovery_timeout=60.0, name="batch_crawl"
+        )
         self._checkpoint: CheckpointManager | None = None
 
     def enable_checkpoint(self, db_path: str = "spide_data.db") -> None:
@@ -122,8 +124,13 @@ class BatchCrawlScheduler:
                 if ckpt:
                     completed_list = ckpt.get("completed_platforms", [])
                     pending_tasks = [
-                        t for t in tasks
-                        if (t.platform.value if isinstance(t.platform, Platform) else str(t.platform))
+                        t
+                        for t in tasks
+                        if (
+                            t.platform.value
+                            if isinstance(t.platform, Platform)
+                            else str(t.platform)
+                        )
                         not in completed_list
                     ]
                     logger.info(
@@ -141,7 +148,11 @@ class BatchCrawlScheduler:
 
             async def _run_one(task: BatchTask) -> None:
                 nonlocal completed
-                platform_name = task.platform.value if isinstance(task.platform, Platform) else str(task.platform)
+                platform_name = (
+                    task.platform.value
+                    if isinstance(task.platform, Platform)
+                    else str(task.platform)
+                )
 
                 async with semaphore:
                     try:
@@ -157,15 +168,24 @@ class BatchCrawlScheduler:
 
                         # 断点保存
                         if ckpt_active:
-                            await self._checkpoint.save_checkpoint(resume_task_id, {
-                                "completed_platforms": result.succeeded,
-                                "pending_platforms": [
-                                    t.platform.value if isinstance(t.platform, Platform) else str(t.platform)
-                                    for t in pending_tasks
-                                    if (t.platform.value if isinstance(t.platform, Platform) else str(t.platform))
-                                    not in result.succeeded
-                                ],
-                            })
+                            await self._checkpoint.save_checkpoint(
+                                resume_task_id,
+                                {
+                                    "completed_platforms": result.succeeded,
+                                    "pending_platforms": [
+                                        t.platform.value
+                                        if isinstance(t.platform, Platform)
+                                        else str(t.platform)
+                                        for t in pending_tasks
+                                        if (
+                                            t.platform.value
+                                            if isinstance(t.platform, Platform)
+                                            else str(t.platform)
+                                        )
+                                        not in result.succeeded
+                                    ],
+                                },
+                            )
 
                         completed += 1
                         if on_progress:
@@ -179,7 +199,11 @@ class BatchCrawlScheduler:
 
                     except Exception as e:
                         completed += 1
-                        platform_name_str = task.platform.value if isinstance(task.platform, Platform) else str(task.platform)
+                        platform_name_str = (
+                            task.platform.value
+                            if isinstance(task.platform, Platform)
+                            else str(task.platform)
+                        )
                         result.failed[platform_name_str] = str(e)
 
                         if on_progress:
@@ -199,7 +223,12 @@ class BatchCrawlScheduler:
             result.total_creators = len(result.creators)
 
             duration_ms = (time.monotonic() - start) * 1000
-            logger.debug("batch_run_duration", duration_ms=round(duration_ms, 1), total_tasks=total, total_contents=result.total_contents)
+            logger.debug(
+                "batch_run_duration",
+                duration_ms=round(duration_ms, 1),
+                total_tasks=total,
+                total_contents=result.total_contents,
+            )
 
             logger.debug(
                 "batch_completed",

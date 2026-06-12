@@ -64,41 +64,47 @@ class IncrementalDetector:
             prev_topic = prev_map.get(key)
             if prev_topic is None:
                 # 新上榜
-                changes.append(HotTopicChange(
-                    title=topic.title,
-                    source=source,
-                    status=TopicStatus.NEW,
-                    current_rank=topic.rank,
-                    current_hot_value=topic.hot_value,
-                    hot_value_change=topic.hot_value,
-                ))
+                changes.append(
+                    HotTopicChange(
+                        title=topic.title,
+                        source=source,
+                        status=TopicStatus.NEW,
+                        current_rank=topic.rank,
+                        current_hot_value=topic.hot_value,
+                        hot_value_change=topic.hot_value,
+                    )
+                )
             else:
                 # 已存在 → 判断变化
                 status = self._classify_change(topic, prev_topic)
                 hot_change = self._calc_hot_change(topic, prev_topic)
-                changes.append(HotTopicChange(
-                    title=topic.title,
-                    source=source,
-                    status=status,
-                    previous_rank=prev_topic.rank,
-                    current_rank=topic.rank,
-                    previous_hot_value=prev_topic.hot_value,
-                    current_hot_value=topic.hot_value,
-                    hot_value_change=hot_change,
-                ))
+                changes.append(
+                    HotTopicChange(
+                        title=topic.title,
+                        source=source,
+                        status=status,
+                        previous_rank=prev_topic.rank,
+                        current_rank=topic.rank,
+                        previous_hot_value=prev_topic.hot_value,
+                        current_hot_value=topic.hot_value,
+                        hot_value_change=hot_change,
+                    )
+                )
 
         # 上轮存在但本轮不存在 → 掉榜
         for prev_topic in previous:
             key = prev_topic.title.strip().lower()
             if key not in curr_titles:
-                changes.append(HotTopicChange(
-                    title=prev_topic.title,
-                    source=source,
-                    status=TopicStatus.DROPPED,
-                    previous_rank=prev_topic.rank,
-                    previous_hot_value=prev_topic.hot_value,
-                    hot_value_change=-(prev_topic.hot_value or 0),
-                ))
+                changes.append(
+                    HotTopicChange(
+                        title=prev_topic.title,
+                        source=source,
+                        status=TopicStatus.DROPPED,
+                        previous_rank=prev_topic.rank,
+                        previous_hot_value=prev_topic.hot_value,
+                        hot_value_change=-(prev_topic.hot_value or 0),
+                    )
+                )
 
         logger.debug(
             "incremental_detected",
@@ -171,7 +177,9 @@ class IncrementalDetector:
             "new": [{"title": c.title, "hot_value": c.current_hot_value} for c in new[:10]],
             "rising": [{"title": c.title, "change": c.hot_value_change} for c in rising[:10]],
             "falling": [{"title": c.title, "change": c.hot_value_change} for c in falling[:10]],
-            "dropped": [{"title": c.title, "last_hot_value": c.previous_hot_value} for c in dropped[:10]],
+            "dropped": [
+                {"title": c.title, "last_hot_value": c.previous_hot_value} for c in dropped[:10]
+            ],
         }
 
     def _classify_change(self, current: HotTopic, previous: HotTopic) -> TopicStatus:

@@ -144,17 +144,12 @@ def _aggregate(topics: list[HotTopic], total_count: int) -> dict[str, Any]:
 
     # --- 分类占比 ---
     cat_counter = Counter(t.category.value for t in topics if t.category)
-    category_stats = [
-        {"category": cat, "count": count}
-        for cat, count in cat_counter.most_common()
-    ]
+    category_stats = [{"category": cat, "count": count} for cat, count in cat_counter.most_common()]
 
     # --- 各平台 Top 5 ---
     platform_ranks: dict[str, list[dict[str, Any]]] = {}
     for source in source_counter:
-        source_topics = [
-            t for t in topics if t.source.value == source
-        ]
+        source_topics = [t for t in topics if t.source.value == source]
         source_sorted = sorted(source_topics, key=lambda t: t.hot_value or 0, reverse=True)
         platform_ranks[source] = [
             {
@@ -172,8 +167,7 @@ def _aggregate(topics: list[HotTopic], total_count: int) -> dict[str, Any]:
 
     # --- 今日新增 ---
     today_count = sum(
-        1 for t in topics
-        if t.fetched_at and t.fetched_at.strftime("%Y-%m-%d") == today_str
+        1 for t in topics if t.fetched_at and t.fetched_at.strftime("%Y-%m-%d") == today_str
     )
 
     # --- 平均热度 ---

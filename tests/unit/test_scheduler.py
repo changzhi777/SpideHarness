@@ -13,7 +13,9 @@ from dashboard.scheduler import (
 
 def test_scheduler_disabled_no_secret() -> None:
     """无 app_secret 时 start() 返回 False。"""
-    config = SchedulerConfig(enabled=True, app_secret="", jobs=[JobSpec("t", "0 9 * * *", "crawl_hot_topics")])
+    config = SchedulerConfig(
+        enabled=True, app_secret="", jobs=[JobSpec("t", "0 9 * * *", "crawl_hot_topics")]
+    )
     scheduler = FeishuPushScheduler(config)
     import asyncio
 

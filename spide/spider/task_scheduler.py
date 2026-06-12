@@ -218,8 +218,7 @@ class TaskScheduler:
             from spide.spider.batch_scheduler import BatchCrawlScheduler, BatchTask
 
             batch_tasks = [
-                BatchTask(platform=p, mode="search", max_notes=10)
-                for p in job.platforms
+                BatchTask(platform=p, mode="search", max_notes=10) for p in job.platforms
             ]
             scheduler = BatchCrawlScheduler()
             batch_result = await scheduler.run(batch_tasks)

@@ -80,9 +80,7 @@ class TestBatchCrawlScheduler:
         async def mock_progress(completed, total, platform, status):
             progress_log.append((completed, platform, status))
 
-        with patch(
-            "spide.spider.media_crawler_adapter.MediaCrawlerAdapter"
-        ) as MockAdapter:
+        with patch("spide.spider.media_crawler_adapter.MediaCrawlerAdapter") as MockAdapter:
             instance = MockAdapter.return_value
             instance.deep_crawl = AsyncMock(return_value=mock_result)
 
@@ -106,15 +104,11 @@ class TestBatchCrawlScheduler:
         mock_result.comments = []
         mock_result.creators = []
 
-        with patch(
-            "spide.spider.media_crawler_adapter.MediaCrawlerAdapter"
-        ) as MockAdapter:
+        with patch("spide.spider.media_crawler_adapter.MediaCrawlerAdapter") as MockAdapter:
             instance = MockAdapter.return_value
 
             # 第一次调用成功，第二次调用失败
-            instance.deep_crawl = AsyncMock(
-                side_effect=[mock_result, Exception("平台不可用")]
-            )
+            instance.deep_crawl = AsyncMock(side_effect=[mock_result, Exception("平台不可用")])
 
             scheduler = BatchCrawlScheduler()
             tasks = [
@@ -140,9 +134,7 @@ class TestBatchCrawlScheduler:
             result.creators = []
             return result
 
-        with patch(
-            "spide.spider.media_crawler_adapter.MediaCrawlerAdapter"
-        ) as MockAdapter:
+        with patch("spide.spider.media_crawler_adapter.MediaCrawlerAdapter") as MockAdapter:
             instance = MockAdapter.return_value
             instance.deep_crawl = mock_deep_crawl
 

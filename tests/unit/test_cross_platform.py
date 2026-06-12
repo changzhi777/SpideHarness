@@ -62,8 +62,12 @@ class TestParseClusters:
     def test_parse_valid_json(self):
         raw = [
             {
-                "name": "AI", "keywords": ["AI"], "platforms": ["weibo"],
-                "topic_titles": ["AI突破"], "cross_platform": True, "analysis": "test",
+                "name": "AI",
+                "keywords": ["AI"],
+                "platforms": ["weibo"],
+                "topic_titles": ["AI突破"],
+                "cross_platform": True,
+                "analysis": "test",
             },
         ]
         clusters = CrossPlatformAnalyzer._parse_clusters(raw)
@@ -81,11 +85,11 @@ class TestAnalyzeWithMock:
         llm = MagicMock()
         mock_resp = MagicMock()
         mock_resp.choices = [MagicMock()]
-        mock_resp.choices[0].message.content = '''```json
+        mock_resp.choices[0].message.content = """```json
 [{"name": "科技", "keywords": ["AI"], "platforms": ["weibo"],
   "topic_titles": ["AI突破"], "cross_platform": true,
   "analysis": "AI话题热度高"}]
-```'''
+```"""
         llm.chat.return_value = mock_resp
 
         analyzer = CrossPlatformAnalyzer(llm=llm)

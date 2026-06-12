@@ -86,14 +86,17 @@ class TestCrawlDiffCLI:
 
         uapi_fetch = patch(
             "spide.spider.uapi_client.UAPIClient.fetch_hotboard",
-            new_callable=AsyncMock, return_value=mock_topics,
+            new_callable=AsyncMock,
+            return_value=mock_topics,
         )
-        with patch("spide.config.load_settings") as mock_load, \
-             patch("spide.llm.LLMClient.start", new_callable=AsyncMock), \
-             patch("spide.llm.LLMClient.stop"), \
-             patch("spide.spider.uapi_client.UAPIClient.start", new_callable=AsyncMock), \
-             patch("spide.spider.uapi_client.UAPIClient.stop", new_callable=AsyncMock), \
-             uapi_fetch:
+        with (
+            patch("spide.config.load_settings") as mock_load,
+            patch("spide.llm.LLMClient.start", new_callable=AsyncMock),
+            patch("spide.llm.LLMClient.stop"),
+            patch("spide.spider.uapi_client.UAPIClient.start", new_callable=AsyncMock),
+            patch("spide.spider.uapi_client.UAPIClient.stop", new_callable=AsyncMock),
+            uapi_fetch,
+        ):
             from spide.config import LLMCommonConfig, LLMConfig, Settings, UAPIConfig
 
             settings = Settings(
@@ -102,9 +105,7 @@ class TestCrawlDiffCLI:
             )
             mock_load.return_value = settings
 
-            result = runner.invoke(
-                app, ["crawl-diff", "-s", "weibo", "-w", str(cli_workspace)]
-            )
+            result = runner.invoke(app, ["crawl-diff", "-s", "weibo", "-w", str(cli_workspace)])
             assert result.exit_code in (0, 1)
 
 
@@ -125,9 +126,7 @@ class TestDedupCLI:
 
     def test_dedup_dry_run(self, populated_db):
         """dry-run 模式不删除数据，输出包含分析信息."""
-        result = runner.invoke(
-            app, ["dedup", "--dry-run", "-w", str(populated_db.parent)]
-        )
+        result = runner.invoke(app, ["dedup", "--dry-run", "-w", str(populated_db.parent)])
         assert result.exit_code in (0, 1)
         # 输出应包含去重分析信息或"无重复"
         out = result.stdout
@@ -135,9 +134,7 @@ class TestDedupCLI:
 
     def test_dedup_with_data(self, populated_db):
         """实际去重正常执行（不崩溃）."""
-        result = runner.invoke(
-            app, ["dedup", "-w", str(populated_db.parent)]
-        )
+        result = runner.invoke(app, ["dedup", "-w", str(populated_db.parent)])
         assert result.exit_code in (0, 1)
         assert not result.exception or isinstance(result.exception, SystemExit)
 
@@ -153,9 +150,7 @@ class TestMonitorCLI:
 
     def test_monitor_once_no_rules(self, cli_workspace):
         """无告警规则时提示."""
-        result = runner.invoke(
-            app, ["monitor", "--once", "-w", str(cli_workspace)]
-        )
+        result = runner.invoke(app, ["monitor", "--once", "-w", str(cli_workspace)])
         assert result.exit_code == 0
         assert "无告警规则" in result.stdout or "规则" in result.stdout
 
@@ -195,19 +190,23 @@ class TestTrackCLI:
 
         uapi_fetch = patch(
             "spide.spider.uapi_client.UAPIClient.fetch_hotboard",
-            new_callable=AsyncMock, return_value=mock_topics,
+            new_callable=AsyncMock,
+            return_value=mock_topics,
         )
         track_patch = patch(
             "spide.spider.deep_tracker.DeepTopicTracker.track_topics",
-            new_callable=AsyncMock, return_value=mock_tracks,
+            new_callable=AsyncMock,
+            return_value=mock_tracks,
         )
-        with patch("spide.config.load_settings") as mock_load, \
-             patch("spide.llm.LLMClient.start", new_callable=AsyncMock), \
-             patch("spide.llm.LLMClient.stop"), \
-             patch("spide.spider.uapi_client.UAPIClient.start", new_callable=AsyncMock), \
-             patch("spide.spider.uapi_client.UAPIClient.stop", new_callable=AsyncMock), \
-             uapi_fetch, \
-             track_patch:
+        with (
+            patch("spide.config.load_settings") as mock_load,
+            patch("spide.llm.LLMClient.start", new_callable=AsyncMock),
+            patch("spide.llm.LLMClient.stop"),
+            patch("spide.spider.uapi_client.UAPIClient.start", new_callable=AsyncMock),
+            patch("spide.spider.uapi_client.UAPIClient.stop", new_callable=AsyncMock),
+            uapi_fetch,
+            track_patch,
+        ):
             mock_load.return_value = settings
             result = runner.invoke(
                 app, ["track", "-s", "weibo", "--top", "1", "-w", str(cli_workspace)]
@@ -228,9 +227,7 @@ class TestDashboardCLI:
 
     def test_dashboard_no_database(self, cli_workspace):
         """dashboard 命令正常执行（不崩溃）."""
-        result = runner.invoke(
-            app, ["dashboard", "--no-open", "-w", str(cli_workspace)]
-        )
+        result = runner.invoke(app, ["dashboard", "--no-open", "-w", str(cli_workspace)])
         assert result.exit_code == 0
         out = result.stdout
         assert "看板" in out or "数据库" in out or "dashboard" in out.lower() or "Spide" in out

@@ -95,11 +95,14 @@ class WebhookNotifier(BaseNotifier):
         }
 
         try:
-            async with aiohttp.ClientSession() as session, session.post(
-                self._url,
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=10),
-            ) as resp:
+            async with (
+                aiohttp.ClientSession() as session,
+                session.post(
+                    self._url,
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as resp,
+            ):
                 if resp.status >= 400:
                     logger.warning(
                         "webhook_notify_failed",
@@ -151,11 +154,14 @@ class FeishuNotifier(BaseNotifier):
         }
 
         try:
-            async with aiohttp.ClientSession() as session, session.post(
-                self._url,
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=10),
-            ) as resp:
+            async with (
+                aiohttp.ClientSession() as session,
+                session.post(
+                    self._url,
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as resp,
+            ):
                 if resp.status >= 400:
                     text = await resp.text()
                     logger.warning("feishu_notify_failed", status=resp.status, body=text[:200])
@@ -169,7 +175,9 @@ class FeishuNotifier(BaseNotifier):
 class NotifierDispatcher:
     """通知分发器 — 根据渠道名称分发到对应 Notifier."""
 
-    def __init__(self, *, mqtt_client: Any = None, webhook_url: str = "", feishu_url: str = "") -> None:
+    def __init__(
+        self, *, mqtt_client: Any = None, webhook_url: str = "", feishu_url: str = ""
+    ) -> None:
         self._notifiers: dict[str, BaseNotifier] = {
             "log": LogNotifier(),
         }
@@ -180,7 +188,9 @@ class NotifierDispatcher:
         if feishu_url:
             self._notifiers["feishu"] = FeishuNotifier(feishu_url)
 
-    async def dispatch(self, alert: AlertRecord, channels: list[str] | None = None) -> dict[str, bool]:
+    async def dispatch(
+        self, alert: AlertRecord, channels: list[str] | None = None
+    ) -> dict[str, bool]:
         """分发告警到指定渠道.
 
         Args:

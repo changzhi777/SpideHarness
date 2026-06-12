@@ -29,7 +29,7 @@ def _make_mock_topics(count=5):
     """构造 mock HotTopic 列表."""
     return [
         HotTopic(
-            title=f"测试热搜 {i+1}",
+            title=f"测试热搜 {i + 1}",
             source=TopicSource.WEIBO,
             hot_value=10000 * (count - i),
             rank=i + 1,
@@ -84,9 +84,7 @@ class TestMockE2EPipeline:
 
         topics = _make_mock_topics(3)
         exporter = DataExporter(output_dir=str(tmp_path / "export"))
-        filepath = asyncio.run(
-            exporter.export(topics, filename="test_export", fmt="json")
-        )
+        filepath = asyncio.run(exporter.export(topics, filename="test_export", fmt="json"))
         assert filepath.exists()
         with open(filepath, encoding="utf-8") as f:
             data = json.load(f)
@@ -99,9 +97,7 @@ class TestMockE2EPipeline:
 
         topics = _make_mock_topics(3)
         exporter = DataExporter(output_dir=str(tmp_path / "export"))
-        filepath = asyncio.run(
-            exporter.export(topics, filename="test_export", fmt="csv")
-        )
+        filepath = asyncio.run(exporter.export(topics, filename="test_export", fmt="csv"))
         assert filepath.exists()
         content = filepath.read_text(encoding="utf-8")
         assert "测试热搜 1" in content
@@ -236,8 +232,14 @@ class TestRealE2EPipeline:
         gen = WordCloudGenerator(output_dir=str(cli_workspace / "wc"))
         filepath = await gen.generate_from_texts(
             texts=[
-                "人工智能", "机器学习", "深度学习", "大模型",
-                "ChatGPT", "AI芯片", "自动驾驶", "量子计算",
+                "人工智能",
+                "机器学习",
+                "深度学习",
+                "大模型",
+                "ChatGPT",
+                "AI芯片",
+                "自动驾驶",
+                "量子计算",
             ],
             filename="test_wc",
         )

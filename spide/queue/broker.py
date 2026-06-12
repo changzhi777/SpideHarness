@@ -137,6 +137,4 @@ class MessageBroker:
         topic_parts = topic.split(".")
         if len(pattern_parts) != len(topic_parts):
             return False
-        return all(
-            p == "*" or p == t for p, t in zip(pattern_parts, topic_parts, strict=False)
-        )
+        return all(p == "*" or p == t for p, t in zip(pattern_parts, topic_parts, strict=False))

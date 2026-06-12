@@ -27,11 +27,13 @@ class TestContentSummarizer:
         llm = MagicMock()
         llm.chat = MagicMock(
             return_value=_mock_llm_response(
-                json.dumps({
-                    "summary": "AI 技术取得重大突破",
-                    "keywords": ["AI", "大模型", "技术突破"],
-                    "category": "tech",
-                })
+                json.dumps(
+                    {
+                        "summary": "AI 技术取得重大突破",
+                        "keywords": ["AI", "大模型", "技术突破"],
+                        "category": "tech",
+                    }
+                )
             )
         )
 
@@ -48,11 +50,13 @@ class TestContentSummarizer:
         llm = MagicMock()
         llm.chat = MagicMock(
             return_value=_mock_llm_response(
-                json.dumps({
-                    "summary": "摘要",
-                    "keywords": ["新能源", "汽车", "电池"],
-                    "category": "tech",
-                })
+                json.dumps(
+                    {
+                        "summary": "摘要",
+                        "keywords": ["新能源", "汽车", "电池"],
+                        "category": "tech",
+                    }
+                )
             )
         )
 
@@ -66,20 +70,20 @@ class TestContentSummarizer:
         llm = MagicMock()
         llm.chat = MagicMock(
             return_value=_mock_llm_response(
-                json.dumps({
-                    "positive_ratio": 0.6,
-                    "negative_ratio": 0.2,
-                    "neutral_ratio": 0.2,
-                    "overall": "positive",
-                    "top_opinions": ["支持", "不错"],
-                })
+                json.dumps(
+                    {
+                        "positive_ratio": 0.6,
+                        "negative_ratio": 0.2,
+                        "neutral_ratio": 0.2,
+                        "overall": "positive",
+                        "top_opinions": ["支持", "不错"],
+                    }
+                )
             )
         )
 
         summarizer = ContentSummarizer(llm)
-        result = await summarizer.analyze_sentiment(
-            comments=["好文章", "写得不错", "一般般"]
-        )
+        result = await summarizer.analyze_sentiment(comments=["好文章", "写得不错", "一般般"])
 
         assert result["overall"] == "positive"
         assert result["positive_ratio"] == 0.6
@@ -116,12 +120,14 @@ class TestSmartCrawlStrategy:
         llm = MagicMock()
         llm.chat = MagicMock(
             return_value=_mock_llm_response(
-                json.dumps({
-                    "trending_topics": [{"title": "AI", "reason": "热度飙升"}],
-                    "recommended_sources": ["weibo", "zhihu"],
-                    "search_keywords": ["AI", "大模型"],
-                    "analysis": "AI 相关话题持续升温",
-                })
+                json.dumps(
+                    {
+                        "trending_topics": [{"title": "AI", "reason": "热度飙升"}],
+                        "recommended_sources": ["weibo", "zhihu"],
+                        "search_keywords": ["AI", "大模型"],
+                        "analysis": "AI 相关话题持续升温",
+                    }
+                )
             )
         )
 
@@ -152,12 +158,14 @@ class TestTrendAnalyzer:
         llm = MagicMock()
         llm.chat = MagicMock(
             return_value=_mock_llm_response(
-                json.dumps({
-                    "top_categories": ["科技", "社会"],
-                    "hot_domains": ["AI", "新能源"],
-                    "analysis": "科技类话题占主导",
-                    "recommendations": ["关注 AI 领域"],
-                })
+                json.dumps(
+                    {
+                        "top_categories": ["科技", "社会"],
+                        "hot_domains": ["AI", "新能源"],
+                        "analysis": "科技类话题占主导",
+                        "recommendations": ["关注 AI 领域"],
+                    }
+                )
             )
         )
 
@@ -203,18 +211,18 @@ class TestTrendAnalyzer:
         llm = MagicMock()
         llm.chat = MagicMock(
             return_value=_mock_llm_response(
-                json.dumps({
-                    "top_categories": ["社会"],
-                    "hot_domains": ["民生"],
-                    "analysis": "测试",
-                    "recommendations": [],
-                })
+                json.dumps(
+                    {
+                        "top_categories": ["社会"],
+                        "hot_domains": ["民生"],
+                        "analysis": "测试",
+                        "recommendations": [],
+                    }
+                )
             )
         )
 
         analyzer = TrendAnalyzer(llm)
-        result = await analyzer.analyze(
-            current_topics=[{"title": "测试", "hot_value": 100}]
-        )
+        result = await analyzer.analyze(current_topics=[{"title": "测试", "hot_value": 100}])
 
         assert "top_categories" in result

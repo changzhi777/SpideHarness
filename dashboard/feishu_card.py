@@ -90,7 +90,13 @@ def agent_response_card(
     数据库（chat_messages.tool_calls）保留完整 call_id 用于追踪。
     """
     elements: list[dict[str, Any]] = [
-        {"tag": "div", "text": {"tag": "lark_md", "content": answer or "我这边暂时没有合适的回答，稍后再试？😊"}},
+        {
+            "tag": "div",
+            "text": {
+                "tag": "lark_md",
+                "content": answer or "我这边暂时没有合适的回答，稍后再试？😊",
+            },
+        },
     ]
 
     if tool_calls:

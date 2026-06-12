@@ -166,10 +166,7 @@ async def _tool_search_enhanced(arguments: dict[str, Any], project_root: Path | 
         "query": query,
         "engine": engine,
         "count": len(results),
-        "items": [
-            {"title": r.title, "url": r.url, "description": r.description}
-            for r in results
-        ],
+        "items": [{"title": r.title, "url": r.url, "description": r.description} for r in results],
     }
 
 

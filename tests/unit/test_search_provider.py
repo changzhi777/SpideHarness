@@ -51,12 +51,12 @@ class TestWebSearchProvider:
     """WebSearchProvider 测试."""
 
     def test_parse_ddgs_html_two_results(self):
-        html = '''
+        html = """
         <a class="result__a" href="https://example.com/1">Result 1</a>
         <a class="result__snippet">Desc 1</a>
         <a class="result__a" href="https://example.com/2">Result 2</a>
         <a class="result__snippet">Desc 2</a>
-        '''
+        """
         results = WebSearchProvider._parse_ddgs_html(html, limit=10)
         assert len(results) == 2
         assert results[0].title == "Result 1"
@@ -107,8 +107,10 @@ class TestWebContentProvider:
         mock_resp.status = 200
         mock_resp.text = AsyncMock(return_value=html)
 
-        with patch("spide.mcp.search_provider.aiohttp.ClientSession",
-                    return_value=self._mock_aiohttp_session(mock_resp)):
+        with patch(
+            "spide.mcp.search_provider.aiohttp.ClientSession",
+            return_value=self._mock_aiohttp_session(mock_resp),
+        ):
             page = await WebContentProvider.fetch_page("https://example.com")
 
         assert page.title == "Test Page"
@@ -118,8 +120,10 @@ class TestWebContentProvider:
         mock_resp = MagicMock()
         mock_resp.status = 404
 
-        with patch("spide.mcp.search_provider.aiohttp.ClientSession",
-                    return_value=self._mock_aiohttp_session(mock_resp)):
+        with patch(
+            "spide.mcp.search_provider.aiohttp.ClientSession",
+            return_value=self._mock_aiohttp_session(mock_resp),
+        ):
             page = await WebContentProvider.fetch_page("https://example.com/404")
 
         assert page.text == ""
@@ -131,8 +135,10 @@ class TestWebContentProvider:
         mock_resp.status = 200
         mock_resp.text = AsyncMock(return_value=html)
 
-        with patch("spide.mcp.search_provider.aiohttp.ClientSession",
-                    return_value=self._mock_aiohttp_session(mock_resp)):
+        with patch(
+            "spide.mcp.search_provider.aiohttp.ClientSession",
+            return_value=self._mock_aiohttp_session(mock_resp),
+        ):
             page = await WebContentProvider.fetch_page("https://example.com", extract_links=True)
 
         assert "https://a.com" in page.links

@@ -2,7 +2,6 @@
 # Author: 外星动物（常智） / IoTchange / 14455975@qq.com
 """Dashboard 看板模块单元测试."""
 
-
 from spide.storage.models import HotTopic, TopicSource
 
 

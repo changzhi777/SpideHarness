@@ -114,7 +114,12 @@ class DataExporter:
         data = [self._model_to_dict(item) for item in items]
         await asyncio.to_thread(self._write_excel, filepath, data, sheet_name)
         duration_ms = (time.monotonic() - start) * 1000
-        logger.debug("export_excel_duration", duration_ms=round(duration_ms, 1), record_count=len(items), path=str(filepath))
+        logger.debug(
+            "export_excel_duration",
+            duration_ms=round(duration_ms, 1),
+            record_count=len(items),
+            path=str(filepath),
+        )
 
         logger.debug("exported_excel", path=str(filepath), count=len(items))
         return filepath

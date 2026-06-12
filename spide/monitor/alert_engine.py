@@ -82,13 +82,15 @@ class AlertEngine:
                 except ValueError:
                     logger.warning("alert_unknown_status", status=s)
 
-            rules.append(AlertRule(
-                name=raw.get("name", "unnamed"),
-                keywords=[k.strip() for k in raw.get("keywords", []) if k.strip()],
-                sources=sources,
-                hot_value_threshold=raw.get("hot_value_threshold", 0),
-                status_trigger=status_trigger or [TopicStatus.NEW],
-            ))
+            rules.append(
+                AlertRule(
+                    name=raw.get("name", "unnamed"),
+                    keywords=[k.strip() for k in raw.get("keywords", []) if k.strip()],
+                    sources=sources,
+                    hot_value_threshold=raw.get("hot_value_threshold", 0),
+                    status_trigger=status_trigger or [TopicStatus.NEW],
+                )
+            )
 
         logger.info("alert_rules_loaded", count=len(rules), path=str(path))
         return rules
@@ -129,14 +131,16 @@ class AlertEngine:
                 if alert_type is None:
                     continue
 
-                alerts.append(AlertRecord(
-                    rule_id=rule.id or 0,
-                    rule_name=rule.name,
-                    topic_title=topic.title,
-                    topic_source=topic.source,
-                    topic_hot_value=topic.hot_value,
-                    alert_type=alert_type,
-                ))
+                alerts.append(
+                    AlertRecord(
+                        rule_id=rule.id or 0,
+                        rule_name=rule.name,
+                        topic_title=topic.title,
+                        topic_source=topic.source,
+                        topic_hot_value=topic.hot_value,
+                        alert_type=alert_type,
+                    )
+                )
 
         if alerts:
             logger.info(

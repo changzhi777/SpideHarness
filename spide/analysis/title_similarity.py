@@ -86,8 +86,8 @@ def _levenshtein_distance(a: str, b: str) -> int:
         for j in range(1, m + 1):
             cost = 0 if a[i - 1] == b[j - 1] else 1
             curr[j] = min(
-                prev[j] + 1,       # 删除
-                curr[j - 1] + 1,   # 插入
+                prev[j] + 1,  # 删除
+                curr[j - 1] + 1,  # 插入
                 prev[j - 1] + cost,  # 替换
             )
         prev, curr = curr, prev

@@ -97,7 +97,7 @@ class TimedSearchService:
             total_topics = len(topics)
 
             # 步骤 2: 取 Top N 做关联搜索
-            top_topics = topics[:top_n * len(sources)]
+            top_topics = topics[: top_n * len(sources)]
 
             # 步骤 3: 对每条热搜搜索关联新闻
             sem = asyncio.Semaphore(3)
@@ -213,13 +213,15 @@ class TimedSearchService:
                     try:
                         topics = await client.fetch_hotboard(source)
                         for t in topics:
-                            all_topics.append({
-                                "title": t.title,
-                                "source": t.source.value,
-                                "hot_value": t.hot_value,
-                                "rank": t.rank,
-                                "url": t.url,
-                            })
+                            all_topics.append(
+                                {
+                                    "title": t.title,
+                                    "source": t.source.value,
+                                    "hot_value": t.hot_value,
+                                    "rank": t.rank,
+                                    "url": t.url,
+                                }
+                            )
                     except Exception as e:
                         logger.warning("fetch_source_failed", source=source, error=str(e))
             finally:

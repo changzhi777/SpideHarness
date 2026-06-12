@@ -53,7 +53,11 @@ async def _tool_crawl_hot_topics(args: dict[str, Any]) -> dict[str, Any]:
             "source": source,
             "count": len(items),
             "items": [
-                {"rank": getattr(t, "rank", i + 1), "title": t.title, "hot_value": getattr(t, "hot_value", 0)}
+                {
+                    "rank": getattr(t, "rank", i + 1),
+                    "title": t.title,
+                    "hot_value": getattr(t, "hot_value", 0),
+                }
                 for i, t in enumerate(items)
             ],
         }
@@ -102,8 +106,7 @@ async def _tool_web_search_enhanced(args: dict[str, Any]) -> dict[str, Any]:
                 "query": query,
                 "engine": engine,
                 "results": [
-                    {"title": r.title, "url": r.url, "description": r.description}
-                    for r in results
+                    {"title": r.title, "url": r.url, "description": r.description} for r in results
                 ],
             }
         return await _tool_web_search({"query": query, "count": limit})

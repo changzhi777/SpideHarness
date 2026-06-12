@@ -2,7 +2,7 @@
 """为产品矩阵 Excel 增加风险评估表"""
 
 import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 wb = openpyxl.load_workbook("/Users/mac/cz_code/a_Spide_agent/docs/SpideHarness产品矩阵.xlsx")
@@ -63,7 +63,7 @@ PROJECT_RISKS = [
         "P1",
         "热搜采集 / 深度采集",
         "UAPI 免费版有调用频率限制（30 RPM），高并发场景受限",
-        "升级付费版 / 接入多数据源备份 / 降级兜底方案"
+        "升级付费版 / 接入多数据源备份 / 降级兜底方案",
     ),
     (
         "MediaCrawler 平台适配",
@@ -71,7 +71,7 @@ PROJECT_RISKS = [
         "P1",
         "深度采集（7 平台）",
         "各平台频繁改版，Playwright 选择器易失效，维护成本高",
-        "Autofix Skill 自动修复 / 专人负责平台适配更新"
+        "Autofix Skill 自动修复 / 专人负责平台适配更新",
     ),
     (
         "竞品功能碾压",
@@ -79,7 +79,7 @@ PROJECT_RISKS = [
         "P2",
         "整体产品",
         "大厂（字节/腾讯）如推同类工具，可能快速复制核心功能",
-        "差异化：AI 分析深度 + MCP 生态 + 开发者友好"
+        "差异化：AI 分析深度 + MCP 生态 + 开发者友好",
     ),
     (
         "GLM 模型成本与可用性",
@@ -87,7 +87,7 @@ PROJECT_RISKS = [
         "P2",
         "AI 分析层",
         "智谱 AI API 调用成本 / 响应稳定性 / 模型更新影响",
-        "模型降级兜底 / 结果缓存 / 成本监控告警"
+        "模型降级兜底 / 结果缓存 / 成本监控告警",
     ),
     (
         "MQTT 自动重连未实现",
@@ -95,7 +95,7 @@ PROJECT_RISKS = [
         "P2",
         "MQTT 通讯层",
         "网络波动时连接中断不会自动恢复，服务中断",
-        "Phase 2 迭代中实现自动重连 + 心跳保活机制"
+        "Phase 2 迭代中实现自动重连 + 心跳保活机制",
     ),
     (
         "Redis 连接容错",
@@ -103,7 +103,7 @@ PROJECT_RISKS = [
         "P3",
         "存储层 / 缓存层",
         "Redis 服务未启动时程序直接崩溃，影响可用性",
-        "优雅降级：Redis 不可用时切换到纯 SQLite 模式"
+        "优雅降级：Redis 不可用时切换到纯 SQLite 模式",
     ),
     (
         "爬虫合规法律风险",
@@ -111,7 +111,7 @@ PROJECT_RISKS = [
         "P2",
         "深度采集模块",
         "robots.txt 遵守 / 用户协议合规 / 数据使用边界",
-        "仅采集公开数据 + 用户协议提醒 + 法律顾问咨询"
+        "仅采集公开数据 + 用户协议提醒 + 法律顾问咨询",
     ),
     (
         "版本奇偶规则认知成本",
@@ -119,7 +119,7 @@ PROJECT_RISKS = [
         "P4",
         "版本发布",
         "用户对 DEV 版（奇数）/ 正式版（偶数）规则不熟悉，误用 DEV 版",
-        "CLI 启动提示 + 文档强调 + 发布日志明确标注"
+        "CLI 启动提示 + 文档强调 + 发布日志明确标注",
     ),
     (
         "LLM 流式输出兼容性",
@@ -127,7 +127,7 @@ PROJECT_RISKS = [
         "P3",
         "LLM 客户端",
         "chat_stream 同步迭代器与 async 事件循环兼容性问题",
-        "asyncio.to_thread 隔离 / 重构为真正异步迭代器"
+        "asyncio.to_thread 隔离 / 重构为真正异步迭代器",
     ),
     (
         "Gateway 网关层空缺",
@@ -135,17 +135,20 @@ PROJECT_RISKS = [
         "P3",
         "核心框架",
         "gateway/ 目录存在但为空，架构不完整",
-        "Phase 1 前补齐，作为外部系统统一入口"
+        "Phase 1 前补齐，作为外部系统统一入口",
     ),
 ]
+
 
 # ─── 样式工厂 ───────────────────────────────────────
 def make_fill(hex_color):
     return PatternFill("solid", fgColor=hex_color)
 
+
 def make_border(color="B8CCE4"):
     s = Side(style="thin", color=color)
     return Border(left=s, right=s, top=s, bottom=s)
+
 
 def make_header(ws, row, col, value, color="1E3A5F", fg="FFFFFF"):
     cell = ws.cell(row=row, column=col, value=value)
@@ -154,6 +157,7 @@ def make_header(ws, row, col, value, color="1E3A5F", fg="FFFFFF"):
     cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     cell.border = make_border("FFFFFF")
     return cell
+
 
 def make_cell(ws, row, col, value, bold=False, align="left", bg=None, fg="000000", size=10):
     cell = ws.cell(row=row, column=col, value=value)
@@ -164,9 +168,12 @@ def make_cell(ws, row, col, value, bold=False, align="left", bg=None, fg="000000
         cell.fill = make_fill(bg)
     return cell
 
+
 # ─── 1. 风险等级图例 ────────────────────────────────
 ws_risk.cell(row=1, column=1, value="SpideHarness Agent — 风险评估矩阵")
-ws_risk.cell(row=1, column=1).font = Font(name="Microsoft YaHei", bold=True, size=14, color="1E3A5F")
+ws_risk.cell(row=1, column=1).font = Font(
+    name="Microsoft YaHei", bold=True, size=14, color="1E3A5F"
+)
 ws_risk.cell(row=1, column=1).alignment = Alignment(horizontal="center", vertical="center")
 ws_risk.merge_cells(start_row=1, start_column=1, end_row=1, end_column=5)
 ws_risk.row_dimensions[1].height = 36
@@ -212,7 +219,9 @@ for i, risk in enumerate(PROJECT_RISKS):
 
     make_cell(ws_risk, r, 1, item, bold=True)
     make_cell(ws_risk, r, 2, category, align="center")
-    cell_lvl = make_cell(ws_risk, r, 3, level, bold=True, align="center", bg=level_bg, fg=level_fg, size=12)
+    cell_lvl = make_cell(
+        ws_risk, r, 3, level, bold=True, align="center", bg=level_bg, fg=level_fg, size=12
+    )
     make_cell(ws_risk, r, 4, modules)
     make_cell(ws_risk, r, 5, status)
     make_cell(ws_risk, r, 6, strategy)

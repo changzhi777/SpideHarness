@@ -13,11 +13,8 @@
 
 from __future__ import annotations
 
-import asyncio
-import json
-import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import aiohttp
@@ -37,18 +34,36 @@ _HEADERS = {
 # 关注的技术方向关键词
 TOPIC_QUERIES: list[dict[str, str]] = [
     {"topic": "AI 人工智能", "query": "topic:ai+topic:agent&sort=stars&order=desc&per_page=5"},
-    {"topic": "大模型 LLM", "query": "topic:llm+topic:large-language-model&sort=stars&order=desc&per_page=5"},
+    {
+        "topic": "大模型 LLM",
+        "query": "topic:llm+topic:large-language-model&sort=stars&order=desc&per_page=5",
+    },
     {"topic": "Agent 智能体", "query": "topic:ai-agent&sort=stars&order=desc&per_page=5"},
-    {"topic": "MCP 协议", "query": "topic:mcp+topic:model-context-protocol&sort=stars&order=desc&per_page=5"},
+    {
+        "topic": "MCP 协议",
+        "query": "topic:mcp+topic:model-context-protocol&sort=stars&order=desc&per_page=5",
+    },
     {"topic": "MLX 苹果AI", "query": "topic:mlx&sort=stars&order=desc&per_page=5"},
 ]
 
 # 备用：最近7天高星项目（GitHub trending 效果）
 TRENDING_QUERIES: list[dict[str, str]] = [
-    {"topic": "AI Agent 热门", "query": "ai+agent&sort=stars&order=desc&q=created:>2026-05-20&per_page=8"},
-    {"topic": "LLM 新项目", "query": "llm+language+model&sort=stars&order=desc&q=created:>2026-05-20&per_page=8"},
-    {"topic": "MCP 新项目", "query": "mcp+model+context+protocol&sort=stars&order=desc&q=created:>2026-05-20&per_page=5"},
-    {"topic": "MLX 新项目", "query": "mlx+apple&sort=stars&order=desc&q=created:>2026-05-20&per_page=5"},
+    {
+        "topic": "AI Agent 热门",
+        "query": "ai+agent&sort=stars&order=desc&q=created:>2026-05-20&per_page=8",
+    },
+    {
+        "topic": "LLM 新项目",
+        "query": "llm+language+model&sort=stars&order=desc&q=created:>2026-05-20&per_page=8",
+    },
+    {
+        "topic": "MCP 新项目",
+        "query": "mcp+model+context+protocol&sort=stars&order=desc&q=created:>2026-05-20&per_page=5",
+    },
+    {
+        "topic": "MLX 新项目",
+        "query": "mlx+apple&sort=stars&order=desc&q=created:>2026-05-20&per_page=5",
+    },
 ]
 
 
@@ -153,7 +168,7 @@ class GitHubTrendingService:
 
     def format_feishu_card(self, repos: list[GitHubRepo]) -> dict[str, Any]:
         """将采集结果格式化为飞书消息卡片."""
-        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
         # 分组
         categories: dict[str, list[GitHubRepo]] = {}
@@ -164,13 +179,15 @@ class GitHubTrendingService:
         elements: list[dict[str, Any]] = []
 
         # 概览
-        elements.append({
-            "tag": "div",
-            "text": {
-                "tag": "lark_md",
-                "content": f"共采集 **{len(repos)}** 个热门仓库，分为 **{len(categories)}** 个方向",
-            },
-        })
+        elements.append(
+            {
+                "tag": "div",
+                "text": {
+                    "tag": "lark_md",
+                    "content": f"共采集 **{len(repos)}** 个热门仓库，分为 **{len(categories)}** 个方向",
+                },
+            }
+        )
         elements.append({"tag": "hr"})
 
         # 每个分类一个区块
@@ -179,25 +196,28 @@ class GitHubTrendingService:
             for r in cat_repos[:5]:
                 desc = (r.description[:60] + "...") if len(r.description) > 60 else r.description
                 lines.append(
-                    f"- [{r.full_name}]({r.html_url})  ⭐ {r.stars:,}  🍴 {r.forks:,}\n"
-                    f"  {desc}"
+                    f"- [{r.full_name}]({r.html_url})  ⭐ {r.stars:,}  🍴 {r.forks:,}\n  {desc}"
                 )
-            elements.append({
-                "tag": "div",
-                "text": {"tag": "lark_md", "content": "\n".join(lines)},
-            })
+            elements.append(
+                {
+                    "tag": "div",
+                    "text": {"tag": "lark_md", "content": "\n".join(lines)},
+                }
+            )
 
         # 底部
         elements.append({"tag": "hr"})
-        elements.append({
-            "tag": "note",
-            "elements": [
-                {
-                    "tag": "plain_text",
-                    "content": f"SpideHarness GitHub Trending | {now}",
-                },
-            ],
-        })
+        elements.append(
+            {
+                "tag": "note",
+                "elements": [
+                    {
+                        "tag": "plain_text",
+                        "content": f"SpideHarness GitHub Trending | {now}",
+                    },
+                ],
+            }
+        )
 
         card = {
             "msg_type": "interactive",

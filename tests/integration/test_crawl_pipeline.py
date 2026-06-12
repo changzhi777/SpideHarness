@@ -2,7 +2,6 @@
 # Author: 外星动物（常智） / IoTchange / 14455975@qq.com
 """集成测试 — 爬取管道（SQLite 真实数据库 + UAPI mock）."""
 
-
 from spide.storage.models import HotTopic, TopicSource
 from spide.storage.sqlite_repo import SqliteRepository
 
@@ -55,12 +54,8 @@ class TestSqliteRealDB:
 
         # 批量插入
         topics = [
-            HotTopic(title=f"微博热搜{i}", source=TopicSource.WEIBO, rank=i)
-            for i in range(1, 6)
-        ] + [
-            HotTopic(title=f"百度热搜{i}", source=TopicSource.BAIDU, rank=i)
-            for i in range(1, 4)
-        ]
+            HotTopic(title=f"微博热搜{i}", source=TopicSource.WEIBO, rank=i) for i in range(1, 6)
+        ] + [HotTopic(title=f"百度热搜{i}", source=TopicSource.BAIDU, rank=i) for i in range(1, 4)]
 
         ids = await repo.save_many(topics)
         assert len(ids) == 8

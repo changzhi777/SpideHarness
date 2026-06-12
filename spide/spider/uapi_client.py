@@ -127,9 +127,7 @@ class UAPIClient:
                 async with session.get(_HOTBOARD_PATH, params=params) as resp:
                     if resp.status != 200:
                         text = await resp.text()
-                        raise SpiderError(
-                            f"UAPI 热搜请求失败 [{resp.status}]: {text[:200]}"
-                        )
+                        raise SpiderError(f"UAPI 热搜请求失败 [{resp.status}]: {text[:200]}")
                     data = await resp.json()
             except aiohttp.ClientError as e:
                 raise SpiderError(f"UAPI 网络错误: {e}") from e
@@ -150,6 +148,7 @@ class UAPIClient:
 
         # 数据清洗 + 去重
         from spide.spider.pipeline import clean_topics
+
         topics = clean_topics(topics)
 
         logger.debug(
@@ -166,9 +165,7 @@ class UAPIClient:
 
         async with self._rate_limiter:
             try:
-                async with session.get(
-                    _HOTBOARD_PATH, params={"sources": "true"}
-                ) as resp:
+                async with session.get(_HOTBOARD_PATH, params={"sources": "true"}) as resp:
                     if resp.status != 200:
                         raise SpiderError(f"获取平台列表失败 [{resp.status}]")
                     data = await resp.json()
@@ -187,14 +184,10 @@ class UAPIClient:
 
         # 预提取平台标识
         source_platforms = [
-            (cfg, _extract_platform(cfg.endpoint))
-            for cfg in self._config.hot_sources
+            (cfg, _extract_platform(cfg.endpoint)) for cfg in self._config.hot_sources
         ]
 
-        tasks = [
-            self._fetch_with_retry(platform, cfg.name)
-            for cfg, platform in source_platforms
-        ]
+        tasks = [self._fetch_with_retry(platform, cfg.name) for cfg, platform in source_platforms]
         responses = await asyncio.gather(*tasks, return_exceptions=True)
 
         for (_, platform), result in zip(source_platforms, responses, strict=False):
@@ -220,7 +213,7 @@ class UAPIClient:
             except SpiderError as e:
                 last_error = e
                 if attempt < retries - 1:
-                    delay = base_delay * (2 ** attempt)
+                    delay = base_delay * (2**attempt)
                     logger.warning(
                         "fetch_retry",
                         platform=platform,

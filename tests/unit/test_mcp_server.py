@@ -2,7 +2,6 @@
 # Author: 外星动物（常智） / IoTchange / 14455975@qq.com
 """单元测试 — MCP Server/Client."""
 
-
 import pytest
 
 from spide.exceptions import MCPError

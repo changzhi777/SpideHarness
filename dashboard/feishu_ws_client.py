@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 import lark_oapi as lark
 from lark_oapi.api.im.v1 import (
@@ -39,7 +39,9 @@ def init_ws_client(
 ) -> None:
     """初始化 WebSocket 客户端（不启动，由 start_ws_client 启动）。"""
     global _api_client
-    _api_client = lark.Client.builder().app_id(app_id).app_secret(app_secret).log_level(log_level).build()
+    _api_client = (
+        lark.Client.builder().app_id(app_id).app_secret(app_secret).log_level(log_level).build()
+    )
 
 
 def register_message_handler(handler: Callable[[P2ImMessageReceiveV1], None]) -> None:
@@ -120,12 +122,7 @@ def send_message(chat_id: str, text: str, msg_type: str = "text") -> dict:
         .build()
     )
 
-    request = (
-        CreateMessageRequest.builder()
-        .receive_id_type("chat_id")
-        .request_body(body)
-        .build()
-    )
+    request = CreateMessageRequest.builder().receive_id_type("chat_id").request_body(body).build()
 
     try:
         response: CreateMessageResponse = _api_client.request(request)

@@ -82,9 +82,11 @@ class TestTimedSearchService:
                 SearchResult(title="AI进展", url="https://a.com", description="描述"),
             ]
 
-            with patch("spide.spider.uapi_client.UAPIClient") as MockClient, \
-                 patch("spide.mcp.search_provider.WebSearchProvider") as MockSearch, \
-                 patch("spide.config.load_settings") as MockSettings:
+            with (
+                patch("spide.spider.uapi_client.UAPIClient") as MockClient,
+                patch("spide.mcp.search_provider.WebSearchProvider") as MockSearch,
+                patch("spide.config.load_settings") as MockSettings,
+            ):
                 MockSettings.return_value = MagicMock()
                 client_inst = MockClient.return_value
                 client_inst.start = AsyncMock()
@@ -114,8 +116,10 @@ class TestTimedSearchService:
         svc = TimedSearchService(db_path=db_path)
         await svc.start()
         try:
-            with patch("spide.spider.uapi_client.UAPIClient") as MockClient, \
-                 patch("spide.mcp.search_provider.WebSearchProvider"):
+            with (
+                patch("spide.spider.uapi_client.UAPIClient") as MockClient,
+                patch("spide.mcp.search_provider.WebSearchProvider"),
+            ):
                 client_inst = MockClient.return_value
                 client_inst.start = AsyncMock(side_effect=Exception("API不可用"))
 

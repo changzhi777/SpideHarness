@@ -92,9 +92,7 @@ class SessionStorage:
         session_dir = self.get_session_dir(cwd)
         return await self._read_json(session_dir / "latest.json")
 
-    async def load_latest_for_session_key(
-        self, session_key: str, cwd: str = ""
-    ) -> dict | None:
+    async def load_latest_for_session_key(self, session_key: str, cwd: str = "") -> dict | None:
         """按 session_key 加载最新会话."""
         session_dir = self.get_session_dir(cwd)
         key_token = _session_key_token(session_key)
@@ -131,9 +129,7 @@ class SessionStorage:
     @staticmethod
     async def _write_json(path: Path, content: str) -> None:
         """异步写入 JSON 文件."""
-        await asyncio.to_thread(
-            lambda: path.write_text(content, encoding="utf-8")
-        )
+        await asyncio.to_thread(lambda: path.write_text(content, encoding="utf-8"))
 
     @staticmethod
     async def _read_json(path: Path) -> dict | None:

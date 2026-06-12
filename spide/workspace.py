@@ -194,9 +194,7 @@ def initialize_workspace(workspace: str | Path | None = None) -> Path:
         try:
             _seed_file(path, content)
         except OSError as e:
-            raise WorkspaceError(
-                f"无法创建模板文件 {path}: {e}", detail=str(e)
-            ) from e
+            raise WorkspaceError(f"无法创建模板文件 {path}: {e}", detail=str(e)) from e
 
     return root
 

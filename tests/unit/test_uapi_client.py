@@ -68,8 +68,10 @@ class TestUAPIClientMock:
         mock_resp.text = AsyncMock(return_value="Server Error")
 
         mock_get = mock_aiohttp_response(mock_resp)
-        with patch("aiohttp.ClientSession.get", new=mock_get), \
-             pytest.raises(SpiderError, match="500"):
+        with (
+            patch("aiohttp.ClientSession.get", new=mock_get),
+            pytest.raises(SpiderError, match="500"),
+        ):
             await client.fetch_hotboard("weibo")
 
         await client.stop()

@@ -103,9 +103,11 @@ class RedisCache:
         if data is None:
             return None
         import json
+
         return json.loads(data)
 
     async def set_task_state(self, task_id: str, state: dict, ttl: int = 3600) -> None:
         """设置任务状态."""
         import json
+
         await self.set(f"task:{task_id}", json.dumps(state), ttl=ttl)

@@ -124,7 +124,9 @@ class FeishuPushScheduler:
     def _render_card(self, job: JobSpec, result: dict[str, Any]) -> dict[str, Any]:
         """根据工具结果渲染卡片。"""
         if result.get("status") == "error":
-            return error_card(title=f"任务失败：{job.name}", error=result.get("message", "未知错误"))
+            return error_card(
+                title=f"任务失败：{job.name}", error=result.get("message", "未知错误")
+            )
 
         if job.action == "crawl_hot_topics":
             return topics_list_card(
@@ -150,9 +152,10 @@ class FeishuPushScheduler:
         url = f"{_FEISHU_API}/auth/v3/tenant_access_token/internal"
         payload = {"app_id": self.config.app_id, "app_secret": self.config.app_secret}
 
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session, session.post(
-            url, json=payload
-        ) as resp:
+        async with (
+            aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session,
+            session.post(url, json=payload) as resp,
+        ):
             data = await resp.json()
 
         if data.get("code") != 0:
@@ -178,9 +181,10 @@ class FeishuPushScheduler:
             "content": _json_dumps(card.get("card", card)),
         }
 
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session, session.post(
-            url, json=payload, headers=headers
-        ) as resp:
+        async with (
+            aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=15)) as session,
+            session.post(url, json=payload, headers=headers) as resp,
+        ):
             data = await resp.json()
 
         if data.get("code") != 0:

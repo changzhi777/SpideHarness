@@ -245,9 +245,10 @@ class Engine:
         output: dict[str, dict] = {}
         for source, topics in results_raw.items():
             source_enum = None
-            for s in (sources or []):
+            for s in sources or []:
                 if s == source:
                     from spide.storage.models import TopicSource
+
                     try:
                         source_enum = TopicSource(source)
                     except ValueError:
@@ -256,6 +257,7 @@ class Engine:
 
             if source_enum is None:
                 from spide.storage.models import TopicSource
+
                 try:
                     source_enum = TopicSource(source)
                 except ValueError:

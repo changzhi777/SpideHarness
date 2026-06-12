@@ -2,8 +2,6 @@
 # Author: 外星动物（常智） / IoTchange / 14455975@qq.com
 """单元测试 — 数据模型序列化."""
 
-
-
 from spide.storage.models import (
     ArticleCategory,
     CrawlSession,
