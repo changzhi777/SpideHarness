@@ -117,10 +117,9 @@ def _run_spide_sync(args: list[str], timeout: int = 120) -> dict[str, Any]:
     """同步执行 spide CLI 命令."""
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "spide"] + args,
+            [sys.executable, "-m", "spide", *args],
             cwd=str(PROJECT_ROOT),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=timeout,
         )
     except subprocess.TimeoutExpired:
@@ -326,7 +325,9 @@ async def feishu_event(request: Request) -> JSONResponse:
 
 
 @router.post("/command", summary="通用命令执行接口（供飞书 Agent 或其他客户端调用）")
-async def feishu_command(body: dict[str, Any] = Body(...)) -> JSONResponse:
+async def feishu_command(
+    body: dict[str, Any] = Body(...),  # noqa: B008 - 多态请求体（command+args 或 text）
+) -> JSONResponse:
     """直接执行命令，无需飞书事件格式.
 
     请求体:
@@ -418,7 +419,8 @@ def on_feishu_message_event(event) -> None:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-    loop.create_task(_process_and_reply(text, sender_open_id, chat_id))
+    # fire-and-forget：故意不持有 task 引用（消息处理自包含生命周期）
+    loop.create_task(_process_and_reply(text, sender_open_id, chat_id))  # noqa: RUF006
 
 
 async def _process_and_reply(text: str, sender_open_id: str, chat_id: str) -> None:

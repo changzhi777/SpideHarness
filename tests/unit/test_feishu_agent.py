@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from dashboard.conversation_store import ConversationStore
 from dashboard.feishu_agent import (
     AgentConfig,

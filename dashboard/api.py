@@ -17,8 +17,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import Body, FastAPI
+from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel, Field
 
 from dashboard.capability_registry import registry
 from dashboard.feishu_agent import get_feishu_agent
@@ -154,6 +155,31 @@ async def lifespan(app: FastAPI):
         stop_ws_client()
     except Exception:
         pass
+
+
+# ── Pydantic 请求模型 ──────────────────────────────────────────────
+# 替代原 `Body(...)` 默认值模式，遵循 B008 规范 + 提供 422 类型安全校验
+
+
+class SetWebhookRequest(BaseModel):
+    """设置飞书 Webhook URL 请求体."""
+
+    url: str = Field(..., min_length=1, description="飞书 Webhook URL")
+
+
+class FeishuAgentChatRequest(BaseModel):
+    """飞书智能体对话请求体."""
+
+    user_id: str = Field(..., min_length=1, description="用户 ID")
+    chat_id: str = Field(default="default", description="会话 ID（群/单聊）")
+    message: str = Field(..., min_length=1, description="用户消息")
+
+
+class FeishuAgentClearRequest(BaseModel):
+    """清空飞书智能体会话请求体."""
+
+    user_id: str = Field(..., min_length=1, description="用户 ID")
+    chat_id: str = Field(default="default", description="会话 ID")
 
 
 app = FastAPI(title="SpideHarness Dashboard API", version="3.1.1", lifespan=lifespan)
@@ -530,8 +556,7 @@ def _run_crawl_sync() -> dict:
         result = subprocess.run(
             [sys.executable, "-m", "spide", "crawl", "--all", "--save"],
             cwd=project_root,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=120,
         )
     except subprocess.TimeoutExpired:
@@ -608,15 +633,12 @@ async def push_github_trending() -> JSONResponse:
 
 
 @app.post("/api/github/webhook", summary="设置飞书 Webhook URL")
-async def set_webhook(body: dict[str, str] = Body(...)) -> JSONResponse:
+async def set_webhook(req: SetWebhookRequest) -> JSONResponse:
     """动态设置飞书 Webhook URL.
 
     请求体: {"url": "https://open.feishu.cn/open-apis/bot/v2/hook/..."}
     """
-    url = body.get("url", "")
-    if not url:
-        return JSONResponse(status_code=400, content={"error": "url is required"})
-    set_feishu_webhook(url)
+    set_feishu_webhook(req.url)
     return JSONResponse(content={"status": "ok", "url_set": True})
 
 
@@ -624,7 +646,7 @@ async def set_webhook(body: dict[str, str] = Body(...)) -> JSONResponse:
 
 
 @app.post("/api/feishu/agent", summary="飞书智能体对话接口")
-async def feishu_agent_chat(body: dict[str, Any] = Body(...)) -> JSONResponse:
+async def feishu_agent_chat(req: FeishuAgentChatRequest) -> JSONResponse:
     """飞书智能体 ReAct 对话入口.
 
     请求体:
@@ -633,16 +655,6 @@ async def feishu_agent_chat(body: dict[str, Any] = Body(...)) -> JSONResponse:
     返回:
         {"answer": "...", "iterations": 2, "tool_calls": [...], "status": "ok"}
     """
-    user_id = body.get("user_id", "")
-    chat_id = body.get("chat_id", "default")
-    message = body.get("message", "")
-
-    if not user_id or not message:
-        return JSONResponse(
-            status_code=400,
-            content={"status": "error", "message": "user_id 和 message 必填"},
-        )
-
     agent = get_feishu_agent()
     try:
         await agent.init()
@@ -650,7 +662,7 @@ async def feishu_agent_chat(body: dict[str, Any] = Body(...)) -> JSONResponse:
         logger.warning("agent_init_failed", error=str(exc))
 
     try:
-        result = await agent.chat(user_message=message, user_id=user_id, chat_id=chat_id)
+        result = await agent.chat(user_message=req.message, user_id=req.user_id, chat_id=req.chat_id)
         return JSONResponse(
             content={
                 "answer": result.answer,
@@ -666,18 +678,13 @@ async def feishu_agent_chat(body: dict[str, Any] = Body(...)) -> JSONResponse:
 
 
 @app.post("/api/feishu/agent/clear", summary="清空飞书智能体会话历史")
-async def feishu_agent_clear(body: dict[str, str] = Body(...)) -> JSONResponse:
+async def feishu_agent_clear(req: FeishuAgentClearRequest) -> JSONResponse:
     """清空指定用户的会话记忆.
 
     请求体: {"user_id": "u_123", "chat_id": "oc_456"}
     """
-    user_id = body.get("user_id", "")
-    chat_id = body.get("chat_id", "default")
-    if not user_id:
-        return JSONResponse(status_code=400, content={"status": "error", "message": "user_id 必填"})
-
     agent = get_feishu_agent()
-    deleted = await agent.clear_session(user_id=user_id, chat_id=chat_id)
+    deleted = await agent.clear_session(user_id=req.user_id, chat_id=req.chat_id)
     return JSONResponse(content={"status": "ok", "deleted_messages": deleted})
 
 

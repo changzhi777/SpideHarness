@@ -243,14 +243,16 @@ class GitHubTrendingService:
         card = self.format_feishu_card(repos)
 
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
-                async with session.post(self._feishu_url, json=card) as resp:
-                    body = await resp.text()
-                    if resp.status >= 400:
-                        logger.warning("feishu_push_failed", status=resp.status, body=body[:200])
-                        return False
-                    logger.info("feishu_push_ok", repos=len(repos))
-                    return True
+            async with (
+                aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session,
+                session.post(self._feishu_url, json=card) as resp,
+            ):
+                body = await resp.text()
+                if resp.status >= 400:
+                    logger.warning("feishu_push_failed", status=resp.status, body=body[:200])
+                    return False
+                logger.info("feishu_push_ok", repos=len(repos))
+                return True
         except Exception as e:
             logger.warning("feishu_push_error", error=str(e))
             return False
