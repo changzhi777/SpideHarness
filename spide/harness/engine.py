@@ -267,7 +267,7 @@ class Engine:
             repo = SqliteRepository(HotTopic, db_path=self._settings.storage.sqlite_path)
             await repo.start()
             try:
-                previous = await repo.query(source=source_enum.value, limit=100)
+                previous: list[HotTopic] = await repo.query(source=source_enum.value, limit=100)
             finally:
                 await repo.stop()
 

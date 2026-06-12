@@ -590,7 +590,7 @@ async def _dedup_async(workspace: str | None, dry_run: bool) -> None:
         return
 
     # 查询所有记录
-    all_topics = await repo.query(limit=total)
+    all_topics: list[HotTopic] = await repo.query(limit=total)
 
     # 按 (title, source) 分组，保留 hot_value 最高 + fetched_at 最新的一条
     groups: dict[tuple[str, str], list] = {}
@@ -1427,7 +1427,7 @@ async def _crawl_diff_async(source: str, last: bool, history: bool, workspace: s
             repo = SqliteRepository(CrawlSnapshot, db_path=settings.storage.sqlite_path)
             await repo.start()
             try:
-                snapshots = await repo.query(source=source, limit=10 if history else 1)
+                snapshots: list[CrawlSnapshot] = await repo.query(source=source, limit=10 if history else 1)
                 if not snapshots:
                     console.print(f"[yellow]无 {source} 的历史快照[/yellow]")
                     return

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any
+from typing import Any, cast
 
 from spide.llm import LLMClient
 from spide.logging import get_logger
@@ -67,6 +67,9 @@ async def _call_llm_json(
     max_tokens: int = 2048,
 ) -> dict[str, Any] | list[Any]:
     """调用 LLM 并解析 JSON 响应（统一空响应 + markdown 清理 + 异常兜底）.
+
+    返回 dict 或 list — 取决于 LLM 实际响应结构（_SUMMARY_SYSTEM 返回 dict，
+    _CLUSTER_SYSTEM_PROMPT 返回 list）。错误情况下返回 {"error": ...} 字典。
 
     Note:
         max_tokens 默认值从 1024 提升到 2048，原因是 GLM-5.1 中文 JSON 输出
@@ -215,7 +218,7 @@ class ContentSummarizer:
         user_message: str,
         task_name: str,
     ) -> dict[str, Any]:
-        return await _call_llm_json(self._llm, system_prompt, user_message, task_name)
+        return cast(dict[str, Any], await _call_llm_json(self._llm, system_prompt, user_message, task_name))
 
 
 class SmartCrawlStrategy:
@@ -247,7 +250,7 @@ class SmartCrawlStrategy:
         return await self._call_llm(_SMART_CRAWL_SYSTEM, user_msg)
 
     async def _call_llm(self, system_prompt: str, user_message: str) -> dict[str, Any]:
-        return await _call_llm_json(self._llm, system_prompt, user_message, "smart_strategy")
+        return cast(dict[str, Any], await _call_llm_json(self._llm, system_prompt, user_message, "smart_strategy"))
 
 
 class TrendAnalyzer:
@@ -291,8 +294,11 @@ class TrendAnalyzer:
 }
 只返回 JSON。"""
 
-        return await _call_llm_json(
-            self._llm, system, f"当前热搜：\n{topics_text}", "trend_analysis"
+        return cast(
+            dict[str, Any],
+            await _call_llm_json(
+                self._llm, system, f"当前热搜：\n{topics_text}", "trend_analysis"
+            ),
         )
 
     async def _compare(

@@ -18,8 +18,9 @@ import asyncio
 import csv
 import json
 import time
+from collections.abc import Awaitable, Callable, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel
 
@@ -63,7 +64,7 @@ class DataExporter:
 
     async def export_jsonl(
         self,
-        items: list[BaseModel],
+        items: Sequence[BaseModel],
         *,
         filename: str = "export",
     ) -> Path:
@@ -79,7 +80,7 @@ class DataExporter:
 
     async def export_csv(
         self,
-        items: list[BaseModel],
+        items: Sequence[BaseModel],
         *,
         filename: str = "export",
     ) -> Path:
@@ -98,7 +99,7 @@ class DataExporter:
 
     async def export_excel(
         self,
-        items: list[BaseModel],
+        items: Sequence[BaseModel],
         *,
         filename: str = "export",
         sheet_name: str = "Sheet1",
@@ -126,7 +127,7 @@ class DataExporter:
 
     async def export(
         self,
-        items: list[BaseModel],
+        items: Sequence[BaseModel],
         *,
         filename: str = "export",
         fmt: str = "json",
@@ -152,7 +153,7 @@ class DataExporter:
         if not exporter:
             raise StorageError(f"不支持的导出格式: {fmt}，可选: {', '.join(exporters.keys())}")
 
-        return await exporter(items, filename=filename)  # type: ignore[operator]
+        return await cast(Callable[..., Awaitable[Path]], exporter)(items, filename=filename)
 
     # -----------------------------------------------------------------------
     # 同步写入方法（通过 asyncio.to_thread 调用）
