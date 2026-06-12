@@ -1,11 +1,12 @@
 # SpideHarness Agent — 项目 AI 上下文文档
 
-> 📍 [根目录](./) | 当前版本: V3.1.2 (DEV) | 最后更新: 2026-06-12 20:34
+> 📍 [根目录](./) | 当前版本: V3.1.2 (DEV) | 最后更新: 2026-06-13
 
 ## 变更记录
 
 | 日期 | 操作 | 说明 |
 |------|------|------|
+| 2026-06-13 | **质量门清零** | 4 个 commit 累计：① `0fc8e31` style: ruff format + 自动修复（65 文件，83 lint）② `3289974` fix(llm): 修复 JSON 截断（max_tokens 1024→2048 + 截断 JSON 修复兜底，真实 LLM 3/3 通过）③ `a3f57e8` refactor(dashboard): B008→Pydantic BaseModel + 清零 6 错误（F821/UP022×2/RUF005/RUF006/SIM117）④ `866f444` test: 补全 LLM 降级路径（关闭 GAP-002）。**终态：ruff 0 errors + 538 tests passed + 3 端同步**。详细 changelog 见下表。 |
 | 2026-06-12 20:34 | **轻量健康检查** | 12 模块 CLAUDE.md + 根级完整，结构与代码 100% 匹配。验证：spide/ 11+11+3+2+5+2+2+6+5+4+1=52 .py（与 index.json 一致）、dashboard/ 12 .py + 1 html（与文档一致）、tests/ 58 .py 文件（与文档一致）、Mermaid 图覆盖所有 12 个模块（均含 `click` 链接）、所有模块 CLAUDE.md 顶部均含面包屑导航。结论：覆盖率 100%，本轮无新增/删除文件、无接口级变更，无需重写，仅刷新元数据时间戳。同步刷新 `.claude/index.json` 时间戳 |
 | 2026-04-08 | 初始化 | 首次扫描，项目空白阶段 |
 | 2026-04-08 | 重建 | 基于详细项目描述重建文档，明确技术栈与架构设计 |
@@ -35,7 +36,7 @@
 
 核心能力：UAPI 热搜采集（5 大平台）→ 增量检测 → 关键词告警 → 深度追踪（搜索+LLM）→ 跨平台关联分析 → Dashboard 看板 → 多通道输出（SQLite/Excel/MQTT）。
 
-CLI 24 命令、MCP 8 工具、LLM 双模型（GLM-5.1 + GLM-5V-Turbo）、536 测试用例、64 个 .py 源文件、~14,300 行源码。
+CLI 24 命令、MCP 8 工具、LLM 双模型（GLM-5.1 + GLM-5V-Turbo）、574 测试用例（unit 448 + integration 38 + e2e 88）、64 个 .py 源文件、~14,300 行源码。
 
 ## 当前状态：**已实现 (Stage 2)**
 
@@ -62,7 +63,7 @@ CLI 24 命令、MCP 8 工具、LLM 双模型（GLM-5.1 + GLM-5V-Turbo）、536 �
 - ✅ Dashboard Web API（FastAPI 后端 + 前端页面）
 - ✅ 飞书 Bot 事件回调（指令解析 + 命令执行 + 事件订阅）
 - ✅ GitHub AI 热点采集（5 方向 topic 搜索 + 趋势仓库 + 飞书卡片推送）
-- ✅ 测试：58 个测试文件，536 个测试用例
+- ✅ 测试：58 个测试文件，574 个测试用例（unit 448 + integration 38 + e2e 88）
 - ✅ 飞书智能体（V3.1.1+）：ReAct 循环 + 多轮记忆 + 主动推送 + 富文本卡片
 - ✅ 飞书 WebSocket 长连接（V3.1.2+）：`lark-oapi` SDK 替代 HTTP Webhook，无需公网 URL
 

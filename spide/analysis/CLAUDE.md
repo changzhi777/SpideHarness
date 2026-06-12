@@ -6,12 +6,12 @@
 
 基于 LLM 的智能分析能力，包括内容摘要、趋势分析、智能采集策略、词云生成、跨平台关联分析和标题相似度计算。
 
-## 文件清单（4 个文件）
+## 文件清单（5 个文件，含 `__init__.py`）
 
 | 文件 | 职责 |
 |------|------|
 | `__init__.py` | 模块初始化 |
-| `summarizer.py` | ContentSummarizer + TrendAnalyzer + SmartCrawlStrategy |
+| `summarizer.py` | ContentSummarizer + TrendAnalyzer + SmartCrawlStrategy（含 `_call_llm_json` + `_try_repair_truncated_json` 工具函数）|
 | `wordcloud_generator.py` | WordCloudGenerator — jieba 分词 + wordcloud 生成 |
 | `cross_platform.py` | CrossPlatformAnalyzer — LLM 语义聚类 + 跨平台去重 |
 | `title_similarity.py` | jieba Jaccard + Levenshtein 编辑距离相似度 |

@@ -2,7 +2,7 @@
 
 > [根目录](../CLAUDE.md) → `dashboard/`
 
-最后更新：2026-06-12（接口级深扫）
+最后更新：2026-06-13（修整：补 Pydantic 重构 + 关闭脆弱点 #1）
 
 ## 职责
 
@@ -405,7 +405,7 @@ structlog>=24.0     pyyaml>=6.0
 
 按严重性排序，标记"建议加固"为**可选**的工程改进，不影响当前运行：
 
-1. **【类型】Pydantic 校验缺失**（api.py）— 全部 `Body(...)` 接收 `dict[str, Any]`，无 Pydantic 校验，缺字段不会报 422。建议补 `pydantic.BaseModel` 校验。
+1. ~~**【类型】Pydantic 校验缺失**（api.py）— 全部 `Body(...)` 接收 `dict[str, Any]`，无 Pydantic 校验，缺字段不会报 422。~~ ✅ **已于 2026-06-13 修复（commit `a3f57e8`）**：3 个端点（`set_webhook` / `feishu_agent_chat` / `feishu_agent_clear`）已重构为 Pydantic `BaseModel`，缺字段自动返回 422。`feishu_command` 因多态请求体（`command+args` 或 `text`）保留 `Body(...)` + `noqa: B008`，属合理 trade-off。
 
 2. **【数据】会话无 TTL 清理**（conversation_store.py）— `updated_at` 字段保留但未使用，会话/消息无限增长。建议增加后台清理任务或 `init()` 内 lazy GC。
 
