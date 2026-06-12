@@ -61,6 +61,15 @@ def start_ws_client(app_id: str, app_secret: str) -> None:
         .build()
     )
 
+    # 独立线程中覆写 lark SDK 模块级 loop，避免与 uvicorn 主循环冲突
+    import asyncio as _asyncio
+
+    _loop = _asyncio.new_event_loop()
+    _asyncio.set_event_loop(_loop)
+    import lark_oapi.ws.client as _lark_ws
+
+    _lark_ws.loop = _loop
+
     _client = lark.ws.Client(
         app_id,
         app_secret,
