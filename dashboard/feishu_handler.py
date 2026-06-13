@@ -233,18 +233,20 @@ def _get_status() -> dict[str, Any]:
 # ── API 端点 ──────────────────────────────────────────────────────
 
 
-@router.api_route("/event", methods=["GET", "POST"], summary="飞书事件回调")
+@router.get("/event", summary="飞书事件回调健康检查", operation_id="feishu_event_health")
+async def feishu_event_health() -> JSONResponse:
+    """飞书事件订阅 URL 健康检查（GET）."""
+    return JSONResponse(content={"status": "ok"})
+
+
+@router.post("/event", summary="飞书事件回调", operation_id="feishu_event_callback")
 async def feishu_event(request: Request) -> JSONResponse:
-    """处理飞书开放平台事件回调.
+    """处理飞书开放平台事件回调（POST）.
 
     支持:
-    - GET: 健康检查（返回 ok）
-    - POST URL 验证 (challenge)
-    - POST 消息接收 (im.message.receive_v1)
+    - URL 验证 (challenge)
+    - 消息接收 (im.message.receive_v1)
     """
-    if request.method == "GET":
-        return JSONResponse(content={"status": "ok"})
-
     body = await request.json()
 
     # 1. URL 验证（飞书配置事件订阅时发送）
