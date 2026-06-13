@@ -7,8 +7,8 @@
 - `spide/gateway/` — 通用 HTTP/WS 接入层（无外部 SDK 依赖），KISS 设计
 
 端点（最小可用实现）：
-- `GET  /health`                  健康检查
-- `GET  /api/v1/topics`           热搜查询（直接读 SQLite）
+- `GET  /health`                  健康检查（公开）
+- `GET  /api/v1/topics`           热搜查询（鉴权 + 限流）
 - `WS   /ws/events`               简单状态广播（heartbeat）
 
 启动：`uvicorn spide.gateway.server:app --host 0.0.0.0 --port 8765`
@@ -22,10 +22,12 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from typing import Any
 
-from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from spide.gateway.auth import is_auth_enabled, require_api_key
+from spide.gateway.ratelimit import get_limiter, rate_limit
 from spide.logging import get_logger
 from spide.storage.models import HotTopic
 from spide.storage.sqlite_repo import SqliteRepository
@@ -42,6 +44,8 @@ class HealthResponse(BaseModel):
     status: str = Field(..., description="服务状态: ok | degraded")
     version: str = Field(default="3.1.2", description="服务版本")
     uptime_seconds: float = Field(..., description="启动至今秒数")
+    auth_enabled: bool = Field(..., description="是否启用了 API Key 鉴权")
+    rate_limit: dict[str, Any] = Field(default_factory=dict, description="限流器状态")
 
 
 class TopicItem(BaseModel):
@@ -159,15 +163,21 @@ app = FastAPI(
 
 @app.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
-    """健康检查端点."""
+    """健康检查端点（公开，无需鉴权）."""
     return HealthResponse(
         status="ok",
         version="3.1.2",
         uptime_seconds=time.time() - _START_TIME,
+        auth_enabled=is_auth_enabled(),
+        rate_limit=get_limiter().stats(),
     )
 
 
-@app.get("/api/v1/topics", response_model=TopicsResponse)
+@app.get(
+    "/api/v1/topics",
+    response_model=TopicsResponse,
+    dependencies=[Depends(require_api_key), Depends(rate_limit)],
+)
 async def list_topics(
     source: str | None = Query(default=None, description="数据源过滤（weibo/baidu/...）"),
     limit: int = Query(default=20, ge=1, le=100, description="返回条数"),
