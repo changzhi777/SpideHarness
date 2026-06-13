@@ -392,7 +392,7 @@ def _extract_text(content_str: str, msg_type: str) -> str:
 # ── WebSocket 事件回调（lark-oapi SDK） ───────────────────────────────
 
 
-def on_feishu_message_event(event) -> None:
+def on_feishu_message_event(event: Any) -> None:
     """WebSocket 长连接消息事件回调（由 feishu_ws_client 调用）。
 
     Args:

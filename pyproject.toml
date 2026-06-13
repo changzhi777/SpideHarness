@@ -100,8 +100,14 @@ module = [
     "zai.*", "uapi.*", "aiomqtt.*", "mcp.*", "openpyxl.*",
     "wordcloud.*", "jieba.*", "yaml.*", "bs4.*",
     "aiohttp.*", "redis.*", "aiosqlite.*", "structlog.*",
+    "lark_oapi.*", "apscheduler.*",
 ]
 ignore_missing_imports = true
+
+# structlog Logger 支持 kwargs（stdlib logging 不支持，mypy 误报）
+[[tool.mypy.overrides]]
+module = ["spide.logging", "dashboard.*"]
+disable_error_code = ["call-arg"]
 
 # aiohttp session.get() kwargs 类型签名与实际用法不匹配
 [[tool.mypy.overrides]]

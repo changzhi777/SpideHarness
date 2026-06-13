@@ -12,10 +12,11 @@ from __future__ import annotations
 import asyncio
 import re
 import sqlite3
+from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
@@ -53,7 +54,7 @@ Row = dict[str, Any]
 
 
 @contextmanager
-def _get_db():
+def _get_db() -> Iterator[sqlite3.Connection]:
     """获取 SQLite 连接（同步，适合小数据量场景）。"""
     conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
@@ -71,7 +72,7 @@ def _query(sql: str, params: tuple = ()) -> list[Row]:
 
 # ── API 路由 ──────────────────────────────────────────────────────
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """应用生命周期:启动时初始化 LLM / Agent / Scheduler,关闭时清理。"""
     from dashboard.llm_client import get_llm_client, load_llm_config_from_yaml
     from dashboard.secrets import resolve_secrets_in_obj
@@ -96,7 +97,7 @@ async def lifespan(app: FastAPI):
         if cfg_path.exists():
             with cfg_path.open(encoding="utf-8") as f:
                 data = yaml.safe_load(f) or {}
-            data = resolve_secrets_in_obj(data)
+            data = cast(dict[str, Any], resolve_secrets_in_obj(data))
             feishu = data.get("feishu", {})
             from dashboard.feishu_handler import set_feishu_config
 
@@ -200,11 +201,11 @@ _MCP_META = {
     "deep_crawl_hot_topics": {"category": "data_collection"},
 }
 for _tool in _MCP_TOOLS:
-    _meta = _MCP_META.get(_tool["name"], {})
+    _meta = _MCP_META.get(cast(str, _tool["name"]), {})
     registry.register_mcp_tool(
-        name=_tool["name"],
-        description=_tool["description"],
-        input_schema=_tool["inputSchema"],
+        name=cast(str, _tool["name"]),
+        description=cast(str, _tool["description"]),
+        input_schema=cast(dict[str, Any], _tool["inputSchema"]),
         **_meta,
     )
 
@@ -345,7 +346,7 @@ _HTTP_ENDPOINTS = [
     ),
 ]
 for _path, _method, _summary, _kwargs in _HTTP_ENDPOINTS:
-    registry.register_http_endpoint(_path, _method, _summary, **_kwargs)
+    registry.register_http_endpoint(_path, _method, _summary, **cast(dict[str, Any], _kwargs))
 
 # Skills（自动扫描 skills/ 目录）— category 从 SKILL.md frontmatter 读取
 _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
@@ -361,15 +362,15 @@ if _SKILLS_DIR.is_dir():
                 continue
             _fm = _m.group(1)
             # 解析 frontmatter 字段
-            _meta: dict[str, str] = {}
+            _fm_meta: dict[str, str] = {}
             for _line in _fm.splitlines():
                 if ":" in _line and not _line.startswith((" ", "\t", "-")):
                     _k, _v = _line.split(":", 1)
-                    _meta[_k.strip()] = _v.strip().strip(">")
-            _name = _meta.get("name", "")
+                    _fm_meta[_k.strip()] = _v.strip().strip(">")
+            _name = _fm_meta.get("name", "")
             if not _name:
                 continue
-            _desc = _meta.get("description", "")
+            _desc = _fm_meta.get("description", "")
             # 取首段非空 markdown 文本作为描述（若 frontmatter 无 description）
             if not _desc:
                 for _line in _content[_m.end() :].splitlines():
@@ -741,7 +742,7 @@ async def feishu_agent_status() -> JSONResponse:
 
 # 根路径返回 dashboard 页面
 @app.get("/", include_in_schema=False)
-def index():
+def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 

@@ -80,7 +80,7 @@ class DeepTopicTracker:
                     )
                 )
             else:
-                tracks.append(result)
+                tracks.append(result)  # type: ignore[arg-type]
 
         logger.info(
             "deep_tracking_done",

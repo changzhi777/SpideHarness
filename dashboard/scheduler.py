@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import aiohttp
 import structlog
@@ -214,7 +214,7 @@ def load_scheduler_from_config(config_path: str = "configs/feishu.yaml") -> Feis
         data = yaml.safe_load(f) or {}
 
     # 解析 ${ENV_VAR[:default]} 占位符（app_secret 等敏感字段）
-    data = resolve_secrets_in_obj(data)
+    data = cast(dict[str, Any], resolve_secrets_in_obj(data))
 
     feishu = data.get("feishu", {})
     sched = data.get("scheduler", {})

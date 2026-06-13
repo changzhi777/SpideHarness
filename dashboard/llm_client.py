@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import aiohttp
 import structlog
@@ -218,7 +218,7 @@ def load_llm_config_from_yaml(config_path: str = "configs/feishu.yaml") -> LLMCo
     # 解析 ${ENV_VAR[:default]} 占位符
     from .secrets import resolve_secrets_in_obj
 
-    data = resolve_secrets_in_obj(data)
+    data = cast(dict[str, Any], resolve_secrets_in_obj(data))
     llm_data = data.get("llm")
     if not llm_data or not isinstance(llm_data, dict):
         return None

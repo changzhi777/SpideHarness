@@ -129,7 +129,7 @@ class TimedSearchService:
                 if isinstance(result, Exception):
                     logger.warning("search_one_failed", error=str(result))
                 else:
-                    records.extend(result)
+                    records.extend(result)  # type: ignore[arg-type]
 
             search_count = len(records)
 

@@ -74,7 +74,7 @@ async def collect_dashboard_data(
         if total_count == 0:
             return _empty_dashboard()
 
-        all_topics = await repo.query(limit=total_count)
+        all_topics: list[HotTopic] = await repo.query(limit=total_count)
 
         return _aggregate(all_topics, total_count)
 

@@ -52,6 +52,7 @@ class CapabilityRegistry:
     """能力注册表（单例）."""
 
     _instance: CapabilityRegistry | None = None
+    _initialized: bool = False
 
     def __new__(cls) -> CapabilityRegistry:
         if cls._instance is None:

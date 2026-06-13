@@ -38,7 +38,8 @@ class RedisCache:
     async def start(self) -> None:
         """初始化 Redis 连接."""
         self._client = aioredis.from_url(self._url, decode_responses=True)
-        await self._client.ping()
+        # aioredis.ping 在 sync/async 模式签名不同（mypy 误报）
+        await self._client.ping()  # type: ignore[misc]
         logger.debug("redis_connected", url=self._url)
 
     async def stop(self) -> None:

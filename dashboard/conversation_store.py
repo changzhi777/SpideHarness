@@ -168,7 +168,7 @@ class ConversationStore:
                 rows = await cursor.fetchall()
 
         messages: list[dict[str, Any]] = []
-        for row in reversed(rows):
+        for row in reversed(list(rows)):  # type: ignore[arg-type]
             msg: dict[str, Any] = {"role": row["role"], "content": row["content"]}
             if row["tool_calls"]:
                 with suppress(json.JSONDecodeError):

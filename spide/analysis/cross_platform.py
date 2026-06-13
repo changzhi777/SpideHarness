@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any
+from typing import Any, cast
 
 from spide.analysis.summarizer import _call_llm_json
 from spide.analysis.title_similarity import is_similar
@@ -131,7 +131,7 @@ class CrossPlatformAnalyzer:
         )
 
         if "error" in result:
-            logger.warning("cluster_llm_error", error=result["error"])
+            logger.warning("cluster_llm_error", error=cast(dict[str, Any], result).get("error", ""))
             return self._fallback_clusters(topics)
 
         if isinstance(result, list):
