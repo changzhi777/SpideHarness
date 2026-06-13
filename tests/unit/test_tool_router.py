@@ -61,7 +61,9 @@ async def test_call_tool_timeout() -> None:
     import asyncio
 
     async def slow_handler(args):
-        await asyncio.sleep(2)
+        # 0.2s 足够触发 0.1s 超时；asyncio.wait_for 会立即取消
+        # 内部 sleep（无需等满），测试从 2s 优化到 ~0.1s 真实等待
+        await asyncio.sleep(0.2)
         return {"status": "ok"}
 
     with patch("dashboard.tool_router._TOOL_ROUTES", {"slow_tool": slow_handler}):
