@@ -22,6 +22,8 @@ env/
 # 测试与覆盖率
 .pytest_cache/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 .mypy_cache/
 
