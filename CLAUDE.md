@@ -6,6 +6,7 @@
 
 | 日期 | 操作 | 说明 |
 |------|------|------|
+| 2026-06-13 | **GAP-001 关闭 + 12 commit 完整链路** | ① `d2c2809` feat(gateway): 实现独立 HTTP/WS 网关（3 端点 + ConnectionManager + 14 测试，~210 行 KISS 实现），关闭 GAP-001。② `5da1a4a` chore: mypy 严格模式全量清零（33→0）。③ `11fdeae` fix: tool_router 6 个真实 API 误用。④ `5f0e8f3` fix: OpenAPI Duplicate Operation ID 警告。⑤ `7c82b38` test: Pydantic 422 行为回归。⑥ `651ccd8` refactor: mypy 4 文件严格化。**终态：ruff 0 / mypy 0 / pytest 554 / 三端同步 / 所有 backlog 关闭**。详见下表完整链路。 |
 | 2026-06-13 | **质量门清零** | 4 个 commit 累计：① `0fc8e31` style: ruff format + 自动修复（65 文件，83 lint）② `3289974` fix(llm): 修复 JSON 截断（max_tokens 1024→2048 + 截断 JSON 修复兜底，真实 LLM 3/3 通过）③ `a3f57e8` refactor(dashboard): B008→Pydantic BaseModel + 清零 6 错误（F821/UP022×2/RUF005/RUF006/SIM117）④ `866f444` test: 补全 LLM 降级路径（关闭 GAP-002）。**终态：ruff 0 errors + 538 tests passed + 3 端同步**。详细 changelog 见下表。 |
 | 2026-06-12 20:34 | **轻量健康检查** | 12 模块 CLAUDE.md + 根级完整，结构与代码 100% 匹配。验证：spide/ 11+11+3+2+5+2+2+6+5+4+1=52 .py（与 index.json 一致）、dashboard/ 12 .py + 1 html（与文档一致）、tests/ 58 .py 文件（与文档一致）、Mermaid 图覆盖所有 12 个模块（均含 `click` 链接）、所有模块 CLAUDE.md 顶部均含面包屑导航。结论：覆盖率 100%，本轮无新增/删除文件、无接口级变更，无需重写，仅刷新元数据时间戳。同步刷新 `.claude/index.json` 时间戳 |
 | 2026-04-08 | 初始化 | 首次扫描，项目空白阶段 |
@@ -36,7 +37,7 @@
 
 核心能力：UAPI 热搜采集（5 大平台）→ 增量检测 → 关键词告警 → 深度追踪（搜索+LLM）→ 跨平台关联分析 → Dashboard 看板 → 多通道输出（SQLite/Excel/MQTT）。
 
-CLI 24 命令、MCP 8 工具、LLM 双模型（GLM-5.1 + GLM-5V-Turbo）、574 测试用例（unit 448 + integration 38 + e2e 88）、64 个 .py 源文件、~14,300 行源码。
+CLI 24 命令、MCP 8 工具、LLM 双模型（GLM-5.1 + GLM-5V-Turbo）、554 测试用例（unit 462 + integration 38 + e2e 88 + gateway 14）、65 个 .py 源文件、~14,950 行源码。
 
 ## 当前状态：**已实现 (Stage 2)**
 
@@ -63,7 +64,7 @@ CLI 24 命令、MCP 8 工具、LLM 双模型（GLM-5.1 + GLM-5V-Turbo）、574 �
 - ✅ Dashboard Web API（FastAPI 后端 + 前端页面）
 - ✅ 飞书 Bot 事件回调（指令解析 + 命令执行 + 事件订阅）
 - ✅ GitHub AI 热点采集（5 方向 topic 搜索 + 趋势仓库 + 飞书卡片推送）
-- ✅ 测试：58 个测试文件，574 个测试用例（unit 448 + integration 38 + e2e 88）
+- ✅ 测试：59 个测试文件，554 个测试用例（unit 462 + integration 38 + e2e 88 + gateway 14）
 - ✅ 飞书智能体（V3.1.1+）：ReAct 循环 + 多轮记忆 + 主动推送 + 富文本卡片
 - ✅ 飞书 WebSocket 长连接（V3.1.2+）：`lark-oapi` SDK 替代 HTTP Webhook，无需公网 URL
 
@@ -125,7 +126,7 @@ graph TD
     Engine --> Storage["spide/storage/<br/>持久化"]
     Engine --> Analysis["spide/analysis/<br/>AI 分析"]
     Engine --> Dashboard["spide/dashboard/<br/>HTML 看板"]
-    Engine --> Gateway["spide/gateway/<br/>网关（预留）"]
+    Engine --> Gateway["spide/gateway/<br/>独立 HTTP/WS 网关"]
 
     Storage --> SQLite["sqlite_repo.py<br/>SQLite"]
     Storage --> Redis["redis_cache.py<br/>Redis"]
@@ -240,8 +241,9 @@ Spide_agent/
 │   │   ├── collector.py            # 数据聚合
 │   │   ├── template.py             # HTML 模板
 │   │   └── renderer.py             # 渲染 + 输出
-│   └── gateway/                    # 网关（预留）
-│       └── __init__.py
+│   └── gateway/                    # 独立 HTTP/WS 网关
+│       ├── __init__.py
+│       └── server.py                # 3 端点 + ConnectionManager (~210 行)
 ├── tests/                          # 测试 (58 文件)
 │   ├── conftest.py
 │   ├── unit/                       # 单元测试 (42 个)
@@ -297,7 +299,7 @@ Spide_agent/
 | `spide/storage/` | 6 | SQLite/Redis/导出/模型 | [CLAUDE.md](./spide/storage/CLAUDE.md) |
 | `spide/analysis/` | 5 | AI 分析（摘要/趋势/词云/聚类/相似度） | [CLAUDE.md](./spide/analysis/CLAUDE.md) |
 | `spide/dashboard/` | 4 | HTML 数据看板 | [CLAUDE.md](./spide/dashboard/CLAUDE.md) |
-| `spide/gateway/` | 1 | 网关（预留 — HTTP/WebSocket API 网关） | [CLAUDE.md](./spide/gateway/CLAUDE.md) |
+| `spide/gateway/` | 2 | 独立 HTTP/WS 网关（3 端点 + 14 测试） | [CLAUDE.md](./spide/gateway/CLAUDE.md) |
 | `dashboard/` (Web) | 12 | FastAPI Dashboard + 飞书智能体（ReAct+WS+Scheduler+卡片）+ GitHub 热点 | [CLAUDE.md](./dashboard/CLAUDE.md) |
 | `tests/` | 58 | 测试（单元/集成/E2E） | [CLAUDE.md](./tests/CLAUDE.md) |
 | **总计** | **122** | 源码 64 + 测试 58 | |
