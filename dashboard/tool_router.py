@@ -37,16 +37,17 @@ async def _tool_crawl_hot_topics(args: dict[str, Any]) -> dict[str, Any]:
         from spide.spider.uapi_client import UAPIClient
 
         settings = load_settings()
-        client = UAPIClient(settings=settings)
-        items = await client.fetch_hotboard(source=source)
+        client = UAPIClient(settings.uapi)
+        items = await client.fetch_hotboard(source)
         items = items[:20]
 
         if save:
-            from spide.storage.sqlite_repo import SQLiteRepo
+            from spide.storage.models import HotTopic
+            from spide.storage.sqlite_repo import SqliteRepository
 
-            repo = SQLiteRepo(settings.storage.sqlite_path)
-            await repo.init()
-            await repo.save_topics(items)
+            repo = SqliteRepository(HotTopic, db_path=settings.storage.sqlite_path)
+            await repo.start()
+            await repo.save_many(items, dedup_fields=["title", "source"])
 
         return {
             "status": "ok",
@@ -79,8 +80,8 @@ async def _tool_web_search(args: dict[str, Any]) -> dict[str, Any]:
         from spide.llm import LLMClient
 
         settings = load_settings()
-        client = LLMClient(settings=settings)
-        results = await client.web_search(query=query, engine=engine, count=count)
+        client = LLMClient(settings.llm)
+        results = await client.web_search(query=query, search_engine=engine, count=count)
         return {"status": "ok", "query": query, "results": results}
     except Exception as exc:
         logger.warning("web_search_failed", error=str(exc))
@@ -127,7 +128,7 @@ async def _tool_fetch_web_page(args: dict[str, Any]) -> dict[str, Any]:
 
         provider = WebContentProvider()
         page = await provider.fetch_page(url, max_length=5000)
-        result = {
+        result: dict[str, Any] = {
             "status": "ok",
             "url": page.url,
             "title": page.title,
@@ -174,16 +175,16 @@ async def _tool_manage_memory(args: dict[str, Any]) -> dict[str, Any]:
         from spide import memory
 
         if action == "list":
-            items = memory.list_memories()
-            return {"status": "ok", "memories": items}
+            items = memory.list_memory_files()
+            return {"status": "ok", "memories": [str(p) for p in items]}
         if action == "get":
-            data = memory.get_memory(title)
+            data = memory.get_memory_content(name=title)
             return {"status": "ok", "memory": data}
         if action == "add":
             memory.add_memory(title=title, content=content)
             return {"status": "ok", "message": f"已添加: {title}"}
         if action == "remove":
-            memory.remove_memory(title)
+            memory.remove_memory(name=title)
             return {"status": "ok", "message": f"已删除: {title}"}
         return {"status": "error", "message": f"未知 action: {action}"}
     except Exception as exc:
