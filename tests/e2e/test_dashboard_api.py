@@ -117,6 +117,25 @@ class TestDashboardAPI:
         for i in range(len(topics) - 1):
             assert topics[i]["hot_value"] >= topics[i + 1]["hot_value"]
 
+    def test_set_webhook_pydantic_422(self, api_client):
+        """Pydantic 校验：缺 url 字段返回 422 而非 500."""
+        resp = api_client.post("/api/github/webhook", json={})
+        assert resp.status_code == 422, f"缺字段应返回 422，实际 {resp.status_code}"
+        # 验证响应包含字段路径
+        body = resp.json()
+        assert "detail" in body
+        assert any("url" in str(err) for err in body["detail"])
+
+    def test_feishu_agent_chat_pydantic_422(self, api_client):
+        """Pydantic 校验：缺 user_id/message 返回 422 而非 500."""
+        resp = api_client.post("/api/feishu/agent", json={"chat_id": "oc_123"})
+        assert resp.status_code == 422, f"缺字段应返回 422，实际 {resp.status_code}"
+        body = resp.json()
+        assert "detail" in body
+        # 验证提示缺 user_id 和 message
+        detail_str = str(body["detail"])
+        assert "user_id" in detail_str and "message" in detail_str
+
 
 @pytest.mark.e2e
 class TestAgentDiscovery:
