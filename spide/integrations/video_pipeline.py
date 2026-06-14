@@ -96,11 +96,20 @@ async def process_urls(
 
     logger.info("video_pipeline_start", user_id=user_id, url_count=len(urls))
 
-    settings = load_settings()
+    # 一次性加载配置（避免 per-URL 重复 IO）
+    thoth_config = _load_thoth_config()
+    if not thoth_config.token:
+        logger.warning(
+            "video_pipeline_thoth_token_missing_global", url_count=len(urls)
+        )
+        return 0
+
     saved = 0
     for url in urls:
         try:
-            ok = await _process_single_url(url, user_id, settings.thoth.default_room_id)
+            ok = await _process_single_url(
+                url, user_id, thoth_config, thoth_config.default_room_id
+            )
             if ok:
                 saved += 1
         except Exception as e:
@@ -114,7 +123,7 @@ async def process_urls(
 
 
 async def _process_single_url(
-    url: str, user_id: str, room_id: str
+    url: str, user_id: str, thoth_config: ThothConfig, room_id: str
 ) -> bool:
     """处理单个 URL：抓元数据 → LLM 摘要 → 存 Thoth.
 
@@ -141,12 +150,7 @@ async def _process_single_url(
     # 3. 拼 Markdown 内容
     content = _build_markdown(title, summary, meta)
 
-    # 4. 存 Thoth
-    thoth_config = _load_thoth_config()
-    if not thoth_config.token:
-        logger.warning("video_pipeline_thoth_token_missing", url=url)
-        return False
-
+    # 4. 存 Thoth（复用 caller 传入的 config）
     client = ThothClient(thoth_config)
     await client.start()
     try:
