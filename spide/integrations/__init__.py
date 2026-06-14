@@ -9,6 +9,11 @@ from spide.exceptions import (
     ThothServerError,
 )
 from spide.integrations.thoth_client import ThothClient
+from spide.integrations.url_metadata import fetch as fetch_url_metadata
+from spide.integrations.video_pipeline import (
+    extract_urls,
+    process_urls,
+)
 
 __all__ = [
     "ThothAuthError",
@@ -16,4 +21,7 @@ __all__ = [
     "ThothError",
     "ThothNotFoundError",
     "ThothServerError",
+    "extract_urls",
+    "fetch_url_metadata",
+    "process_urls",
 ]
