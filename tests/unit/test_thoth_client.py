@@ -268,9 +268,11 @@ class TestRequestRetry:
     async def test_network_error_retries_3_times(self) -> None:
         """网络错误应重试 3 次."""
         client = ThothClient(ThothConfig())
-        with patch.object(
-            client, "_ensure_session"
-        ) as mock_ensure:
+        with (
+            patch.object(client, "_ensure_session") as mock_ensure,
+            # 跳过真实 sleep（避免 0.5+1+2=3.5s 等待）
+            patch("spide.integrations.thoth_client.asyncio.sleep", new=AsyncMock()),
+        ):
             mock_session = MagicMock()
             mock_session.request.side_effect = aiohttp.ClientError("net error")
             mock_ensure.return_value = mock_session
@@ -282,9 +284,11 @@ class TestRequestRetry:
     async def test_5xx_retries_then_raises(self) -> None:
         """5xx 错误应重试 + 最终抛 ThothServerError."""
         client = ThothClient(ThothConfig())
-        with patch.object(
-            client, "_ensure_session"
-        ) as mock_ensure:
+        with (
+            patch.object(client, "_ensure_session") as mock_ensure,
+            # 跳过真实 sleep（避免 0.5+1+2=3.5s 等待）
+            patch("spide.integrations.thoth_client.asyncio.sleep", new=AsyncMock()),
+        ):
             mock_resp = _make_response(500, reason="Internal Server Error")
             mock_session = MagicMock()
             mock_session.request.return_value = mock_resp
