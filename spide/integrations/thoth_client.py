@@ -63,16 +63,16 @@ class ThothClient:
         self._session: aiohttp.ClientSession | None = None
 
     async def start(self) -> None:
-        """初始化 HTTP session."""
-        if self._session is None:
+        """初始化 HTTP session（幂等 — 重复调用安全）."""
+        if self._session is None or self._session.closed:
             timeout = aiohttp.ClientTimeout(total=self._config.timeout)
             self._session = aiohttp.ClientSession(timeout=timeout)
 
     async def stop(self) -> None:
-        """关闭 HTTP session."""
-        if self._session is not None:
+        """关闭 HTTP session（幂等 — 重复调用安全）."""
+        if self._session is not None and not self._session.closed:
             await self._session.close()
-            self._session = None
+        self._session = None
 
     async def _ensure_session(self) -> aiohttp.ClientSession:
         if self._session is None:
@@ -112,6 +112,13 @@ class ThothClient:
                     if resp.status >= 500:
                         last_exc = ThothServerError(
                             f"Thoth {resp.status}", status_code=resp.status
+                        )
+                        logger.warning(
+                            "thoth_5xx",
+                            method=method,
+                            path=path,
+                            status=resp.status,
+                            attempt=attempt + 1,
                         )
                         if attempt < max_retries - 1:
                             await asyncio.sleep(0.5 * (2**attempt))

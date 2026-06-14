@@ -72,6 +72,25 @@ class TestThothClientInit:
         client = ThothClient(ThothConfig())
         assert client._session is None
 
+    @pytest.mark.asyncio
+    async def test_start_is_idempotent(self) -> None:
+        """start() 重复调用应幂等（不抛异常）."""
+        client = ThothClient(ThothConfig())
+        await client.start()
+        first_session = client._session
+        await client.start()  # 再次调用
+        assert client._session is first_session  # 同一实例
+        await client.stop()
+
+    @pytest.mark.asyncio
+    async def test_stop_is_idempotent(self) -> None:
+        """stop() 重复调用应幂等（不抛异常）."""
+        client = ThothClient(ThothConfig())
+        await client.start()
+        await client.stop()
+        await client.stop()  # 重复调用应安全
+        assert client._session is None
+
 
 class TestThothClientHeaders:
     """请求头构造."""
