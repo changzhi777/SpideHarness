@@ -41,3 +41,32 @@ class WorkspaceError(SpideError):
 
 class AnalysisError(SpideError):
     """AI 分析模块错误."""
+
+
+# ── Thoth 知识库集成异常 ──────────────────────────────────────────
+
+
+class ThothError(SpideError):
+    """Thoth 知识库错误基类."""
+
+    def __init__(
+        self,
+        message: str = "",
+        *,
+        status_code: int | None = None,
+        detail: str = "",
+    ) -> None:
+        super().__init__(message, detail=detail)
+        self.status_code = status_code
+
+
+class ThothAuthError(ThothError):
+    """Thoth 认证失败 (401/403) — token 缺失/过期/无效."""
+
+
+class ThothNotFoundError(ThothError):
+    """Thoth 资源不存在 (404)."""
+
+
+class ThothServerError(ThothError):
+    """Thoth 服务端错误 (5xx) — 通常可重试."""

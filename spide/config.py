@@ -151,6 +151,20 @@ class AlertConfig(BaseModel):
     notification: AlertNotificationConfig = AlertNotificationConfig()
 
 
+class ThothConfig(BaseModel):
+    """Thoth 知识库配置 (10.10.10.15:8765).
+
+    Note:
+        当前 Thoth PG sslmode 限制未解，register/login 暂不可用。
+        token 需从 Thoth Web UI 手动获取后填入 configs/thoth.yaml。
+    """
+
+    base_url: str = "http://10.10.10.15:8765"
+    token: str = ""
+    default_room_id: str = "room_video_2026"
+    timeout: float = 30.0
+
+
 class Settings(BaseModel):
     """全局配置根模型."""
 
@@ -159,6 +173,7 @@ class Settings(BaseModel):
     uapi: UAPIConfig = UAPIConfig()
     storage: StorageConfig = StorageConfig()
     alert: AlertConfig = AlertConfig()
+    thoth: ThothConfig = ThothConfig()
 
 
 # ---------------------------------------------------------------------------
